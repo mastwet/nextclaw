@@ -1,5 +1,13 @@
 # nextclaw
 
+## 0.8.9
+
+### Patch Changes
+
+- UI: add confirm dialog flow for destructive actions; Server: allow marketplace manage to resolve plugin id from spec fallback.
+- Updated dependencies
+  - @nextclaw/server@0.5.4
+
 ## 0.8.8
 
 ### Patch Changes
