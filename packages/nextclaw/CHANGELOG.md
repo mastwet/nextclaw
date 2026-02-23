@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.8.7
+
+### Patch Changes
+
+- Limit config reload watcher to the config file to avoid exhausting file watchers.
+
 ## 0.8.6
 
 ### Patch Changes

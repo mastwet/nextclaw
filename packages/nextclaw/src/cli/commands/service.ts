@@ -332,7 +332,7 @@ export class ServiceCommands {
     console.log("✓ Heartbeat: every 30m");
 
     const configPath = resolve(getConfigPath());
-    const watcher = chokidar.watch(dirname(configPath), {
+    const watcher = chokidar.watch(configPath, {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 }
     });
