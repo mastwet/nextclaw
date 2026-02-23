@@ -1,11 +1,39 @@
-# Marketplace Worker Manual Deploy
+# Marketplace Worker Deploy & Sync
 
 适用范围：`workers/marketplace-api` 只读 API 服务。
 
 ## 部署原则
 
-- 禁止通过 GitHub Actions 自动部署 Worker。
-- 仅允许本地手动部署（由交付 owner 或当前执行助手触发）。
+- `workers/marketplace-api/data/catalog.json` 作为 GitHub 单一数据源（source of truth）。
+- 默认通过 GitHub Actions 自动同步到线上 Worker。
+- 手动部署作为兜底流程（Actions 异常或紧急修复时使用）。
+
+## GitHub Actions 自动同步
+
+workflow：`.github/workflows/marketplace-catalog-sync.yml`
+
+触发条件：
+
+- `master/main` 分支 push 且涉及：
+  - `workers/marketplace-api/data/catalog.json`
+  - `workers/marketplace-api/src/**`
+  - `workers/marketplace-api/wrangler.toml`
+  - `workers/marketplace-api/package.json`
+  - `workers/marketplace-api/scripts/**`
+
+执行内容：
+
+1. `validate:catalog`
+2. `build`
+3. `lint`
+4. `tsc`
+5. `wrangler deploy`
+6. 线上 smoke check
+
+必需 Secrets：
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
 
 ## 部署前检查
 

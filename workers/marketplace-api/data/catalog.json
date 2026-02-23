@@ -1,6 +1,6 @@
 {
   "version": "2026.02.23",
-  "generatedAt": "2026-02-23T16:30:00.000Z",
+  "generatedAt": "2026-02-23T22:40:00.000Z",
   "items": [
     {
       "id": "plugin-channel-discord",
@@ -117,6 +117,24 @@
       "updatedAt": "2026-02-17T11:55:00.000Z"
     },
     {
+      "id": "plugin-channel-clawbay",
+      "slug": "channel-plugin-clawbay",
+      "type": "plugin",
+      "name": "Clawbay Channel Plugin",
+      "summary": "Official Clawbay channel plugin for NextClaw integration.",
+      "description": "Provides Clawbay channel capabilities in NextClaw via plugin runtime.",
+      "tags": ["plugin", "clawbay", "channel"],
+      "author": "Clawbay",
+      "homepage": "https://www.npmjs.com/package/@clawbay/clawbay-channel",
+      "install": {
+        "kind": "npm",
+        "spec": "@clawbay/clawbay-channel",
+        "command": "nextclaw plugins install @clawbay/clawbay-channel"
+      },
+      "publishedAt": "2025-07-01T10:00:00.000Z",
+      "updatedAt": "2026-02-23T22:40:00.000Z"
+    },
+    {
       "id": "skill-weather",
       "slug": "weather",
       "type": "skill",
@@ -231,6 +249,7 @@
       "itemIds": [
         "plugin-channel-discord",
         "plugin-channel-slack",
+        "plugin-channel-clawbay",
         "plugin-channel-whatsapp",
         "plugin-channel-wecom"
       ]

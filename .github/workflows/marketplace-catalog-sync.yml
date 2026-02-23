@@ -1,0 +1,97 @@
+name: Marketplace Catalog Sync
+
+on:
+  pull_request:
+    paths:
+      - "workers/marketplace-api/data/catalog.json"
+      - "workers/marketplace-api/src/**"
+      - "workers/marketplace-api/wrangler.toml"
+      - "workers/marketplace-api/package.json"
+      - "workers/marketplace-api/scripts/**"
+      - ".github/workflows/marketplace-catalog-sync.yml"
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - "workers/marketplace-api/data/catalog.json"
+      - "workers/marketplace-api/src/**"
+      - "workers/marketplace-api/wrangler.toml"
+      - "workers/marketplace-api/package.json"
+      - "workers/marketplace-api/scripts/**"
+      - ".github/workflows/marketplace-catalog-sync.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-catalog-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate catalog schema
+        run: pnpm -C workers/marketplace-api validate:catalog
+
+      - name: Build
+        run: pnpm -C workers/marketplace-api build
+
+      - name: Lint
+        run: pnpm -C workers/marketplace-api lint
+
+      - name: Typecheck
+        run: pnpm -C workers/marketplace-api tsc
+
+  sync:
+    needs: validate
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy marketplace worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm -C workers/marketplace-api deploy
+
+      - name: Smoke check
+        run: |
+          curl -fsS https://marketplace-api.nextclaw.io/health
+          curl -fsS 'https://marketplace-api.nextclaw.io/api/v1/items?page=1&pageSize=5' > /dev/null

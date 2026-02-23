@@ -43,13 +43,14 @@ type UiRouterOptions = {
 const DEFAULT_MARKETPLACE_API_BASE = "https://marketplace-api.nextclaw.io";
 
 const NEXTCLAW_PLUGIN_NPM_PREFIX = "@nextclaw/channel-plugin-";
+const CLAWBAY_CHANNEL_PLUGIN_NPM_SPEC = "@clawbay/clawbay-channel";
 const BUILTIN_CHANNEL_PLUGIN_ID_PREFIX = "builtin-channel-";
 const MARKETPLACE_REMOTE_PAGE_SIZE = 100;
 const MARKETPLACE_REMOTE_MAX_PAGES = 20;
 
-function normalizeChannelPluginNpmSpec(rawSpec: string): string {
+function normalizePluginNpmSpec(rawSpec: string): string {
   const spec = rawSpec.trim();
-  if (!spec.startsWith(NEXTCLAW_PLUGIN_NPM_PREFIX)) {
+  if (!spec.startsWith("@")) {
     return spec;
   }
 
@@ -59,7 +60,16 @@ function normalizeChannelPluginNpmSpec(rawSpec: string): string {
   }
 
   const packageName = spec.slice(0, versionDelimiterIndex).trim();
-  return packageName.startsWith(NEXTCLAW_PLUGIN_NPM_PREFIX) ? packageName : spec;
+  if (!packageName.includes("/")) {
+    return spec;
+  }
+
+  return packageName;
+}
+
+function isSupportedMarketplacePluginSpec(rawSpec: string): boolean {
+  const spec = normalizePluginNpmSpec(rawSpec);
+  return spec.startsWith(NEXTCLAW_PLUGIN_NPM_PREFIX) || spec === CLAWBAY_CHANNEL_PLUGIN_NPM_SPEC;
 }
 
 function resolvePluginCanonicalSpec(params: {
@@ -68,7 +78,7 @@ function resolvePluginCanonicalSpec(params: {
 }): string {
   const rawInstallSpec = typeof params.installSpec === "string" ? params.installSpec.trim() : "";
   if (rawInstallSpec.length > 0) {
-    return normalizeChannelPluginNpmSpec(rawInstallSpec);
+    return normalizePluginNpmSpec(rawInstallSpec);
   }
 
   if (params.pluginId.startsWith(BUILTIN_CHANNEL_PLUGIN_ID_PREFIX)) {
@@ -134,7 +144,7 @@ function dedupeInstalledPluginRecordsByCanonicalSpec(records: MarketplaceInstall
   const deduped = new Map<string, MarketplaceInstalledRecord>();
 
   for (const record of records) {
-    const canonicalSpec = normalizeChannelPluginNpmSpec(record.spec).trim();
+    const canonicalSpec = normalizePluginNpmSpec(record.spec).trim();
     if (!canonicalSpec) {
       continue;
     }
@@ -458,7 +468,7 @@ function isSupportedMarketplaceItem(
   knownSkillNames: Set<string>
 ): boolean {
   if (item.type === "plugin") {
-    return item.install.kind === "npm" && item.install.spec.startsWith(NEXTCLAW_PLUGIN_NPM_PREFIX);
+    return item.install.kind === "npm" && isSupportedMarketplacePluginSpec(item.install.spec);
   }
 
   return item.install.kind === "builtin" && knownSkillNames.has(item.install.spec);
