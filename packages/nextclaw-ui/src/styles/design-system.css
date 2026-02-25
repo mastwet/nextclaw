@@ -37,10 +37,10 @@
       /* ========================================
        SEMANTIC COLORS
        ======================================== */
-      /* Background */
-      --background: 210 20% 98%;
-      --background-secondary: 214 18% 96%;
-      --background-tertiary: 213 14% 90%;
+      /* Background - matches sidebar #f0f2f7 */
+      --background: 223 37% 96%;
+      --background-secondary: 223 20% 93%;
+      --background-tertiary: 223 15% 89%;
 
       /* Foreground (Text) */
       --foreground: 221 39% 11%;
@@ -144,8 +144,8 @@
       --shadow-2xl: 0 25px 50px -12px rgb(30 20 10 / 0.15);
 
       /* Card Shadow */
-      --shadow-card: 0 1px 3px -1px rgba(30, 20, 10, 0.03), 0 1px 2px -1px rgba(30, 20, 10, 0.02);
-      --shadow-card-hover: 0 8px 20px -4px rgba(30, 20, 10, 0.06), 0 4px 8px -4px rgba(30, 20, 10, 0.03);
+      --shadow-card: 0 0 8px 0 rgba(0, 0, 0, 0.04);
+      --shadow-card-hover: 0 0 16px 0 rgba(0, 0, 0, 0.06);
 
       /* ========================================
        TYPOGRAPHY

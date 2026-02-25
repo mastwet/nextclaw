@@ -16,9 +16,9 @@ export function ConfigCard({ children, onClick, className }: ConfigCardProps) {
         <div
             onClick={onClick}
             className={cn(
-                'group relative flex flex-col p-6 rounded-2xl border border-gray-200/50 bg-white shadow-sm',
+                'group relative flex flex-col p-6 rounded-2xl border border-gray-200/50 bg-white shadow-card',
                 'transition-all duration-base cursor-pointer',
-                'hover:shadow-md hover:border-gray-200',
+                'hover:shadow-card-hover hover:border-gray-200',
                 className
             )}
         >

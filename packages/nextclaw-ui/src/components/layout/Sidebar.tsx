@@ -58,7 +58,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-[240px] bg-[#f0f2f7] flex flex-col h-full py-6 px-4">
+    <aside className="w-[240px] shrink-0 flex flex-col h-full py-6 px-4 bg-[#e9ecf3]">
       {/* Logo Area */}
       <div className="px-2 mb-8">
         <div className="flex items-center gap-2.5 cursor-pointer">
