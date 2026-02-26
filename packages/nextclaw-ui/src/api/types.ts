@@ -355,9 +355,9 @@ export type MarketplaceInstalledRecord = {
 };
 
 export type MarketplaceInstalledView = {
+  type: MarketplaceItemType;
   total: number;
-  pluginSpecs: string[];
-  skillSpecs: string[];
+  specs: string[];
   records: MarketplaceInstalledRecord[];
 };
 

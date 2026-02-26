@@ -31,16 +31,16 @@ export function useMarketplaceRecommendations(params: { scene?: string; limit?: 
 export function useMarketplaceItem(slug: string | null, type?: MarketplaceItemType) {
   return useQuery({
     queryKey: ['marketplace-item', slug, type],
-    queryFn: () => fetchMarketplaceItem(slug as string, type),
-    enabled: Boolean(slug),
+    queryFn: () => fetchMarketplaceItem(slug as string, type as MarketplaceItemType),
+    enabled: Boolean(slug && type),
     staleTime: 30_000
   });
 }
 
-export function useMarketplaceInstalled() {
+export function useMarketplaceInstalled(type: MarketplaceItemType) {
   return useQuery({
-    queryKey: ['marketplace-installed'],
-    queryFn: fetchMarketplaceInstalled,
+    queryKey: ['marketplace-installed', type],
+    queryFn: () => fetchMarketplaceInstalled(type),
     staleTime: 10_000
   });
 }
@@ -51,8 +51,8 @@ export function useInstallMarketplaceItem() {
   return useMutation({
     mutationFn: (request: MarketplaceInstallRequest) => installMarketplaceItem(request),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['marketplace-installed'] });
-      queryClient.refetchQueries({ queryKey: ['marketplace-installed'], type: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-installed', result.type] });
+      queryClient.refetchQueries({ queryKey: ['marketplace-installed', result.type], type: 'active' });
       queryClient.refetchQueries({ queryKey: ['marketplace-items'], type: 'active' });
       toast.success(result.message || `${result.type} ${t('marketplaceInstalledCountSuffix')}`);
     },
@@ -68,9 +68,9 @@ export function useManageMarketplaceItem() {
   return useMutation({
     mutationFn: (request: MarketplaceManageRequest) => manageMarketplaceItem(request),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['marketplace-installed'] });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-installed', result.type] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-items'] });
-      queryClient.refetchQueries({ queryKey: ['marketplace-installed'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['marketplace-installed', result.type], type: 'active' });
       queryClient.refetchQueries({ queryKey: ['marketplace-items'], type: 'active' });
       toast.success(result.message || `${result.action} success`);
     },

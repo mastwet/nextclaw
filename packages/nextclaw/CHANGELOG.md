@@ -1,5 +1,13 @@
 # nextclaw
 
+## 0.8.24
+
+### Patch Changes
+
+- split marketplace data and routes by type, separating plugins and skills endpoints end-to-end
+- Updated dependencies
+  - @nextclaw/server@0.5.11
+
 ## 0.8.23
 
 ### Patch Changes

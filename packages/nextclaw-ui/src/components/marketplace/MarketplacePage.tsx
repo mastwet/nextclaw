@@ -387,7 +387,7 @@ export function MarketplacePage() {
     setPage(1);
   }, [typeFilter]);
 
-  const installedQuery = useMarketplaceInstalled();
+  const installedQuery = useMarketplaceInstalled(typeFilter);
 
   const itemsQuery = useMarketplaceItems({
     q: query || undefined,

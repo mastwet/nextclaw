@@ -25,6 +25,7 @@ import type {
   MarketplaceInstallResult,
   MarketplaceManageRequest,
   MarketplaceManageResult,
+  MarketplaceItemType,
   MarketplaceItemView,
   MarketplaceListView,
   MarketplaceRecommendationView,
@@ -364,7 +365,10 @@ async function fetchMarketplaceData<T>(params: {
   }
 }
 
-function collectMarketplaceInstalledView(options: UiRouterOptions): MarketplaceInstalledView {
+function collectInstalledPluginRecords(options: UiRouterOptions): {
+  records: MarketplaceInstalledRecord[];
+  specs: string[];
+} {
   const config = loadConfigOrDefault(options.configPath);
   const pluginRecordsMap = config.plugins.installs ?? {};
   const pluginEntries = config.plugins.entries ?? {};
@@ -492,39 +496,57 @@ function collectMarketplaceInstalledView(options: UiRouterOptions): MarketplaceI
   }
 
   const dedupedPluginRecords = dedupeInstalledPluginRecordsByCanonicalSpec(pluginRecords);
-  const pluginSpecSet = new Set(dedupedPluginRecords.map((record) => record.spec));
-
-  const workspacePath = getWorkspacePathFromConfig(config);
-  const skillsLoader = createSkillsLoader(workspacePath);
-  const availableSkillSet = new Set((skillsLoader?.listSkills(true) ?? []).map((skill) => skill.name));
-  const listedSkills = skillsLoader?.listSkills(false) ?? [];
-  const skillSpecSet = new Set<string>();
-  const skillRecords: MarketplaceInstalledRecord[] = listedSkills.map((skill) => {
-    const enabled = availableSkillSet.has(skill.name);
-    skillSpecSet.add(skill.name);
-    return {
-      type: "skill",
-      id: skill.name,
-      spec: skill.name,
-      label: skill.name,
-      source: skill.source,
-      enabled,
-      runtimeStatus: enabled ? "enabled" : "disabled"
-    };
-  });
-
-  const records: MarketplaceInstalledRecord[] = [...dedupedPluginRecords, ...skillRecords].sort((left, right) => {
-    if (left.type !== right.type) {
-      return left.type.localeCompare(right.type);
-    }
+  dedupedPluginRecords.sort((left, right) => {
     return left.spec.localeCompare(right.spec);
   });
 
   return {
-    total: records.length,
-    pluginSpecs: Array.from(pluginSpecSet).sort((left, right) => left.localeCompare(right)),
-    skillSpecs: Array.from(skillSpecSet).sort((left, right) => left.localeCompare(right)),
+    specs: dedupedPluginRecords.map((record) => record.spec),
+    records: dedupedPluginRecords
+  };
+}
+
+function collectInstalledSkillRecords(options: UiRouterOptions): {
+  records: MarketplaceInstalledRecord[];
+  specs: string[];
+} {
+  const config = loadConfigOrDefault(options.configPath);
+  const workspacePath = getWorkspacePathFromConfig(config);
+  const skillsLoader = createSkillsLoader(workspacePath);
+  const availableSkillSet = new Set((skillsLoader?.listSkills(true) ?? []).map((skill) => skill.name));
+  const listedSkills = skillsLoader?.listSkills(false) ?? [];
+
+  const records = listedSkills
+    .map((skill) => {
+      const enabled = availableSkillSet.has(skill.name);
+      return {
+        type: "skill",
+        id: skill.name,
+        spec: skill.name,
+        label: skill.name,
+        source: skill.source,
+        enabled,
+        runtimeStatus: enabled ? "enabled" : "disabled"
+      } satisfies MarketplaceInstalledRecord;
+    })
+    .sort((left, right) => left.spec.localeCompare(right.spec));
+
+  return {
+    specs: records.map((record) => record.spec),
     records
+  };
+}
+
+function collectMarketplaceInstalledView(options: UiRouterOptions, type: MarketplaceItemType): MarketplaceInstalledView {
+  const installed = type === "plugin"
+    ? collectInstalledPluginRecords(options)
+    : collectInstalledSkillRecords(options);
+
+  return {
+    type,
+    total: installed.records.length,
+    specs: installed.specs,
+    records: installed.records
   };
 }
 
@@ -536,8 +558,7 @@ function resolvePluginManageTargetId(options: UiRouterOptions, rawTargetId: stri
 
   const normalizedTarget = targetId ? normalizePluginNpmSpec(targetId).toLowerCase() : "";
   const normalizedSpec = rawSpec ? normalizePluginNpmSpec(rawSpec).toLowerCase() : "";
-  const installed = collectMarketplaceInstalledView(options);
-  const pluginRecords = installed.records.filter((record) => record.type === "plugin");
+  const pluginRecords = collectInstalledPluginRecords(options).records;
   const lowerTargetId = targetId.toLowerCase();
 
   for (const record of pluginRecords) {
@@ -606,6 +627,7 @@ function isSupportedMarketplaceItem(
 
 async function fetchAllMarketplaceItems(params: {
   baseUrl: string;
+  type: MarketplaceItemType;
   query: Record<string, string | undefined>;
 }): Promise<
   | { ok: true; data: { sort: MarketplaceListView["sort"]; query?: string; items: MarketplaceListView["items"] } }
@@ -623,6 +645,7 @@ async function fetchAllMarketplaceItems(params: {
       path: "/api/v1/items",
       query: {
         ...params.query,
+        type: params.type,
         page: String(remotePage),
         pageSize: String(MARKETPLACE_REMOTE_PAGE_SIZE)
       }
@@ -759,72 +782,140 @@ async function manageMarketplaceItem(params: {
 }
 
 function registerMarketplaceRoutes(app: Hono, options: UiRouterOptions, marketplaceBaseUrl: string): void {
-  app.get("/api/marketplace/installed", (c) => {
-    return c.json(ok(collectMarketplaceInstalledView(options)));
-  });
+  const typedMarketplaceRoutes: ReadonlyArray<{ segment: "plugins" | "skills"; type: MarketplaceItemType }> = [
+    { segment: "plugins", type: "plugin" },
+    { segment: "skills", type: "skill" }
+  ];
 
-  app.get("/api/marketplace/items", async (c) => {
-    const query = c.req.query();
-    const result = await fetchAllMarketplaceItems({
-      baseUrl: marketplaceBaseUrl,
-      query: {
-        q: query.q,
-        type: query.type,
-        tag: query.tag,
-        sort: query.sort,
-        page: query.page,
-        pageSize: query.pageSize
+  for (const route of typedMarketplaceRoutes) {
+    app.get(`/api/marketplace/${route.segment}/installed`, (c) => {
+      return c.json(ok(collectMarketplaceInstalledView(options, route.type)));
+    });
+
+    app.get(`/api/marketplace/${route.segment}/items`, async (c) => {
+      const query = c.req.query();
+      const result = await fetchAllMarketplaceItems({
+        baseUrl: marketplaceBaseUrl,
+        type: route.type,
+        query: {
+          q: query.q,
+          tag: query.tag,
+          sort: query.sort,
+          page: query.page,
+          pageSize: query.pageSize
+        }
+      });
+
+      if (!result.ok) {
+        return c.json(err("MARKETPLACE_UNAVAILABLE", result.message), result.status as 500);
+      }
+
+      const knownSkillNames = collectKnownSkillNames(options);
+      const filteredItems = result.data.items
+        .map((item) => sanitizeMarketplaceItem(item))
+        .filter((item) => isSupportedMarketplaceItem(item, knownSkillNames));
+
+      const pageSize = Math.min(100, toPositiveInt(query.pageSize, 20));
+      const requestedPage = toPositiveInt(query.page, 1);
+      const totalPages = filteredItems.length === 0 ? 0 : Math.ceil(filteredItems.length / pageSize);
+      const currentPage = totalPages === 0 ? 1 : Math.min(requestedPage, totalPages);
+
+      return c.json(ok({
+        total: filteredItems.length,
+        page: currentPage,
+        pageSize,
+        totalPages,
+        sort: result.data.sort,
+        query: result.data.query,
+        items: filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+      }));
+    });
+
+    app.get(`/api/marketplace/${route.segment}/items/:slug`, async (c) => {
+      const slug = encodeURIComponent(c.req.param("slug"));
+      const result = await fetchMarketplaceData<MarketplaceItemView>({
+        baseUrl: marketplaceBaseUrl,
+        path: `/api/v1/items/${slug}`,
+        query: {
+          type: route.type
+        }
+      });
+
+      if (!result.ok) {
+        return c.json(err("MARKETPLACE_UNAVAILABLE", result.message), result.status as 500);
+      }
+
+      const knownSkillNames = collectKnownSkillNames(options);
+      const sanitized = sanitizeMarketplaceItem(result.data);
+      if (!isSupportedMarketplaceItem(sanitized, knownSkillNames)) {
+        return c.json(err("NOT_FOUND", "marketplace item not supported by nextclaw"), 404);
+      }
+
+      return c.json(ok(sanitized));
+    });
+
+    app.post(`/api/marketplace/${route.segment}/install`, async (c) => {
+      const body = await readJson<MarketplaceInstallRequest>(c.req.raw);
+      if (!body.ok || !body.data || typeof body.data !== "object") {
+        return c.json(err("INVALID_BODY", "invalid json body"), 400);
+      }
+
+      if (body.data.type && body.data.type !== route.type) {
+        return c.json(err("INVALID_BODY", "body.type does not match route type"), 400);
+      }
+
+      try {
+        const payload = await installMarketplaceItem({
+          options,
+          body: {
+            ...body.data,
+            type: route.type
+          }
+        });
+        return c.json(ok(payload));
+      } catch (error) {
+        const message = String(error);
+        if (message.startsWith("INVALID_BODY:")) {
+          return c.json(err("INVALID_BODY", message.slice("INVALID_BODY:".length)), 400);
+        }
+        if (message.startsWith("NOT_AVAILABLE:")) {
+          return c.json(err("NOT_AVAILABLE", message.slice("NOT_AVAILABLE:".length)), 503);
+        }
+        return c.json(err("INSTALL_FAILED", message), 400);
       }
     });
 
-    if (!result.ok) {
-      return c.json(err("MARKETPLACE_UNAVAILABLE", result.message), result.status as 500);
-    }
+    app.post(`/api/marketplace/${route.segment}/manage`, async (c) => {
+      const body = await readJson<MarketplaceManageRequest>(c.req.raw);
+      if (!body.ok || !body.data || typeof body.data !== "object") {
+        return c.json(err("INVALID_BODY", "invalid json body"), 400);
+      }
 
-    const knownSkillNames = collectKnownSkillNames(options);
-    const filteredItems = result.data.items
-      .map((item) => sanitizeMarketplaceItem(item))
-      .filter((item) => isSupportedMarketplaceItem(item, knownSkillNames));
+      if (body.data.type && body.data.type !== route.type) {
+        return c.json(err("INVALID_BODY", "body.type does not match route type"), 400);
+      }
 
-    const pageSize = Math.min(100, toPositiveInt(query.pageSize, 20));
-    const requestedPage = toPositiveInt(query.page, 1);
-    const totalPages = filteredItems.length === 0 ? 0 : Math.ceil(filteredItems.length / pageSize);
-    const currentPage = totalPages === 0 ? 1 : Math.min(requestedPage, totalPages);
-
-    return c.json(ok({
-      total: filteredItems.length,
-      page: currentPage,
-      pageSize,
-      totalPages,
-      sort: result.data.sort,
-      query: result.data.query,
-      items: filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-    }));
-  });
-
-  app.get("/api/marketplace/items/:slug", async (c) => {
-    const slug = encodeURIComponent(c.req.param("slug"));
-    const type = c.req.query("type");
-    const result = await fetchMarketplaceData<MarketplaceItemView>({
-      baseUrl: marketplaceBaseUrl,
-      path: `/api/v1/items/${slug}`,
-      query: {
-        type
+      try {
+        const payload = await manageMarketplaceItem({
+          options,
+          body: {
+            ...body.data,
+            type: route.type
+          }
+        });
+        return c.json(ok(payload));
+      } catch (error) {
+        const message = String(error);
+        if (message.startsWith("INVALID_BODY:")) {
+          return c.json(err("INVALID_BODY", message.slice("INVALID_BODY:".length)), 400);
+        }
+        if (message.startsWith("NOT_AVAILABLE:")) {
+          return c.json(err("NOT_AVAILABLE", message.slice("NOT_AVAILABLE:".length)), 503);
+        }
+        return c.json(err("MANAGE_FAILED", message), 400);
       }
     });
-
-    if (!result.ok) {
-      return c.json(err("MARKETPLACE_UNAVAILABLE", result.message), result.status as 500);
-    }
-
-    const knownSkillNames = collectKnownSkillNames(options);
-    const sanitized = sanitizeMarketplaceItem(result.data);
-    if (!isSupportedMarketplaceItem(sanitized, knownSkillNames)) {
-      return c.json(err("NOT_FOUND", "marketplace item not supported by nextclaw"), 404);
-    }
-
-    return c.json(ok(sanitized));
-  });
+  }
 
   app.get("/api/marketplace/recommendations", async (c) => {
     const query = c.req.query();
@@ -853,45 +944,6 @@ function registerMarketplaceRoutes(app: Hono, options: UiRouterOptions, marketpl
     }));
   });
 
-  app.post("/api/marketplace/install", async (c) => {
-    const body = await readJson<MarketplaceInstallRequest>(c.req.raw);
-    if (!body.ok || !body.data || typeof body.data !== "object") {
-      return c.json(err("INVALID_BODY", "invalid json body"), 400);
-    }
-    try {
-      const payload = await installMarketplaceItem({ options, body: body.data });
-      return c.json(ok(payload));
-    } catch (error) {
-      const message = String(error);
-      if (message.startsWith("INVALID_BODY:")) {
-        return c.json(err("INVALID_BODY", message.slice("INVALID_BODY:".length)), 400);
-      }
-      if (message.startsWith("NOT_AVAILABLE:")) {
-        return c.json(err("NOT_AVAILABLE", message.slice("NOT_AVAILABLE:".length)), 503);
-      }
-      return c.json(err("INSTALL_FAILED", message), 400);
-    }
-  });
-
-  app.post("/api/marketplace/manage", async (c) => {
-    const body = await readJson<MarketplaceManageRequest>(c.req.raw);
-    if (!body.ok || !body.data || typeof body.data !== "object") {
-      return c.json(err("INVALID_BODY", "invalid json body"), 400);
-    }
-    try {
-      const payload = await manageMarketplaceItem({ options, body: body.data });
-      return c.json(ok(payload));
-    } catch (error) {
-      const message = String(error);
-      if (message.startsWith("INVALID_BODY:")) {
-        return c.json(err("INVALID_BODY", message.slice("INVALID_BODY:".length)), 400);
-      }
-      if (message.startsWith("NOT_AVAILABLE:")) {
-        return c.json(err("NOT_AVAILABLE", message.slice("NOT_AVAILABLE:".length)), 503);
-      }
-      return c.json(err("MANAGE_FAILED", message), 400);
-    }
-  });
 }
 
 export function createUiRouter(options: UiRouterOptions): Hono {

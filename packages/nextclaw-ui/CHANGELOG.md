@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.5.15
+
+### Patch Changes
+
+- split marketplace data and routes by type, separating plugins and skills endpoints end-to-end
+
 ## 0.5.14
 
 ### Patch Changes

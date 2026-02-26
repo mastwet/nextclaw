@@ -52,7 +52,7 @@ describe("marketplace manage plugin id resolution", () => {
       }
     });
 
-    const response = await app.request("http://localhost/api/marketplace/manage", {
+    const response = await app.request("http://localhost/api/marketplace/plugins/manage", {
       method: "POST",
       headers: {
         "content-type": "application/json"
@@ -77,5 +77,48 @@ describe("marketplace manage plugin id resolution", () => {
     expect(payload.data.id).toBe("builtin-channel-discord");
     expect(disablePlugin).toHaveBeenCalledTimes(1);
     expect(disablePlugin).toHaveBeenCalledWith("builtin-channel-discord");
+  });
+
+  it("rejects body type mismatch for typed marketplace route", async () => {
+    const configPath = createTempConfigPath();
+    saveConfig(
+      ConfigSchema.parse({
+        plugins: {
+          entries: {}
+        }
+      }),
+      configPath
+    );
+
+    const app = createUiRouter({
+      configPath,
+      publish: () => {},
+      marketplace: {
+        installer: {}
+      }
+    });
+
+    const response = await app.request("http://localhost/api/marketplace/skills/manage", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        type: "plugin",
+        action: "disable",
+        id: "@nextclaw/channel-plugin-discord"
+      })
+    });
+
+    expect(response.status).toBe(400);
+    const payload = await response.json() as {
+      ok: boolean;
+      error: {
+        code: string;
+      };
+    };
+
+    expect(payload.ok).toBe(false);
+    expect(payload.error.code).toBe("INVALID_BODY");
   });
 });

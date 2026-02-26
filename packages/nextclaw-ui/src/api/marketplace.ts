@@ -13,22 +13,24 @@ import type {
 } from './types';
 
 export type MarketplaceListParams = {
+  type: MarketplaceItemType;
   q?: string;
-  type?: MarketplaceItemType;
   tag?: string;
   sort?: MarketplaceSort;
   page?: number;
   pageSize?: number;
 };
 
-export async function fetchMarketplaceItems(params: MarketplaceListParams = {}): Promise<MarketplaceListView> {
+function toMarketplaceTypeSegment(type: MarketplaceItemType): 'plugins' | 'skills' {
+  return type === 'plugin' ? 'plugins' : 'skills';
+}
+
+export async function fetchMarketplaceItems(params: MarketplaceListParams): Promise<MarketplaceListView> {
   const query = new URLSearchParams();
+  const segment = toMarketplaceTypeSegment(params.type);
 
   if (params.q?.trim()) {
     query.set('q', params.q.trim());
-  }
-  if (params.type) {
-    query.set('type', params.type);
   }
   if (params.tag?.trim()) {
     query.set('tag', params.tag.trim());
@@ -44,7 +46,9 @@ export async function fetchMarketplaceItems(params: MarketplaceListParams = {}):
   }
 
   const suffix = query.toString();
-  const response = await api.get<MarketplaceListView>(suffix ? `/api/marketplace/items?${suffix}` : '/api/marketplace/items');
+  const response = await api.get<MarketplaceListView>(
+    suffix ? `/api/marketplace/${segment}/items?${suffix}` : `/api/marketplace/${segment}/items`
+  );
   if (!response.ok) {
     throw new Error(response.error.message);
   }
@@ -52,17 +56,10 @@ export async function fetchMarketplaceItems(params: MarketplaceListParams = {}):
   return response.data;
 }
 
-export async function fetchMarketplaceItem(slug: string, type?: MarketplaceItemType): Promise<MarketplaceItemView> {
-  const query = new URLSearchParams();
-  if (type) {
-    query.set('type', type);
-  }
-
-  const suffix = query.toString();
+export async function fetchMarketplaceItem(slug: string, type: MarketplaceItemType): Promise<MarketplaceItemView> {
+  const segment = toMarketplaceTypeSegment(type);
   const response = await api.get<MarketplaceItemView>(
-    suffix
-      ? `/api/marketplace/items/${encodeURIComponent(slug)}?${suffix}`
-      : `/api/marketplace/items/${encodeURIComponent(slug)}`
+    `/api/marketplace/${segment}/items/${encodeURIComponent(slug)}`
   );
   if (!response.ok) {
     throw new Error(response.error.message);
@@ -95,7 +92,8 @@ export async function fetchMarketplaceRecommendations(params: {
 }
 
 export async function installMarketplaceItem(request: MarketplaceInstallRequest): Promise<MarketplaceInstallResult> {
-  const response = await api.post<MarketplaceInstallResult>('/api/marketplace/install', request);
+  const segment = toMarketplaceTypeSegment(request.type);
+  const response = await api.post<MarketplaceInstallResult>(`/api/marketplace/${segment}/install`, request);
   if (!response.ok) {
     throw new Error(response.error.message);
   }
@@ -103,8 +101,9 @@ export async function installMarketplaceItem(request: MarketplaceInstallRequest)
   return response.data;
 }
 
-export async function fetchMarketplaceInstalled(): Promise<MarketplaceInstalledView> {
-  const response = await api.get<MarketplaceInstalledView>('/api/marketplace/installed');
+export async function fetchMarketplaceInstalled(type: MarketplaceItemType): Promise<MarketplaceInstalledView> {
+  const segment = toMarketplaceTypeSegment(type);
+  const response = await api.get<MarketplaceInstalledView>(`/api/marketplace/${segment}/installed`);
   if (!response.ok) {
     throw new Error(response.error.message);
   }
@@ -112,7 +111,8 @@ export async function fetchMarketplaceInstalled(): Promise<MarketplaceInstalledV
 }
 
 export async function manageMarketplaceItem(request: MarketplaceManageRequest): Promise<MarketplaceManageResult> {
-  const response = await api.post<MarketplaceManageResult>('/api/marketplace/manage', request);
+  const segment = toMarketplaceTypeSegment(request.type);
+  const response = await api.post<MarketplaceManageResult>(`/api/marketplace/${segment}/manage`, request);
   if (!response.ok) {
     throw new Error(response.error.message);
   }
