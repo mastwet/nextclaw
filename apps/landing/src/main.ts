@@ -44,26 +44,15 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
               <div class="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
               <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
             </div>
-            <div class="text-xs text-[#a0938a] font-mono">bash</div>
+            <div class="text-xs text-[#a0938a] font-mono">nextclaw - bash</div>
             <button id="copy-btn" class="text-[#a0938a] hover:text-white transition-colors" title="Copy commands">
               <i data-lucide="copy" class="w-4 h-4"></i>
             </button>
           </div>
-          <div class="p-6 font-mono text-sm sm:text-base leading-relaxed">
+          <div id="terminal-content" class="p-6 font-mono text-sm sm:text-base leading-relaxed">
             <div class="flex items-center text-[#d4c8be]">
               <span class="text-[#e29e57] mr-3 font-bold">$</span>
-              <span>npm install -g nextclaw</span>
-            </div>
-            <div class="flex items-center text-[#d4c8be] mt-2">
-              <span class="text-[#e29e57] mr-3 font-bold">$</span>
-              <span>nextclaw start</span>
-            </div>
-            <div class="flex items-start text-[#8b7e75] mt-4 italic">
-              <span class="mr-3 font-bold">&gt;</span>
-              <span>
-                UI:  <span class="text-[#8eb079]">http://127.0.0.1:18791</span><br />
-                API: <span class="text-[#8eb079]">http://127.0.0.1:18791/api</span>
-              </span>
+              <span id="install-cmd"></span>
             </div>
           </div>
         </div>
@@ -209,6 +198,86 @@ createIcons({
   icons,
   nameAttr: 'data-lucide'
 });
+
+// Terminal animation
+const terminalContent = document.getElementById('terminal-content');
+const installCmd = document.getElementById('install-cmd');
+
+if (terminalContent && installCmd) {
+  const commands = [
+    { text: 'npm install -g nextclaw', delay: 0 },
+  ];
+
+  const startupSequence = [
+    { text: 'nextclaw start', isCommand: true },
+    { text: 'NextClaw v0.8.19 started', icon: '✓', color: '#8eb079' },
+    { text: 'UI:  http://127.0.0.1:18791', icon: '→', color: '#7eb6d4' },
+    { text: 'API: http://127.0.0.1:18791/api', icon: '→', color: '#7eb6d4' },
+  ];
+
+  let currentLine = 0;
+
+  async function typeText(element: HTMLElement, text: string, speed = 50) {
+    for (let i = 0; i < text.length; i++) {
+      element.textContent += text[i];
+      await new Promise(resolve => setTimeout(resolve, speed));
+    }
+  }
+
+  async function addLine(content: { text: string; icon?: string; color?: string; isCommand?: boolean }) {
+    const line = document.createElement('div');
+    line.className = 'flex items-center mt-3';
+
+    if (content.isCommand) {
+      line.innerHTML = `
+        <span class="text-[#8eb079] mr-2">~</span>
+        <span class="text-[#e29e57] mr-2 font-bold">$</span>
+        <span class="text-[#d4c8be]"></span>
+      `;
+      terminalContent?.appendChild(line);
+      const textSpan = line.querySelector('span:last-child') as HTMLElement;
+      await typeText(textSpan, content.text, 40);
+    } else if (content.icon) {
+      line.innerHTML = `
+        <span class="mr-2 font-bold" style="color: ${content.color}">${content.icon}</span>
+        <span style="color: ${content.color}"></span>
+      `;
+      terminalContent?.appendChild(line);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const textSpan = line.querySelector('span:last-child') as HTMLElement;
+      textSpan.textContent = content.text;
+    }
+  }
+
+  async function addCursor() {
+    const cursorLine = document.createElement('div');
+    cursorLine.className = 'flex items-center mt-3';
+    cursorLine.innerHTML = `
+      <span class="text-[#8eb079] mr-2">~</span>
+      <span class="text-[#e29e57] mr-2 font-bold">$</span>
+      <span class="terminal-cursor"></span>
+    `;
+    terminalContent?.appendChild(cursorLine);
+  }
+
+  async function runAnimation() {
+    // Type install command
+    await typeText(installCmd, commands[0].text, 40);
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    // Run startup sequence
+    for (const item of startupSequence) {
+      await addLine(item);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    // Add blinking cursor
+    await addCursor();
+  }
+
+  // Start animation after a short delay
+  setTimeout(runAnimation, 600);
+}
 
 // Copy functionality
 const copyBtn = document.getElementById('copy-btn');

@@ -68,4 +68,22 @@
     background: radial-gradient(circle at top right, hsla(var(--primary), 0.15) 0%, transparent 40%),
       radial-gradient(circle at bottom left, hsla(var(--primary), 0.08) 0%, transparent 40%);
   }
+
+  .terminal-cursor {
+    display: inline-block;
+    width: 0.6em;
+    height: 1.2em;
+    background-color: #8eb079;
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+  }
+
+  @keyframes blink {
+    0%, 50% {
+      opacity: 1;
+    }
+    51%, 100% {
+      opacity: 0;
+    }
+  }
 }
