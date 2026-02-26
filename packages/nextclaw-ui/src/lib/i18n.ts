@@ -149,6 +149,9 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   prev: { zh: '上一页', en: 'Prev' },
   next: { zh: '下一页', en: 'Next' },
   language: { zh: '语言', en: 'Language' },
+  theme: { zh: '主题', en: 'Theme' },
+  themeWarm: { zh: '暖色', en: 'Warm' },
+  themeCool: { zh: '冷色', en: 'Cool' },
 
   // Model
   modelPageTitle: { zh: '模型配置', en: 'Model Configuration' },

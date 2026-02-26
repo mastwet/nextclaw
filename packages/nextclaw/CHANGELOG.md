@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.8.21
+
+### Patch Changes
+
+- Release frontend UI changes only.
+
 ## 0.8.20
 
 ### Patch Changes
