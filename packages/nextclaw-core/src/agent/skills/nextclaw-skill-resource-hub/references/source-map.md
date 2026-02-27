@@ -32,6 +32,11 @@
 - Use for: trend discovery and popularity signals
 - Notes: ranking/discovery source, not authoritative for compatibility
 
+### 7) OpenAI Skills Repository
+- URL: https://github.com/openai/skills
+- Use for: reference implementations and reusable skill patterns from OpenAI ecosystem
+- Notes: evaluate compatibility and license before direct reuse in NextClaw
+
 ## Suggested Triage Checklist
 
 For each candidate skill/repo, verify:
@@ -52,3 +57,4 @@ For each candidate skill/repo, verify:
 - `openclaw skills github`  
 - `awesome openclaw skills`  
 - `site:github.com openclaw skill`
+- `openai skills github`
