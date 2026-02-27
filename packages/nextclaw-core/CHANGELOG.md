@@ -1,5 +1,11 @@
 # nextclaw-core
 
+## 0.6.33
+
+### Patch Changes
+
+- Raise the default `agents.defaults.maxToolIterations` from 20 to 1000 to reduce premature tool-loop fallback responses in long tool chains.
+
 ## 0.6.32
 
 ### Patch Changes

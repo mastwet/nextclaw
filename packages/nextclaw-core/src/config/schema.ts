@@ -194,7 +194,7 @@ export const AgentDefaultsSchema = z.object({
   model: z.string().default("anthropic/claude-opus-4-5"),
   maxTokens: z.number().int().default(8192),
   contextTokens: z.number().int().min(1000).default(200000),
-  maxToolIterations: z.number().int().default(20)
+  maxToolIterations: z.number().int().default(1000)
 });
 
 export const AgentProfileSchema = z.object({

@@ -28,8 +28,7 @@ const PAGE_SIZE = 12;
 type ScopeType = 'all' | 'installed';
 
 type InstallState = {
-  isPending: boolean;
-  installingSpec?: string;
+  installingSpecs: ReadonlySet<string>;
 };
 
 type ManageState = {
@@ -234,7 +233,8 @@ function MarketplaceListCard(props: {
   const canUninstall = Boolean(canUninstallPlugin || canUninstallSkill);
 
   const isDisabled = record ? (record.enabled === false || record.runtimeStatus === 'disabled') : false;
-  const isInstalling = props.installState.isPending && props.item && props.installState.installingSpec === props.item.install.spec;
+  const installSpec = props.item?.install.spec;
+  const isInstalling = typeof installSpec === 'string' && props.installState.installingSpecs.has(installSpec);
 
   const displayType = type === 'plugin' ? t('marketplaceTypePlugin') : type === 'skill' ? t('marketplaceTypeSkill') : t('marketplaceTypeExtension');
 
@@ -288,7 +288,7 @@ function MarketplaceListCard(props: {
         {props.item && !record && (
           <button
             onClick={() => props.onInstall(props.item as MarketplaceItemSummary)}
-            disabled={props.installState.isPending}
+            disabled={isInstalling}
             className="inline-flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-medium bg-primary text-white hover:bg-primary-600 disabled:opacity-50 transition-colors"
           >
             {isInstalling ? t('marketplaceInstalling') : t('marketplaceInstall')}
@@ -405,6 +405,7 @@ export function MarketplacePage() {
   const [scope, setScope] = useState<ScopeType>('all');
   const [sort, setSort] = useState<MarketplaceSort>('relevance');
   const [page, setPage] = useState(1);
+  const [installingSpecs, setInstallingSpecs] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -496,10 +497,7 @@ export function MarketplacePage() {
     return `${allItems.length} / ${total}`;
   }, [scope, installedQuery.isLoading, installedEntries.length, itemsQuery.data, allItems.length, total, copyKeys.installedCountSuffix]);
 
-  const installState: InstallState = {
-    isPending: installMutation.isPending,
-    installingSpec: installMutation.variables?.spec
-  };
+  const installState: InstallState = { installingSpecs };
 
   const manageState: ManageState = {
     isPending: manageMutation.isPending,
@@ -511,21 +509,42 @@ export function MarketplacePage() {
     { id: 'all', label: t(copyKeys.tabMarketplace) },
     { id: 'installed', label: t(copyKeys.tabInstalled), count: installedQuery.data?.total ?? 0 }
   ];
-  const handleInstall = (item: MarketplaceItemSummary) => {
-    if (installMutation.isPending) {
+  const handleInstall = async (item: MarketplaceItemSummary) => {
+    const installSpec = item.install.spec;
+    if (installingSpecs.has(installSpec)) {
       return;
     }
-    installMutation.mutate({
-      type: item.type,
-      spec: item.install.spec,
-      kind: item.install.kind,
-      ...(item.type === 'skill'
-        ? {
-            skill: item.slug,
-            installPath: `skills/${item.slug}`
-          }
-        : {})
+
+    setInstallingSpecs((prev) => {
+      const next = new Set(prev);
+      next.add(installSpec);
+      return next;
     });
+
+    try {
+      await installMutation.mutateAsync({
+        type: item.type,
+        spec: installSpec,
+        kind: item.install.kind,
+        ...(item.type === 'skill'
+          ? {
+              skill: item.slug,
+              installPath: `skills/${item.slug}`
+            }
+          : {})
+      });
+    } catch {
+      // handled in mutation onError
+    } finally {
+      setInstallingSpecs((prev) => {
+        if (!prev.has(installSpec)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.delete(installSpec);
+        return next;
+      });
+    }
   };
 
   const handleManage = async (action: MarketplaceManageAction, record: MarketplaceInstalledRecord) => {

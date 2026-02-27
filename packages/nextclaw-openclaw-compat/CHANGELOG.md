@@ -1,5 +1,14 @@
 # @nextclaw/openclaw-compat
 
+## 0.1.27
+
+### Patch Changes
+
+- Raise the default `agents.defaults.maxToolIterations` from 20 to 1000 to reduce premature tool-loop fallback responses in long tool chains.
+- Updated dependencies
+  - @nextclaw/core@0.6.33
+  - @nextclaw/channel-runtime@0.1.19
+
 ## 0.1.26
 
 ### Patch Changes
