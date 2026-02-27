@@ -29,7 +29,7 @@
 |------|------|
 | **功能丰富** | 多 Provider、多渠道、Cron/Heartbeat、网页搜索、exec、记忆、子 Agent — 与 OpenClaw 核心能力对齐。 |
 | **OpenClaw 兼容** | 使用 OpenClaw 插件 SDK 与渠道插件格式；内置渠道（Telegram、Discord、WhatsApp 等）风格一致、配置方式相同。 |
-| **更易上手** | 无需复杂 CLI 流程 — 一条命令 `nextclaw start`，其余在内置 UI 中完成。 |
+| **更易上手** | 无需复杂 CLI 流程 — 一条命令 `nextclaw start`，其余在内置 UI 中完成（含对话与配置）。 |
 | **可维护设计** | 运行时能力集中在内置能力，减少隐式耦合与长期维护成本。 |
 | **轻量化** | 源自 [nanobot](https://github.com/HKUDS/nanobot)；代码量小、运行与维护快。 |
 
@@ -41,7 +41,7 @@
 |------|------|
 | **OpenClaw 兼容** | 相同插件 SDK 与渠道插件格式；可使用 OpenClaw 风格插件与配置。 |
 | **一键启动** | `nextclaw start` — 后台网关 + 配置 UI，无需额外步骤 |
-| **内置配置 UI** | 模型、Provider、渠道一处配置；配置文件位于 `~/.nextclaw/config.json` |
+| **内置对话 + 配置 UI** | 先在 UI 内对话，再配置模型、Provider、渠道；配置文件位于 `~/.nextclaw/config.json` |
 | **多 Provider** | OpenRouter、OpenAI、MiniMax、Moonshot、Gemini、DeepSeek、DashScope、智谱、Groq、vLLM 等（OpenAI 兼容） |
 | **多渠道** | Telegram、Discord、WhatsApp、飞书、钉钉、企业微信、Slack、Email、QQ、Mochat — 在 UI 中启用与配置 |
 | **自动化** | Cron + Heartbeat 定时任务 |
@@ -56,7 +56,7 @@ npm i -g nextclaw
 nextclaw start
 ```
 
-浏览器打开 **http://127.0.0.1:18791**，在 UI 中设置 Provider（如 OpenRouter）与模型即可。
+浏览器打开 **http://127.0.0.1:18791**，在 UI 中设置 Provider（如 OpenRouter）与模型，然后进入 **Chat** 页即可直接对话。
 
 `start/restart/serve/ui/gateway` 的 UI 模式默认绑定 `0.0.0.0`；启动日志会打印检测到的公网 URL。
 

@@ -12,6 +12,7 @@ import {
   fetchSessionHistory,
   updateSession,
   deleteSession,
+  sendChatTurn,
   fetchCronJobs,
   deleteCronJob,
   setCronJobEnabled,
@@ -165,6 +166,16 @@ export function useDeleteSession() {
     },
     onError: (error: Error) => {
       toast.error(t('configSaveFailed') + ': ' + error.message);
+    }
+  });
+}
+
+export function useSendChatTurn() {
+  return useMutation({
+    mutationFn: ({ data }: { data: Parameters<typeof sendChatTurn>[0] }) =>
+      sendChatTurn(data),
+    onError: (error: Error) => {
+      toast.error(t('chatSendFailed') + ': ' + error.message);
     }
   });
 }

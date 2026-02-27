@@ -123,6 +123,7 @@ export function formatNumber(value: number, lang: I18nLanguage = getLanguage()):
 
 export const LABELS: Record<string, { zh: string; en: string }> = {
   // Navigation
+  chat: { zh: '对话', en: 'Chat' },
   model: { zh: '模型', en: 'Model' },
   providers: { zh: '提供商', en: 'Providers' },
   channels: { zh: '渠道', en: 'Channels' },
@@ -357,6 +358,31 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
     zh: '从左侧列表选择一个会话以查看聊天历史并配置其元信息。',
     en: 'Select a session from the list on the left to view its chat history and configure its metadata.'
   },
+
+  // Chat
+  chatPageTitle: { zh: 'Agent 对话', en: 'Agent Chat' },
+  chatPageDescription: {
+    zh: '在 UI 内直接与 Agent 交互，支持多会话与多 Agent 切换。',
+    en: 'Chat with your agent directly in UI with multi-session and multi-agent switching.'
+  },
+  chatRefresh: { zh: '刷新', en: 'Refresh' },
+  chatNewSession: { zh: '新会话', en: 'New Session' },
+  chatSearchSessionPlaceholder: { zh: '搜索会话 key / 标签', en: 'Search session key / label' },
+  chatAgentLabel: { zh: '目标 Agent', en: 'Target Agent' },
+  chatSelectAgent: { zh: '选择 Agent', en: 'Select Agent' },
+  chatSessionLabel: { zh: '当前会话', en: 'Current Session' },
+  chatNoSession: { zh: '未选择会话', en: 'No session selected' },
+  chatNoSessionHint: { zh: '创建一个会话并发送第一条消息。', en: 'Create a session and send your first message.' },
+  chatHistoryLoading: { zh: '加载会话历史中...', en: 'Loading session history...' },
+  chatNoMessages: { zh: '暂无消息，发送一条开始对话。', en: 'No messages yet. Send one to start.' },
+  chatTyping: { zh: 'Agent 正在思考...', en: 'Agent is thinking...' },
+  chatInputPlaceholder: { zh: '输入消息，Enter 发送，Shift + Enter 换行', en: 'Type a message, Enter to send, Shift + Enter for newline' },
+  chatInputHint: { zh: '支持多轮上下文，默认走当前会话。', en: 'Multi-turn context is preserved in the current session.' },
+  chatSend: { zh: '发送', en: 'Send' },
+  chatSending: { zh: '发送中...', en: 'Sending...' },
+  chatDeleteSession: { zh: '删除会话', en: 'Delete Session' },
+  chatDeleteSessionConfirm: { zh: '确认删除当前会话？', en: 'Delete the current session?' },
+  chatSendFailed: { zh: '发送消息失败', en: 'Failed to send message' },
 
   // Cron
   cronPageTitle: { zh: '定时任务', en: 'Cron Jobs' },

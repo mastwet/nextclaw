@@ -44,7 +44,8 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
       configPath: options.configPath,
       publish,
       marketplace: options.marketplace,
-      cronService: options.cronService
+      cronService: options.cronService,
+      chatRuntime: options.chatRuntime
     })
   );
 

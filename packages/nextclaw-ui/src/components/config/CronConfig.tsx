@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatDateTime, t } from '@/lib/i18n';
-import { PageLayout, PageHeader, PageBody } from '@/components/layout/page-layout';
+import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { AlarmClock, RefreshCw, Trash2, Play, Power } from 'lucide-react';
 
 type StatusFilter = 'all' | 'enabled' | 'disabled';

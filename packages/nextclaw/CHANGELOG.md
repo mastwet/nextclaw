@@ -1,5 +1,13 @@
 # nextclaw
 
+## 0.8.32
+
+### Patch Changes
+
+- Add built-in Agent chat support in UI with a new chat page, session management, and a backend chat turn API wired to runtime pool.
+- Updated dependencies
+  - @nextclaw/server@0.5.16
+
 ## 0.8.31
 
 ### Patch Changes

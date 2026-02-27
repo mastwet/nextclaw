@@ -92,6 +92,26 @@ export type SessionPatchUpdate = {
   clearHistory?: boolean;
 };
 
+export type ChatTurnRequest = {
+  message: string;
+  sessionKey?: string;
+  agentId?: string;
+  channel?: string;
+  chatId?: string;
+  model?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type ChatTurnView = {
+  reply: string;
+  sessionKey: string;
+  agentId?: string;
+  model?: string;
+  requestedAt: string;
+  completedAt: string;
+  durationMs: number;
+};
+
 export type CronScheduleView =
   | { kind: "at"; atMs?: number | null }
   | { kind: "every"; everyMs?: number | null }

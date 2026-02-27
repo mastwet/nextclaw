@@ -12,6 +12,8 @@ import type {
   SessionsListView,
   SessionHistoryView,
   SessionPatchUpdate,
+  ChatTurnRequest,
+  ChatTurnView,
   CronListView,
   CronEnableRequest,
   CronRunRequest,
@@ -161,6 +163,15 @@ export async function updateSession(
 // DELETE /api/sessions/:key
 export async function deleteSession(key: string): Promise<{ deleted: boolean }> {
   const response = await api.delete<{ deleted: boolean }>(`/api/sessions/${encodeURIComponent(key)}`);
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+// POST /api/chat/turn
+export async function sendChatTurn(data: ChatTurnRequest): Promise<ChatTurnView> {
+  const response = await api.post<ChatTurnView>('/api/chat/turn', data);
   if (!response.ok) {
     throw new Error(response.error.message);
   }

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { formatDateShort, formatDateTime, t } from '@/lib/i18n';
-import { PageLayout, PageHeader, PageBody } from '@/components/layout/page-layout';
+import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { RefreshCw, Search, Clock, Inbox, Hash, Bot, User, MessageCircle, Settings as SettingsIcon } from 'lucide-react';
 
 const UNKNOWN_CHANNEL_KEY = '__unknown_channel__';

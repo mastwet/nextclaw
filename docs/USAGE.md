@@ -350,6 +350,21 @@ NextClaw UI now provides an OpenClaw-aligned session operations panel (**Session
 
 This is useful when running multi-agent routing and channel operations long term, because you can clean or retarget problematic sessions without hand-editing files.
 
+## Agent chat in UI
+
+NextClaw UI includes a first-class **Chat** tab so you can talk to your agent directly from browser:
+
+- create/switch/delete sessions from the left panel
+- inspect complete session history in the thread panel
+- choose target agent before sending message
+- send messages with Enter (Shift+Enter for newline)
+- keep using the same session for multi-turn context
+
+Notes:
+
+- if provider credentials are missing, chat API will return a clear runtime error telling you to configure provider keys first
+- session data is persisted in the same session store used by runtime/channels
+
 ---
 
 ## Workspace

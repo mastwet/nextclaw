@@ -15,6 +15,7 @@ const queryClient = new QueryClient({
 });
 
 const ModelConfigPage = lazy(async () => ({ default: (await import('@/components/config/ModelConfig')).ModelConfig }));
+const ChatPage = lazy(async () => ({ default: (await import('@/components/chat/ChatPage')).ChatPage }));
 const ProvidersListPage = lazy(async () => ({ default: (await import('@/components/config/ProvidersList')).ProvidersList }));
 const ChannelsListPage = lazy(async () => ({ default: (await import('@/components/config/ChannelsList')).ChannelsList }));
 const RuntimeConfigPage = lazy(async () => ({ default: (await import('@/components/config/RuntimeConfig')).RuntimeConfig }));
@@ -39,6 +40,7 @@ function AppContent() {
       <AppLayout>
         <div key={location.pathname} className="animate-fade-in w-full h-full">
           <Routes>
+            <Route path="/chat" element={<LazyRoute><ChatPage /></LazyRoute>} />
             <Route path="/model" element={<LazyRoute><ModelConfigPage /></LazyRoute>} />
             <Route path="/providers" element={<LazyRoute><ProvidersListPage /></LazyRoute>} />
             <Route path="/channels" element={<LazyRoute><ChannelsListPage /></LazyRoute>} />
@@ -47,8 +49,8 @@ function AppContent() {
             <Route path="/cron" element={<LazyRoute><CronConfigPage /></LazyRoute>} />
             <Route path="/marketplace" element={<Navigate to="/marketplace/plugins" replace />} />
             <Route path="/marketplace/:type" element={<LazyRoute><MarketplacePage /></LazyRoute>} />
-            <Route path="/" element={<Navigate to="/model" replace />} />
-            <Route path="*" element={<Navigate to="/model" replace />} />
+            <Route path="/" element={<Navigate to="/chat" replace />} />
+            <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
         </div>
       </AppLayout>

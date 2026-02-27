@@ -323,7 +323,7 @@ export class ServiceCommands {
       console.log("Warning: No channels enabled");
     }
 
-    this.startUiIfEnabled(uiConfig, uiStaticDir, cron);
+    this.startUiIfEnabled(uiConfig, uiStaticDir, cron, runtimePool);
 
     const cronStatus = cron.status();
     if (cronStatus.jobs > 0) {
@@ -790,7 +790,8 @@ export class ServiceCommands {
   private startUiIfEnabled(
     uiConfig: Config["ui"],
     uiStaticDir: string | null,
-    cronService: NextclawCore.CronService
+    cronService: NextclawCore.CronService,
+    runtimePool: GatewayAgentRuntimePool
   ): void {
     if (!uiConfig.enabled) {
       return;
@@ -810,6 +811,42 @@ export class ServiceCommands {
           disablePlugin: (id) => this.disableMarketplacePlugin(id),
           uninstallPlugin: (id) => this.uninstallMarketplacePlugin(id),
           uninstallSkill: (slug) => this.uninstallMarketplaceSkill(slug)
+        }
+      },
+      chatRuntime: {
+        processTurn: async (params) => {
+          const sessionKey =
+            typeof params.sessionKey === "string" && params.sessionKey.trim().length > 0
+              ? params.sessionKey.trim()
+              : `ui:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
+          const inferredAgentId =
+            typeof params.agentId === "string" && params.agentId.trim().length > 0
+              ? params.agentId.trim()
+              : parseAgentScopedSessionKey(sessionKey)?.agentId;
+          const model = typeof params.model === "string" && params.model.trim().length > 0 ? params.model.trim() : undefined;
+          const metadata =
+            params.metadata && typeof params.metadata === "object" && !Array.isArray(params.metadata)
+              ? { ...params.metadata }
+              : {};
+          if (model) {
+            metadata.model = model;
+          }
+
+          const reply = await runtimePool.processDirect({
+            content: params.message,
+            sessionKey,
+            channel: typeof params.channel === "string" && params.channel.trim().length > 0 ? params.channel : "ui",
+            chatId: typeof params.chatId === "string" && params.chatId.trim().length > 0 ? params.chatId : "web-ui",
+            agentId: inferredAgentId,
+            metadata
+          });
+
+          return {
+            reply,
+            sessionKey,
+            ...(inferredAgentId ? { agentId: inferredAgentId } : {}),
+            ...(model ? { model } : {})
+          };
         }
       }
     });

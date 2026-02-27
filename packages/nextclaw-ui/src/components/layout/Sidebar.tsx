@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { LANGUAGE_OPTIONS, t, type I18nLanguage } from '@/lib/i18n';
 import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
-import { Cpu, GitBranch, History, MessageSquare, Sparkles, BookOpen, Plug, BrainCircuit, AlarmClock, Languages, Palette } from 'lucide-react';
+import { Cpu, GitBranch, History, MessageCircle, MessageSquare, Sparkles, BookOpen, Plug, BrainCircuit, AlarmClock, Languages, Palette } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useDocBrowser } from '@/components/doc-browser';
 import { useI18n } from '@/components/providers/I18nProvider';
@@ -31,6 +31,11 @@ export function Sidebar() {
   };
 
   const navItems = [
+    {
+      target: '/chat',
+      label: t('chat'),
+      icon: MessageCircle,
+    },
     {
       target: '/model',
       label: t('model'),

@@ -17,6 +17,8 @@ import {
   deleteSession
 } from "./config.js";
 import type {
+  ChatTurnRequest,
+  ChatTurnView,
   ConfigActionExecuteRequest,
   MarketplaceApiConfig,
   MarketplaceInstalledRecord,
@@ -39,6 +41,7 @@ import type {
   ProviderConfigUpdate,
   RuntimeConfigUpdate,
   SessionPatchUpdate,
+  UiChatRuntime,
   UiServerEvent
 } from "./types.js";
 
@@ -47,6 +50,7 @@ type UiRouterOptions = {
   publish: (event: UiServerEvent) => void;
   marketplace?: MarketplaceApiConfig;
   cronService?: InstanceType<typeof NextclawCore.CronService>;
+  chatRuntime?: UiChatRuntime;
 };
 
 type CronJobEntry = {
@@ -298,6 +302,20 @@ function readErrorMessage(value: unknown, fallback: string): string {
   return typeof maybeError.message === "string" && maybeError.message.trim().length > 0
     ? maybeError.message
     : fallback;
+}
+
+function readNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function resolveAgentIdFromSessionKey(sessionKey?: string): string | undefined {
+  const parsed = NextclawCore.parseAgentScopedSessionKey(sessionKey);
+  const agentId = readNonEmptyString(parsed?.agentId);
+  return agentId;
 }
 
 function normalizeMarketplaceBaseUrl(options: UiRouterOptions): string {
@@ -1234,6 +1252,63 @@ export function createUiRouter(options: UiRouterOptions): Hono {
     }
     options.publish({ type: "config.updated", payload: { path: `channels.${channel}` } });
     return c.json(ok(result));
+  });
+
+  app.post("/api/chat/turn", async (c) => {
+    if (!options.chatRuntime) {
+      return c.json(err("NOT_AVAILABLE", "chat runtime unavailable"), 503);
+    }
+
+    const body = await readJson<Record<string, unknown>>(c.req.raw);
+    if (!body.ok) {
+      return c.json(err("INVALID_BODY", "invalid json body"), 400);
+    }
+
+    const message = readNonEmptyString(body.data.message);
+    if (!message) {
+      return c.json(err("INVALID_BODY", "message is required"), 400);
+    }
+
+    const sessionKey =
+      readNonEmptyString(body.data.sessionKey) ??
+      `ui:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
+    const requestedAt = new Date();
+    const startedAtMs = requestedAt.getTime();
+
+    const metadata = isRecord(body.data.metadata) ? body.data.metadata : undefined;
+    const requestedAgentId = readNonEmptyString(body.data.agentId) ?? resolveAgentIdFromSessionKey(sessionKey);
+    const requestedModel = readNonEmptyString(body.data.model);
+    const request: ChatTurnRequest = {
+      message,
+      sessionKey,
+      channel: readNonEmptyString(body.data.channel) ?? "ui",
+      chatId: readNonEmptyString(body.data.chatId) ?? "web-ui",
+      ...(requestedAgentId ? { agentId: requestedAgentId } : {}),
+      ...(requestedModel ? { model: requestedModel } : {}),
+      ...(metadata ? { metadata } : {})
+    };
+
+    try {
+      const result = await options.chatRuntime.processTurn(request);
+      const completedAt = new Date();
+      const response: ChatTurnView = {
+        reply: String(result.reply ?? ""),
+        sessionKey: readNonEmptyString(result.sessionKey) ?? sessionKey,
+        ...(readNonEmptyString(result.agentId) || requestedAgentId
+          ? { agentId: readNonEmptyString(result.agentId) ?? requestedAgentId }
+          : {}),
+        ...(readNonEmptyString(result.model) || requestedModel
+          ? { model: readNonEmptyString(result.model) ?? requestedModel }
+          : {}),
+        requestedAt: requestedAt.toISOString(),
+        completedAt: completedAt.toISOString(),
+        durationMs: Math.max(0, completedAt.getTime() - startedAtMs)
+      };
+      options.publish({ type: "config.updated", payload: { path: "session" } });
+      return c.json(ok(response));
+    } catch (error) {
+      return c.json(err("CHAT_TURN_FAILED", String(error)), 500);
+    }
   });
 
   app.get("/api/sessions", (c) => {

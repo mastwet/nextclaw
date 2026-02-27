@@ -1,5 +1,6 @@
 # Logs
 
+- [docs/logs/2026-02-28-ui-agent-chat/v0.8.32-agent-chat-ui/README.md](docs/logs/2026-02-28-ui-agent-chat/v0.8.32-agent-chat-ui/README.md)
 - [docs/logs/2026-02-27-slogan-cross-doc-alignment/v0.0.1-slogan-cross-doc-alignment/README.md](docs/logs/2026-02-27-slogan-cross-doc-alignment/v0.0.1-slogan-cross-doc-alignment/README.md)
 - [docs/logs/2026-02-27-marketplace-workflow-install-fix/v0.0.1-marketplace-workflow-install-fix/README.md](docs/logs/2026-02-27-marketplace-workflow-install-fix/v0.0.1-marketplace-workflow-install-fix/README.md)
 - [docs/logs/2026-02-27-doc-browser-locale-sync/v0.0.1-doc-browser-locale-sync/README.md](docs/logs/2026-02-27-doc-browser-locale-sync/v0.0.1-doc-browser-locale-sync/README.md)

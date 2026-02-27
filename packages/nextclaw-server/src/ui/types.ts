@@ -154,6 +154,38 @@ export type RuntimeConfigUpdate = {
   session?: SessionConfigView;
 };
 
+export type ChatTurnRequest = {
+  message: string;
+  sessionKey?: string;
+  agentId?: string;
+  channel?: string;
+  chatId?: string;
+  model?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type ChatTurnResult = {
+  reply: string;
+  sessionKey: string;
+  agentId?: string;
+  model?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type ChatTurnView = {
+  reply: string;
+  sessionKey: string;
+  agentId?: string;
+  model?: string;
+  requestedAt: string;
+  completedAt: string;
+  durationMs: number;
+};
+
+export type UiChatRuntime = {
+  processTurn: (params: ChatTurnRequest) => Promise<ChatTurnResult>;
+};
+
 export type ConfigView = {
   agents: {
     defaults: {
@@ -455,6 +487,7 @@ export type UiServerOptions = {
   staticDir?: string;
   marketplace?: MarketplaceApiConfig;
   cronService?: CronService;
+  chatRuntime?: UiChatRuntime;
 };
 
 export type UiServerHandle = {

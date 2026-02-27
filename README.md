@@ -29,7 +29,7 @@ Inspired by [OpenClaw](https://github.com/openclaw/openclaw) & [nanobot](https:/
 |-----------|-------------|
 | **Feature-rich** | Multi-provider, multi-channel, cron/heartbeat, web search, exec, memory, subagents — same capabilities as OpenClaw where it matters. |
 | **OpenClaw compatible** | Uses OpenClaw plugin SDK and channel plugin format; built-in channel plugins (Telegram, Discord, WhatsApp, etc.) are OpenClaw-style and configurable the same way. |
-| **Easier to use** | No complex CLI workflows — one command (`nextclaw start`), then configure everything in the built-in UI. |
+| **Easier to use** | No complex CLI workflows — one command (`nextclaw start`), then configure and chat in the built-in UI. |
 | **Maintainable by design** | Keep runtime capabilities focused on built-ins, reducing hidden coupling and long-term maintenance cost. |
 | **Ultra-lightweight** | Evolved from [nanobot](https://github.com/HKUDS/nanobot); minimal codebase, fast to run and maintain. |
 
@@ -41,7 +41,7 @@ Inspired by [OpenClaw](https://github.com/openclaw/openclaw) & [nanobot](https:/
 |---------|-------------|
 | **OpenClaw compatible** | Same plugin SDK and channel plugin format; use OpenClaw-style plugins and config. |
 | **One-command start** | `nextclaw start` — background gateway + config UI, no extra steps |
-| **Built-in config UI** | Models, providers, and channels in one place; config in `~/.nextclaw/config.json` |
+| **Built-in chat + config UI** | Chat with agent, then tune models/providers/channels in one place; config in `~/.nextclaw/config.json` |
 | **Multi-provider** | OpenRouter, OpenAI, MiniMax, Moonshot, Gemini, DeepSeek, DashScope, Zhipu, Groq, vLLM, and more (OpenAI-compatible) |
 | **Multi-channel** | Telegram, Discord, WhatsApp, Feishu, DingTalk, WeCom, Slack, Email, QQ, Mochat — enable and configure from the UI |
 | **Automation** | Cron + Heartbeat for scheduled tasks |
@@ -56,7 +56,7 @@ npm i -g nextclaw
 nextclaw start
 ```
 
-Open **http://127.0.0.1:18791** → set your provider (e.g. OpenRouter) and model in the UI. You're done.
+Open **http://127.0.0.1:18791** → set your provider (e.g. OpenRouter) and model, then go to **Chat** tab to talk with your agent.
 
 NextClaw now binds UI on `0.0.0.0` by default for `start/restart/serve/ui/gateway` UI mode; startup logs print detected public URLs.
 
