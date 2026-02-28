@@ -277,13 +277,42 @@ class InstallerBuilder {
       JSON.stringify({ name: "nextclaw-app-bundle", private: true }, null, 2),
       "utf8"
     );
-    this.runner.capture(
-      "npm",
-      ["install", "--omit=dev", "--no-audit", "--no-fund", this.packedTgzPath],
-      { cwd: appDir }
-    );
+    try {
+      this.runner.capture(
+        "npm",
+        ["install", "--omit=dev", "--no-audit", "--no-fund", this.packedTgzPath],
+        { cwd: appDir }
+      );
+    } catch (error) {
+      const npmDebugLog = this.readLatestNpmDebugLog();
+      if (npmDebugLog) {
+        throw new Error(`${error instanceof Error ? error.message : String(error)}\n${npmDebugLog}`);
+      }
+      throw error;
+    }
     this.removeSourceMapFiles(appDir);
     this.appDir = appDir;
+  }
+
+  readLatestNpmDebugLog() {
+    const cacheRoot = process.platform === "win32"
+      ? process.env.LocalAppData ? resolve(process.env.LocalAppData, "npm-cache", "_logs") : ""
+      : process.env.HOME ? resolve(process.env.HOME, ".npm", "_logs") : "";
+    if (!cacheRoot || !existsSync(cacheRoot)) {
+      return "";
+    }
+    const logFiles = readdirSync(cacheRoot)
+      .filter((name) => name.endsWith(".log"))
+      .map((name) => resolve(cacheRoot, name))
+      .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
+    const latestLog = logFiles[0];
+    if (!latestLog) {
+      return "";
+    }
+    const content = readFileSync(latestLog, "utf8");
+    const lines = content.split(/\r?\n/);
+    const tail = lines.slice(-200).join("\n");
+    return `npm debug log (${latestLog}):\n${tail}`;
   }
 
   removeSourceMapFiles(rootDir) {
