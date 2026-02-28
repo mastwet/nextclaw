@@ -27,19 +27,15 @@ jobs:
           - os: macos-14
             platform: darwin
             arch: arm64
-            asset_glob: dist/installers/*-beta-macos-arm64-installer.pkg
           - os: macos-14
             platform: darwin
             arch: x64
-            asset_glob: dist/installers/*-beta-macos-x64-installer.pkg
           - os: windows-latest
             platform: win32
             arch: x64
-            asset_glob: dist/installers/*-beta-windows-x64-installer.exe
           - os: windows-latest
             platform: win32
             arch: arm64
-            asset_glob: dist/installers/*-beta-windows-arm64-installer.exe
 
     steps:
       - name: Checkout
@@ -57,6 +53,7 @@ jobs:
         run: choco install nsis -y
 
       - name: Build installer
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -66,6 +63,14 @@ jobs:
             --arch=${{ matrix.arch }} \
             --package-spec=nextclaw@$PACKAGE_VERSION \
             --output-dir=dist/installers
+
+      - name: Build installer (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PACKAGE_VERSION = node -e "console.log(require('./packages/nextclaw/package.json').version)"
+          node scripts/installer/build-installer.mjs --platform=${{ matrix.platform }} --arch=${{ matrix.arch }} --package-spec=nextclaw@$PACKAGE_VERSION --output-dir=dist/installers
 
       - name: Upload installer artifacts (macOS)
         if: matrix.platform == 'darwin'
@@ -85,8 +90,19 @@ jobs:
             dist/installers/*-beta-windows-${{ matrix.arch }}-installer.exe
             dist/installers/manifest-${{ matrix.platform }}-${{ matrix.arch }}.json
 
+  publish-release-assets:
+    if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
+    needs: [build-installers]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: nextclaw-installer-*
+          path: dist/installers
+          merge-multiple: true
+
       - name: Upload installers to release assets
-        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || github.event.inputs.release_tag }}
@@ -94,5 +110,6 @@ jobs:
           overwrite_files: true
           generate_release_notes: true
           files: |
-            ${{ matrix.asset_glob }}
-            dist/installers/manifest-${{ matrix.platform }}-${{ matrix.arch }}.json
+            dist/installers/*.pkg
+            dist/installers/*.exe
+            dist/installers/manifest-*.json
