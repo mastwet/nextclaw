@@ -599,7 +599,7 @@ function parseArgs(argv) {
   if (!options.workdir) {
     if (options.platform === "win32") {
       const homeDir = process.env.USERPROFILE ?? process.env.RUNNER_TEMP ?? tmpdir();
-      options.workdir = `${homeDir}\\nci-${Date.now()}`;
+      options.workdir = `${homeDir}\\zci-${Date.now()}`;
     } else {
       options.workdir = resolve(
         tmpdir(),
