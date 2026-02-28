@@ -370,7 +370,9 @@ class InstallerBuilder {
       `NextClaw-${this.version}-beta-windows-${this.arch}-installer.exe`
     );
     const sourceDir = this.bundleDir;
-    this.runner.run("makensis", [
+    const makensis = this.resolveMakensisBinary();
+    console.log(`[installer] using makensis: ${makensis}`);
+    this.runner.run(makensis, [
       "/DAPP_NAME=NextClaw Beta",
       `/DAPP_VERSION=${this.version}`,
       `/DAPP_ARCH=${this.arch}`,
@@ -379,6 +381,46 @@ class InstallerBuilder {
       this.toWindowsPath(nsisTemplate)
     ]);
     this.installerPath = outFile;
+  }
+
+  resolveMakensisBinary() {
+    const candidates = ["makensis"];
+    if (process.platform === "win32") {
+      candidates.push(
+        "C:\\Program Files (x86)\\NSIS\\makensis.exe",
+        "C:\\Program Files\\NSIS\\makensis.exe"
+      );
+      const chocoInstall = process.env.ChocolateyInstall?.trim();
+      if (chocoInstall) {
+        candidates.push(resolve(chocoInstall, "bin", "makensis.exe"));
+      }
+      const programData = process.env.ProgramData?.trim();
+      if (programData) {
+        candidates.push(resolve(programData, "chocolatey", "bin", "makensis.exe"));
+      }
+    }
+
+    for (const candidate of candidates) {
+      if (candidate === "makensis") {
+        try {
+          this.runner.capture("where", ["makensis"]);
+          return candidate;
+        } catch {
+          continue;
+        }
+      }
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    throw new Error(
+      [
+        "Unable to locate makensis executable.",
+        "Checked PATH lookup and common NSIS install locations.",
+        `PATH=${process.env.PATH ?? ""}`
+      ].join(" ")
+    );
   }
 
   writeManifest() {

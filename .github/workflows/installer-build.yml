@@ -50,7 +50,16 @@ jobs:
 
       - name: Install NSIS
         if: runner.os == 'Windows'
-        run: choco install nsis -y
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          choco install nsis -y
+          where.exe makensis
+          $nsis = Get-Command makensis -ErrorAction SilentlyContinue
+          if ($null -eq $nsis) {
+            throw "makensis not found in PATH after NSIS install"
+          }
+          Write-Host "makensis command path: $($nsis.Source)"
 
       - name: Build installer
         if: runner.os != 'Windows'
@@ -65,13 +74,28 @@ jobs:
             --output-dir=dist/installers
 
       - name: Build installer (Windows)
+        id: build_windows
         if: runner.os == 'Windows'
         shell: pwsh
+        continue-on-error: true
         run: |
           $ErrorActionPreference = "Stop"
+          if (Test-Path build-installer-windows.log) { Remove-Item build-installer-windows.log -Force }
+          node -v | Tee-Object -FilePath build-installer-windows.log -Append
+          npm -v | Tee-Object -FilePath build-installer-windows.log -Append
+          where.exe makensis | Tee-Object -FilePath build-installer-windows.log -Append
           $PACKAGE_VERSION = node -e "console.log(require('./packages/nextclaw/package.json').version)"
           $env:NEXTCLAW_INSTALLER_PACKAGE_SPEC = "nextclaw@$PACKAGE_VERSION"
-          node scripts/installer/build-installer.mjs "--platform=${{ matrix.platform }}" "--arch=${{ matrix.arch }}" "--output-dir=dist/installers"
+          & node scripts/installer/build-installer.mjs "--platform=${{ matrix.platform }}" "--arch=${{ matrix.arch }}" "--output-dir=dist/installers" 2>&1 | Tee-Object -FilePath build-installer-windows.log -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload Windows build log artifact
+        if: runner.os == 'Windows' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextclaw-installer-build-log-${{ matrix.platform }}-${{ matrix.arch }}
+          path: build-installer-windows.log
+          if-no-files-found: warn
 
       - name: Upload installer artifacts (macOS)
         if: matrix.platform == 'darwin'
@@ -83,13 +107,19 @@ jobs:
             dist/installers/manifest-${{ matrix.platform }}-${{ matrix.arch }}.json
 
       - name: Upload installer artifacts (Windows)
-        if: matrix.platform == 'win32'
+        if: matrix.platform == 'win32' && steps.build_windows.conclusion == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: nextclaw-installer-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             dist/installers/*-beta-windows-${{ matrix.arch }}-installer.exe
             dist/installers/manifest-${{ matrix.platform }}-${{ matrix.arch }}.json
+
+      - name: Fail when Windows installer build failed
+        if: runner.os == 'Windows' && steps.build_windows.conclusion == 'failure'
+        shell: pwsh
+        run: |
+          throw "Build installer (Windows) failed. See uploaded log artifact."
 
   publish-release-assets:
     if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '')
