@@ -1,5 +1,11 @@
 # nextclaw-core
 
+## 0.6.38
+
+### Patch Changes
+
+- Fix provider API base routing for non-gateway providers and upgrade providers configuration UX in UI.
+
 ## 0.6.37
 
 ### Patch Changes

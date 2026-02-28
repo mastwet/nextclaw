@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.5.30
+
+### Patch Changes
+
+- Fix provider API base routing for non-gateway providers and upgrade providers configuration UX in UI.
+
 ## 0.5.29
 
 ### Patch Changes

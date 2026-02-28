@@ -1,5 +1,14 @@
 # @nextclaw/openclaw-compat
 
+## 0.1.29
+
+### Patch Changes
+
+- Fix provider API base routing for non-gateway providers and upgrade providers configuration UX in UI.
+- Updated dependencies
+  - @nextclaw/core@0.6.38
+  - @nextclaw/channel-runtime@0.1.21
+
 ## 0.1.28
 
 ### Patch Changes

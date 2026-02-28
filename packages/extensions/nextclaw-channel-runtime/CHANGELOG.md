@@ -1,5 +1,13 @@
 # @nextclaw/channel-runtime
 
+## 0.1.21
+
+### Patch Changes
+
+- Fix provider API base routing for non-gateway providers and upgrade providers configuration UX in UI.
+- Updated dependencies
+  - @nextclaw/core@0.6.38
+
 ## 0.1.20
 
 ### Patch Changes
