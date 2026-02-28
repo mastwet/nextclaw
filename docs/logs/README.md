@@ -1,5 +1,6 @@
 # Logs
 
+- [docs/logs/2026-02-28-chat-queue-channel-filter/v0.8.38-chat-queue-channel-filter/README.md](docs/logs/2026-02-28-chat-queue-channel-filter/v0.8.38-chat-queue-channel-filter/README.md)
 - [docs/logs/2026-02-28-chat-real-stream-sse/v0.8.36-chat-real-stream-sse/README.md](docs/logs/2026-02-28-chat-real-stream-sse/v0.8.36-chat-real-stream-sse/README.md)
 - [docs/logs/2026-02-28-chat-tool-merge-stream/v0.8.35-chat-tool-merge-streaming/README.md](docs/logs/2026-02-28-chat-tool-merge-stream/v0.8.35-chat-tool-merge-streaming/README.md)
 - [docs/logs/2026-02-28-chat-ux-upgrade/v0.8.33-chat-markdown-tool-grouping/README.md](docs/logs/2026-02-28-chat-ux-upgrade/v0.8.33-chat-markdown-tool-grouping/README.md)

@@ -357,6 +357,7 @@ This is useful when running multi-agent routing and channel operations long term
 NextClaw UI includes a first-class **Chat** tab so you can talk to your agent directly from browser:
 
 - create/switch/delete sessions from the left panel
+- filter session list by channel in the left panel
 - inspect complete session history in the thread panel
 - choose target agent before sending message
 - send messages with Enter (Shift+Enter for newline)
@@ -364,7 +365,9 @@ NextClaw UI includes a first-class **Chat** tab so you can talk to your agent di
 - stream assistant output in real time via UI SSE API (`POST /api/chat/turn/stream`)
 - render assistant replies as Markdown (tables/code blocks/links)
 - show tool calls/results as structured tool cards
+- merge tool result and its immediate assistant follow-up explanation into one card
 - merge consecutive same-role messages into grouped chat blocks for better readability
+- keep input editable while AI is streaming, and queue additional sends during busy turns
 
 Notes:
 

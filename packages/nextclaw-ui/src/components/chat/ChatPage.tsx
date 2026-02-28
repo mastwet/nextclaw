@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SessionEntryView, SessionMessageView } from '@/api/types';
 import { sendChatTurnStream } from '@/api/config';
 import { useConfig, useDeleteSession, useSessionHistory, useSessions } from '@/hooks/useConfig';
@@ -13,6 +13,7 @@ import { formatDateTime, t } from '@/lib/i18n';
 import { MessageSquareText, Plus, RefreshCw, Search, Send, Trash2 } from 'lucide-react';
 
 const CHAT_SESSION_STORAGE_KEY = 'nextclaw.ui.chat.activeSession';
+const UNKNOWN_CHAT_CHANNEL_KEY = '__unknown_channel__';
 
 function readStoredSessionKey(): string | null {
   if (typeof window === 'undefined') {
@@ -63,18 +64,45 @@ function sessionDisplayName(session: SessionEntryView): string {
   return chunks[chunks.length - 1] || session.key;
 }
 
+function resolveChannelFromSessionKey(key: string): string {
+  const separator = key.indexOf(':');
+  if (separator <= 0) {
+    return UNKNOWN_CHAT_CHANNEL_KEY;
+  }
+  const channel = key.slice(0, separator).trim();
+  return channel || UNKNOWN_CHAT_CHANNEL_KEY;
+}
+
+function displayChannelName(channel: string): string {
+  if (channel === UNKNOWN_CHAT_CHANNEL_KEY) {
+    return t('sessionsUnknownChannel');
+  }
+  return channel;
+}
+
+type PendingChatMessage = {
+  id: number;
+  message: string;
+  sessionKey: string;
+  agentId: string;
+};
+
 export function ChatPage() {
   const [query, setQuery] = useState('');
+  const [selectedChannel, setSelectedChannel] = useState('all');
   const [draft, setDraft] = useState('');
   const [selectedSessionKey, setSelectedSessionKey] = useState<string | null>(() => readStoredSessionKey());
   const [selectedAgentId, setSelectedAgentId] = useState('main');
   const [optimisticUserMessage, setOptimisticUserMessage] = useState<SessionMessageView | null>(null);
   const [streamingAssistantMessage, setStreamingAssistantMessage] = useState<SessionMessageView | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [queuedMessages, setQueuedMessages] = useState<PendingChatMessage[]>([]);
 
   const { confirm, ConfirmDialog } = useConfirmDialog();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const streamRunIdRef = useRef(0);
+  const queueIdRef = useRef(0);
+  const selectedSessionKeyRef = useRef<string | null>(selectedSessionKey);
 
   const configQuery = useConfig();
   const sessionsQuery = useSessions({ q: query.trim() || undefined, limit: 120, activeMinutes: 0 });
@@ -93,13 +121,29 @@ export function ChatPage() {
   }, [configQuery.data?.agents.list]);
 
   const sessions = useMemo(() => sessionsQuery.data?.sessions ?? [], [sessionsQuery.data?.sessions]);
+  const channelOptions = useMemo(() => {
+    const unique = new Set<string>();
+    for (const session of sessions) {
+      unique.add(resolveChannelFromSessionKey(session.key));
+    }
+    return Array.from(unique).sort((a, b) => {
+      if (a === UNKNOWN_CHAT_CHANNEL_KEY) return 1;
+      if (b === UNKNOWN_CHAT_CHANNEL_KEY) return -1;
+      return a.localeCompare(b);
+    });
+  }, [sessions]);
+  const filteredSessions = useMemo(() => {
+    if (selectedChannel === 'all') {
+      return sessions;
+    }
+    return sessions.filter((session) => resolveChannelFromSessionKey(session.key) === selectedChannel);
+  }, [selectedChannel, sessions]);
   const selectedSession = useMemo(
     () => sessions.find((session) => session.key === selectedSessionKey) ?? null,
     [selectedSessionKey, sessions]
   );
 
   const historyMessages = useMemo(() => historyQuery.data?.messages ?? [], [historyQuery.data?.messages]);
-  const isGenerating = isSending;
   const mergedMessages = useMemo(() => {
     if (!optimisticUserMessage && !streamingAssistantMessage) {
       return historyMessages;
@@ -115,10 +159,10 @@ export function ChatPage() {
   }, [historyMessages, optimisticUserMessage, streamingAssistantMessage]);
 
   useEffect(() => {
-    if (!selectedSessionKey && sessions.length > 0) {
-      setSelectedSessionKey(sessions[0].key);
+    if (!selectedSessionKey && filteredSessions.length > 0) {
+      setSelectedSessionKey(filteredSessions[0].key);
     }
-  }, [selectedSessionKey, sessions]);
+  }, [filteredSessions, selectedSessionKey]);
 
   useEffect(() => {
     writeStoredSessionKey(selectedSessionKey);
@@ -133,6 +177,10 @@ export function ChatPage() {
       setSelectedAgentId(inferred);
     }
   }, [selectedAgentId, selectedSessionKey]);
+
+  useEffect(() => {
+    selectedSessionKeyRef.current = selectedSessionKey;
+  }, [selectedSessionKey]);
 
   useEffect(() => {
     const element = threadRef.current;
@@ -151,6 +199,7 @@ export function ChatPage() {
   const createNewSession = () => {
     streamRunIdRef.current += 1;
     setIsSending(false);
+    setQueuedMessages([]);
     setStreamingAssistantMessage(null);
     const next = buildNewSessionKey(selectedAgentId);
     setSelectedSessionKey(next);
@@ -175,6 +224,7 @@ export function ChatPage() {
         onSuccess: async () => {
           streamRunIdRef.current += 1;
           setIsSending(false);
+          setQueuedMessages([]);
           setStreamingAssistantMessage(null);
           setSelectedSessionKey(null);
           setOptimisticUserMessage(null);
@@ -184,36 +234,26 @@ export function ChatPage() {
     );
   };
 
-  const handleSend = async () => {
-    const message = draft.trim();
-    if (!message || isGenerating) {
-      return;
-    }
-
+  const runSend = useCallback(async (item: PendingChatMessage, options?: { restoreDraftOnError?: boolean }) => {
     streamRunIdRef.current += 1;
+    const runId = streamRunIdRef.current;
+
     setStreamingAssistantMessage(null);
-    const hadActiveSession = Boolean(selectedSessionKey);
-    const sessionKey = selectedSessionKey ?? buildNewSessionKey(selectedAgentId);
-    if (!selectedSessionKey) {
-      setSelectedSessionKey(sessionKey);
-    }
-    setDraft('');
     setOptimisticUserMessage({
       role: 'user',
-      content: message,
+      content: item.message,
       timestamp: new Date().toISOString()
     });
     setIsSending(true);
 
     try {
-      const runId = streamRunIdRef.current;
       let streamText = '';
       const streamTimestamp = new Date().toISOString();
 
       const result = await sendChatTurnStream({
-        message,
-        sessionKey,
-        agentId: selectedAgentId,
+        message: item.message,
+        sessionKey: item.sessionKey,
+        agentId: item.agentId,
         channel: 'ui',
         chatId: 'web-ui'
       }, {
@@ -221,8 +261,8 @@ export function ChatPage() {
           if (runId !== streamRunIdRef.current) {
             return;
           }
-          if (event.sessionKey && event.sessionKey !== selectedSessionKey) {
-            setSelectedSessionKey(event.sessionKey);
+          if (event.sessionKey) {
+            setSelectedSessionKey((prev) => prev === event.sessionKey ? prev : event.sessionKey);
           }
         },
         onDelta: (event) => {
@@ -241,22 +281,65 @@ export function ChatPage() {
         return;
       }
       setOptimisticUserMessage(null);
-      if (result.sessionKey !== sessionKey) {
+      if (result.sessionKey !== item.sessionKey) {
         setSelectedSessionKey(result.sessionKey);
       }
       await sessionsQuery.refetch();
-      if (hadActiveSession) {
+      const activeSessionKey = selectedSessionKeyRef.current;
+      if (!activeSessionKey || activeSessionKey === item.sessionKey || activeSessionKey === result.sessionKey) {
         await historyQuery.refetch();
       }
       setStreamingAssistantMessage(null);
       setIsSending(false);
     } catch {
+      if (runId !== streamRunIdRef.current) {
+        return;
+      }
       streamRunIdRef.current += 1;
       setIsSending(false);
       setStreamingAssistantMessage(null);
       setOptimisticUserMessage(null);
-      setDraft(message);
+      if (options?.restoreDraftOnError) {
+        setDraft((prev) => prev.trim().length === 0 ? item.message : prev);
+      }
     }
+  }, [historyQuery, sessionsQuery]);
+
+  useEffect(() => {
+    if (isSending || queuedMessages.length === 0) {
+      return;
+    }
+    const [next, ...rest] = queuedMessages;
+    setQueuedMessages(rest);
+    void runSend(next, { restoreDraftOnError: true });
+  }, [isSending, queuedMessages, runSend]);
+
+  const handleSend = async () => {
+    const message = draft.trim();
+    if (!message) {
+      return;
+    }
+
+    const sessionKey = selectedSessionKey ?? buildNewSessionKey(selectedAgentId);
+    if (!selectedSessionKey) {
+      setSelectedSessionKey(sessionKey);
+    }
+    setDraft('');
+
+    queueIdRef.current += 1;
+    const item: PendingChatMessage = {
+      id: queueIdRef.current,
+      message,
+      sessionKey,
+      agentId: selectedAgentId
+    };
+
+    if (isSending) {
+      setQueuedMessages((prev) => [...prev, item]);
+      return;
+    }
+
+    await runSend(item, { restoreDraftOnError: true });
   };
 
   return (
@@ -290,6 +373,19 @@ export function ChatPage() {
                 className="pl-8 h-9 rounded-lg text-xs"
               />
             </div>
+            <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+              <SelectTrigger className="h-9 rounded-lg text-xs">
+                <SelectValue placeholder={t('sessionsAllChannels')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('sessionsAllChannels')}</SelectItem>
+                {channelOptions.map((channel) => (
+                  <SelectItem key={channel} value={channel}>
+                    {displayChannelName(channel)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" size="sm" className="rounded-lg" onClick={() => sessionsQuery.refetch()}>
                 <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', sessionsQuery.isFetching && 'animate-spin')} />
@@ -305,14 +401,14 @@ export function ChatPage() {
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2">
             {sessionsQuery.isLoading ? (
               <div className="text-sm text-gray-500 p-4">{t('sessionsLoading')}</div>
-            ) : sessions.length === 0 ? (
+            ) : filteredSessions.length === 0 ? (
               <div className="p-5 m-2 rounded-xl border border-dashed border-gray-200 text-center text-sm text-gray-500">
                 <MessageSquareText className="h-7 w-7 mx-auto mb-2 text-gray-300" />
                 {t('sessionsEmpty')}
               </div>
             ) : (
               <div className="space-y-1">
-                {sessions.map((session) => {
+                {filteredSessions.map((session) => {
                   const active = selectedSessionKey === session.key;
                   return (
                     <button
@@ -339,8 +435,9 @@ export function ChatPage() {
         </aside>
 
         <section className="flex-1 min-h-0 rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50/60 to-white shadow-card flex flex-col overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200/80 bg-white/80 backdrop-blur-sm flex flex-wrap items-center gap-3">
-            <div className="min-w-[220px] max-w-[320px]">
+          <div className="px-5 py-4 border-b border-gray-200/80 bg-white/80 backdrop-blur-sm">
+            <div className="grid gap-3 lg:grid-cols-[minmax(220px,300px)_minmax(0,1fr)_auto] items-end">
+              <div className="min-w-0">
               <div className="text-[11px] text-gray-500 mb-1">{t('chatAgentLabel')}</div>
               <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
                 <SelectTrigger className="h-9 rounded-lg">
@@ -356,23 +453,24 @@ export function ChatPage() {
               </Select>
             </div>
 
-            <div className="flex-1 min-w-[260px]">
+              <div className="min-w-0">
               <div className="text-[11px] text-gray-500 mb-1">{t('chatSessionLabel')}</div>
               <div className="h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs text-gray-600 flex items-center truncate">
                 {selectedSessionKey ?? t('chatNoSession')}
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-lg self-end"
-              onClick={handleDeleteSession}
-              disabled={!selectedSession || deleteSession.isPending}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              {t('chatDeleteSession')}
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-lg"
+                onClick={handleDeleteSession}
+                disabled={!selectedSession || deleteSession.isPending}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                {t('chatDeleteSession')}
+              </Button>
+            </div>
           </div>
 
           <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-5">
@@ -410,18 +508,21 @@ export function ChatPage() {
                 }}
                 placeholder={t('chatInputPlaceholder')}
                 className="w-full min-h-[68px] max-h-[220px] resize-y bg-transparent outline-none text-sm px-2 py-1.5 text-gray-800 placeholder:text-gray-400"
-                disabled={isGenerating}
               />
               <div className="flex items-center justify-between px-2 pb-1">
-                <div className="text-[11px] text-gray-400">{t('chatInputHint')}</div>
+                <div className="text-[11px] text-gray-400">
+                  {isSending && queuedMessages.length > 0
+                    ? `${t('chatQueuedHintPrefix')} ${queuedMessages.length} ${t('chatQueuedHintSuffix')}`
+                    : t('chatInputHint')}
+                </div>
                 <Button
                   size="sm"
                   className="rounded-lg"
                   onClick={() => void handleSend()}
-                  disabled={isGenerating || draft.trim().length === 0}
+                  disabled={draft.trim().length === 0}
                 >
                   <Send className="h-3.5 w-3.5 mr-1.5" />
-                  {isGenerating ? t('chatSending') : t('chatSend')}
+                  {isSending ? t('chatQueueSend') : t('chatSend')}
                 </Button>
               </div>
             </div>

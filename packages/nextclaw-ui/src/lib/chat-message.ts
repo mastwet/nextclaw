@@ -100,6 +100,34 @@ function toToolName(value: unknown): string {
   return value.trim();
 }
 
+function hasToolCalls(message: SessionMessageView): boolean {
+  return Array.isArray(message.tool_calls) && message.tool_calls.length > 0;
+}
+
+function mergeMessageContent(base: unknown, addition: unknown): unknown {
+  const left = extractMessageText(base).trim();
+  const right = extractMessageText(addition).trim();
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return `${left}\n\n${right}`;
+}
+
+function mergeReasoningContent(base: unknown, addition: unknown): string | undefined {
+  const left = typeof base === 'string' ? base.trim() : '';
+  const right = typeof addition === 'string' ? addition.trim() : '';
+  if (!left) {
+    return right || undefined;
+  }
+  if (!right) {
+    return left;
+  }
+  return `${left}\n\n${right}`;
+}
+
 export function normalizeChatRole(message: Pick<SessionMessageView, 'role' | 'name' | 'tool_call_id' | 'tool_calls'>): ChatRole {
   const role = message.role.toLowerCase().trim();
   if (role === 'user') {
@@ -225,11 +253,12 @@ export function combineToolCallAndResults(messages: SessionMessageView[]): Sessi
   const consumedCallIds = new Set<string>();
 
   for (const message of cloned) {
-    if (normalizeChatRole(message) !== 'assistant' || !Array.isArray(message.tool_calls)) {
+    if (normalizeChatRole(message) !== 'assistant' || !hasToolCalls(message)) {
       continue;
     }
 
-    message.tool_calls = message.tool_calls.map((call) => {
+    const toolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+    message.tool_calls = toolCalls.map((call) => {
       if (!isRecord(call) || typeof call.id !== 'string') {
         return call;
       }
@@ -247,7 +276,7 @@ export function combineToolCallAndResults(messages: SessionMessageView[]): Sessi
     }) as Array<Record<string, unknown>>;
   }
 
-  return cloned.filter((message) => {
+  const mergedToolResults = cloned.filter((message) => {
     if (normalizeChatRole(message) !== 'tool') {
       return true;
     }
@@ -256,6 +285,46 @@ export function combineToolCallAndResults(messages: SessionMessageView[]): Sessi
     }
     return !consumedCallIds.has(message.tool_call_id.trim());
   });
+
+  const mergedFollowups: SessionMessageView[] = [];
+  for (let index = 0; index < mergedToolResults.length; index += 1) {
+    const current = mergedToolResults[index];
+    if (normalizeChatRole(current) !== 'assistant' || !hasToolCalls(current)) {
+      mergedFollowups.push(current);
+      continue;
+    }
+
+    let merged = current;
+    let cursor = index + 1;
+    while (cursor < mergedToolResults.length) {
+      const candidate = mergedToolResults[cursor];
+      if (normalizeChatRole(candidate) !== 'assistant') {
+        break;
+      }
+      if (hasToolCalls(candidate) || typeof candidate.tool_call_id === 'string') {
+        break;
+      }
+
+      const candidateText = extractMessageText(candidate.content).trim();
+      const candidateReasoning = typeof candidate.reasoning_content === 'string' && candidate.reasoning_content.trim();
+      if (!candidateText && !candidateReasoning) {
+        break;
+      }
+
+      merged = {
+        ...merged,
+        content: mergeMessageContent(merged.content, candidate.content),
+        reasoning_content: mergeReasoningContent(merged.reasoning_content, candidate.reasoning_content),
+        timestamp: candidate.timestamp
+      };
+      cursor += 1;
+    }
+
+    mergedFollowups.push(merged);
+    index = cursor - 1;
+  }
+
+  return mergedFollowups;
 }
 
 export function groupChatMessages(messages: SessionMessageView[]): GroupedChatMessage[] {
