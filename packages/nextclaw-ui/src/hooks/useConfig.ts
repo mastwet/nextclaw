@@ -150,7 +150,8 @@ export function useSessionHistory(key: string | null, limit = 200) {
     queryKey: ['session-history', key, limit],
     queryFn: () => fetchSessionHistory(key as string, limit),
     enabled: Boolean(key),
-    staleTime: 5_000
+    staleTime: 5_000,
+    retry: false
   });
 }
 

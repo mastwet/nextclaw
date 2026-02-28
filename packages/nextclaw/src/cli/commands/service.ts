@@ -995,7 +995,7 @@ export class ServiceCommands {
                 continue;
               }
               yield event;
-              if (event.type !== "delta") {
+              if (event.type === "final" || event.type === "error") {
                 await run;
                 return;
               }

@@ -94,10 +94,12 @@ export function ChatPage() {
   const [draft, setDraft] = useState('');
   const [selectedSessionKey, setSelectedSessionKey] = useState<string | null>(() => readStoredSessionKey());
   const [selectedAgentId, setSelectedAgentId] = useState('main');
+  const [optimisticUserEvent, setOptimisticUserEvent] = useState<SessionEventView | null>(null);
   const [streamingSessionEvents, setStreamingSessionEvents] = useState<SessionEventView[]>([]);
   const [streamingAssistantText, setStreamingAssistantText] = useState('');
   const [streamingAssistantTimestamp, setStreamingAssistantTimestamp] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [isAwaitingAssistantOutput, setIsAwaitingAssistantOutput] = useState(false);
   const [queuedMessages, setQueuedMessages] = useState<PendingChatMessage[]>([]);
 
   const { confirm, ConfirmDialog } = useConfirmDialog();
@@ -152,7 +154,11 @@ export function ChatPage() {
       ? historyData.events
       : buildFallbackEventsFromMessages(historyMessages);
   const mergedEvents = useMemo(() => {
-    const next = [...historyEvents, ...streamingSessionEvents];
+    const next = [...historyEvents];
+    if (optimisticUserEvent) {
+      next.push(optimisticUserEvent);
+    }
+    next.push(...streamingSessionEvents);
     if (streamingAssistantText.trim()) {
       const maxSeq = next.reduce((max, event) => {
         const seq = Number.isFinite(event.seq) ? event.seq : 0;
@@ -170,7 +176,7 @@ export function ChatPage() {
       });
     }
     return next;
-  }, [historyEvents, streamingAssistantText, streamingAssistantTimestamp, streamingSessionEvents]);
+  }, [historyEvents, optimisticUserEvent, streamingAssistantText, streamingAssistantTimestamp, streamingSessionEvents]);
 
   useEffect(() => {
     if (!selectedSessionKey && filteredSessions.length > 0) {
@@ -214,9 +220,11 @@ export function ChatPage() {
     streamRunIdRef.current += 1;
     setIsSending(false);
     setQueuedMessages([]);
+    setOptimisticUserEvent(null);
     setStreamingSessionEvents([]);
     setStreamingAssistantText('');
     setStreamingAssistantTimestamp(null);
+    setIsAwaitingAssistantOutput(false);
     const next = buildNewSessionKey(selectedAgentId);
     setSelectedSessionKey(next);
   };
@@ -240,9 +248,11 @@ export function ChatPage() {
           streamRunIdRef.current += 1;
           setIsSending(false);
           setQueuedMessages([]);
+          setOptimisticUserEvent(null);
           setStreamingSessionEvents([]);
           setStreamingAssistantText('');
           setStreamingAssistantTimestamp(null);
+          setIsAwaitingAssistantOutput(false);
           setSelectedSessionKey(null);
           await sessionsQuery.refetch();
         }
@@ -257,7 +267,18 @@ export function ChatPage() {
     setStreamingSessionEvents([]);
     setStreamingAssistantText('');
     setStreamingAssistantTimestamp(null);
+    setOptimisticUserEvent({
+      seq: 0,
+      type: 'message.user.optimistic',
+      timestamp: new Date().toISOString(),
+      message: {
+        role: 'user',
+        content: item.message,
+        timestamp: new Date().toISOString()
+      }
+    });
     setIsSending(true);
+    setIsAwaitingAssistantOutput(true);
 
     try {
       let streamText = '';
@@ -285,10 +306,14 @@ export function ChatPage() {
           }
           streamText += event.delta;
           setStreamingAssistantText(streamText);
+          setIsAwaitingAssistantOutput(false);
         },
         onSessionEvent: (event) => {
           if (runId !== streamRunIdRef.current) {
             return;
+          }
+          if (event.data.message?.role === 'user') {
+            setOptimisticUserEvent(null);
           }
           setStreamingSessionEvents((prev) => {
             const next = [...prev];
@@ -302,12 +327,14 @@ export function ChatPage() {
           });
           if (event.data.message?.role === 'assistant') {
             setStreamingAssistantText('');
+            setIsAwaitingAssistantOutput(false);
           }
         }
       });
       if (runId !== streamRunIdRef.current) {
         return;
       }
+      setOptimisticUserEvent(null);
       if (result.sessionKey !== item.sessionKey) {
         setSelectedSessionKey(result.sessionKey);
       }
@@ -319,6 +346,7 @@ export function ChatPage() {
       setStreamingSessionEvents([]);
       setStreamingAssistantText('');
       setStreamingAssistantTimestamp(null);
+      setIsAwaitingAssistantOutput(false);
       setIsSending(false);
     } catch {
       if (runId !== streamRunIdRef.current) {
@@ -326,9 +354,11 @@ export function ChatPage() {
       }
       streamRunIdRef.current += 1;
       setIsSending(false);
+      setOptimisticUserEvent(null);
       setStreamingSessionEvents([]);
       setStreamingAssistantText('');
       setStreamingAssistantTimestamp(null);
+      setIsAwaitingAssistantOutput(false);
       if (options?.restoreDraftOnError) {
         setDraft((prev) => prev.trim().length === 0 ? item.message : prev);
       }
@@ -512,14 +542,14 @@ export function ChatPage() {
                   <div className="text-xs mt-1">{t('chatNoSessionHint')}</div>
                 </div>
               </div>
-            ) : historyQuery.isLoading ? (
+            ) : historyQuery.isLoading && mergedEvents.length === 0 && !isSending && !isAwaitingAssistantOutput && !streamingAssistantText.trim() ? (
               <div className="text-sm text-gray-500">{t('chatHistoryLoading')}</div>
             ) : (
               <>
                 {mergedEvents.length === 0 ? (
                   <div className="text-sm text-gray-500">{t('chatNoMessages')}</div>
                 ) : (
-                  <ChatThread events={mergedEvents} isSending={isSending && !streamingAssistantText.trim()} />
+                  <ChatThread events={mergedEvents} isSending={isSending && isAwaitingAssistantOutput} />
                 )}
               </>
             )}

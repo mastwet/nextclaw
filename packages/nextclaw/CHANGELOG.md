@@ -1,5 +1,11 @@
 # nextclaw
 
+## 0.8.41
+
+### Patch Changes
+
+- fix chat stream terminal handling and remove end-of-stream typing flicker.
+
 ## 0.8.40
 
 ### Patch Changes
