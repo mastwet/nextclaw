@@ -101,6 +101,8 @@ export const FIELD_LABELS: Record<string, string> = {
   "channels.telegram.token": "Bot Token",
   "channels.telegram.allowFrom": "Allow From",
   "channels.telegram.proxy": "Proxy",
+  "channels.telegram.ackReaction": "Ack Reaction Emoji",
+  "channels.telegram.ackReactionScope": "Ack Reaction Scope",
   "channels.telegram.accountId": "Account ID",
   "channels.telegram.dmPolicy": "DM Policy",
   "channels.telegram.groupPolicy": "Group Policy",

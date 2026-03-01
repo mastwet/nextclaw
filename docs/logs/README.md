@@ -1,5 +1,8 @@
 # Logs
 
+- [docs/logs/2026-03-01-qq-group-speaker-runtime-fix/v0.0.1-qq-group-speaker-runtime-fix/CHANGELOG.md](docs/logs/2026-03-01-qq-group-speaker-runtime-fix/v0.0.1-qq-group-speaker-runtime-fix/CHANGELOG.md)
+- [docs/logs/2026-03-01-telegram-ack-reaction-align/v0.0.1-telegram-ack-reaction-align/README.md](docs/logs/2026-03-01-telegram-ack-reaction-align/v0.0.1-telegram-ack-reaction-align/README.md)
+- [docs/logs/2026-03-01-qq-group-speaker-distinction-skill/v0.0.1-qq-group-speaker-distinction-skill/CHANGELOG.md](docs/logs/2026-03-01-qq-group-speaker-distinction-skill/v0.0.1-qq-group-speaker-distinction-skill/CHANGELOG.md)
 - [docs/logs/2026-03-01-claw-usability-comparison/v0.0.1-claw-usability-comparison/README.md](docs/logs/2026-03-01-claw-usability-comparison/v0.0.1-claw-usability-comparison/README.md)
 - [docs/logs/2026-02-28-claw-competition-analysis/v0.0.1-claw-competition-analysis/README.md](docs/logs/2026-02-28-claw-competition-analysis/v0.0.1-claw-competition-analysis/README.md)
 - [docs/logs/2026-02-28-provider-models-combobox/v0.0.1-provider-models-combobox/README.md](docs/logs/2026-02-28-provider-models-combobox/v0.0.1-provider-models-combobox/README.md)

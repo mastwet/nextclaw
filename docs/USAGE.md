@@ -575,6 +575,8 @@ Discord native slash commands (auto-registered):
       "enabled": true,
       "token": "YOUR_BOT_TOKEN",
       "allowFrom": ["YOUR_USER_ID"],
+      "ackReaction": "👀",
+      "ackReactionScope": "all",
       "accountId": "zongzhihui",
       "dmPolicy": "open",
       "groupPolicy": "allowlist",
@@ -593,6 +595,11 @@ Discord native slash commands (auto-registered):
 ```
 
 Optional: set `"proxy": "http://localhost:7890"` (or your proxy URL) for network access.
+
+Telegram ack reaction defaults:
+
+- `ackReaction` default is `"👀"` (set empty string to disable emoji reaction).
+- `ackReactionScope` default is `"all"` (`off` | `group-mentions` | `group-all` | `direct` | `all`).
 
 Telegram Bot API behavior note:
 

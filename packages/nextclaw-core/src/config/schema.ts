@@ -9,6 +9,7 @@ import { buildConfigActions, type ConfigActionManifest } from "./actions.js";
 const allowFrom = z.array(z.string()).default([]);
 const groupPolicySchema = z.enum(["open", "allowlist", "disabled"]);
 const dmPolicySchema = z.enum(["pairing", "allowlist", "open", "disabled"]);
+const ackReactionScopeSchema = z.enum(["off", "group-mentions", "group-all", "direct", "all"]);
 const sessionDmScopeSchema = z.enum(["main", "per-peer", "per-channel-peer", "per-account-channel-peer"]);
 const streamingModeSchema = z.union([z.boolean(), z.enum(["off", "partial", "block", "progress"])]).default("off");
 const discordDraftChunkSchema = z
@@ -35,6 +36,8 @@ export const TelegramConfigSchema = z.object({
   token: z.string().default(""),
   allowFrom: allowFrom,
   proxy: z.string().nullable().default(null),
+  ackReaction: z.string().default("👀"),
+  ackReactionScope: ackReactionScopeSchema.default("all"),
   accountId: z.string().default("default"),
   dmPolicy: dmPolicySchema.default("open"),
   groupPolicy: groupPolicySchema.default("open"),

@@ -43,13 +43,18 @@ Configure channels in the UI or in `~/.nextclaw/config.json` under `channels`.
     "telegram": {
       "enabled": true,
       "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"]
+      "allowFrom": ["YOUR_USER_ID"],
+      "ackReaction": "👀",
+      "ackReactionScope": "all"
     }
   }
 }
 ```
 
 Optional: set `"proxy": "http://localhost:7890"` for network access.
+
+- `ackReaction` default is `"👀"` (set empty string to disable).
+- `ackReactionScope` default is `"all"` (`off` | `group-mentions` | `group-all` | `direct` | `all`).
 
 ## Slack
 

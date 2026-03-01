@@ -86,6 +86,9 @@ export const FIELD_HELP: Record<string, string> = {
   "channels.whatsapp.bridgeUrl": "WebSocket URL for the WhatsApp bridge.",
   "channels.telegram.token": "Telegram bot token.",
   "channels.telegram.proxy": "Optional HTTP proxy for Telegram.",
+  "channels.telegram.ackReaction": "Emoji used for Telegram inbound acknowledgment (empty disables).",
+  "channels.telegram.ackReactionScope":
+    'When to send Telegram ack reactions ("off" | "group-mentions" | "group-all" | "direct" | "all").',
   "channels.telegram.accountId": "Logical account id for routing bindings.",
   "channels.telegram.dmPolicy": "DM policy for Telegram (pairing/allowlist/open/disabled).",
   "channels.telegram.groupPolicy": "Group policy for Telegram (open/allowlist/disabled).",

@@ -21,6 +21,9 @@ const BOT_COMMANDS: BotCommand[] = [
   { command: "help", description: "Show available commands" }
 ];
 
+type TelegramMentionState = { wasMentioned: boolean; requireMention: boolean };
+type TelegramAckReactionScope = Config["channels"]["telegram"]["ackReactionScope"];
+
 export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]> {
   name = "telegram";
 
@@ -256,6 +259,13 @@ export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]>
       }
     }
 
+    await this.maybeAddAckReaction({
+      message,
+      chatId,
+      isGroup,
+      mentionState
+    });
+
     const content = contentParts.length ? contentParts.join("\n") : "[empty message]";
     this.startTyping(chatId);
 
@@ -304,6 +314,42 @@ export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]>
     return accountId || "default";
   }
 
+  private async maybeAddAckReaction(params: {
+    message: Message;
+    chatId: string;
+    isGroup: boolean;
+    mentionState: TelegramMentionState;
+  }): Promise<void> {
+    if (!this.bot) {
+      return;
+    }
+    if (typeof params.message.message_id !== "number") {
+      return;
+    }
+    const emoji = (this.config.ackReaction ?? "👀").trim();
+    if (!emoji) {
+      return;
+    }
+    const shouldAck = shouldSendAckReaction({
+      scope: this.config.ackReactionScope,
+      isDirect: !params.isGroup,
+      isGroup: params.isGroup,
+      requireMention: params.mentionState.requireMention,
+      wasMentioned: params.mentionState.wasMentioned
+    });
+    if (!shouldAck) {
+      return;
+    }
+    const reaction = [{ type: "emoji", emoji } as TelegramBot.ReactionType];
+    try {
+      await this.bot.setMessageReaction(Number(params.chatId), params.message.message_id, {
+        reaction
+      });
+    } catch {
+      // ignore reaction errors
+    }
+  }
+
   private isAllowedByPolicy(params: { senderId: string; chatId: string; isGroup: boolean }): boolean {
     if (!params.isGroup) {
       if (this.config.dmPolicy === "disabled") {
@@ -332,7 +378,7 @@ export class TelegramChannel extends BaseChannel<Config["channels"]["telegram"]>
     message: Message;
     chatId: string;
     isGroup: boolean;
-  }): { wasMentioned: boolean; requireMention: boolean } {
+  }): TelegramMentionState {
     if (!params.isGroup) {
       return { wasMentioned: false, requireMention: false };
     }
@@ -450,6 +496,32 @@ function inferMediaMimeType(mediaType?: string): string | undefined {
     return "audio/mpeg";
   }
   return undefined;
+}
+
+function shouldSendAckReaction(params: {
+  scope?: TelegramAckReactionScope;
+  isDirect: boolean;
+  isGroup: boolean;
+  requireMention: boolean;
+  wasMentioned: boolean;
+}): boolean {
+  const scope = params.scope ?? "all";
+  if (scope === "off") {
+    return false;
+  }
+  if (scope === "all") {
+    return true;
+  }
+  if (scope === "direct") {
+    return params.isDirect;
+  }
+  if (scope === "group-all") {
+    return params.isGroup;
+  }
+  if (scope === "group-mentions") {
+    return params.isGroup && params.requireMention && params.wasMentioned;
+  }
+  return false;
 }
 
 function markdownToTelegramHtml(text: string): string {

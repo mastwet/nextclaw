@@ -43,13 +43,18 @@
     "telegram": {
       "enabled": true,
       "token": "YOUR_BOT_TOKEN",
-      "allowFrom": ["YOUR_USER_ID"]
+      "allowFrom": ["YOUR_USER_ID"],
+      "ackReaction": "👀",
+      "ackReactionScope": "all"
     }
   }
 }
 ```
 
 可选：设置 `"proxy": "http://localhost:7890"` 以支持代理网络。
+
+- `ackReaction` 默认 `"👀"`（设为空字符串可关闭表情确认）。
+- `ackReactionScope` 默认 `"all"`（`off` | `group-mentions` | `group-all` | `direct` | `all`）。
 
 ## Slack
 
