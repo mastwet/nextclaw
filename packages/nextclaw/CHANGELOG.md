@@ -1,5 +1,15 @@
 # nextclaw
 
+## 0.8.57
+
+### Patch Changes
+
+- - fix provider connection test probe to use `maxTokens >= 16`, avoiding OpenAI-compatible gateway errors that reject values below 16.
+  - add regression coverage for provider test route to assert probe maxTokens lower bound.
+  - include latest UI updates in this release batch.
+- Updated dependencies
+  - @nextclaw/server@0.5.29
+
 ## 0.8.56
 
 ### Patch Changes

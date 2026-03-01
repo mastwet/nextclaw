@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
-import { ConfigSchema, saveConfig } from "@nextclaw/core";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ConfigSchema, LiteLLMProvider, saveConfig } from "@nextclaw/core";
 import { createUiRouter } from "./router.js";
 
 const tempDirs: string[] = [];
@@ -14,6 +14,7 @@ function createTempConfigPath(): string {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
     if (dir) {
@@ -81,6 +82,46 @@ describe("provider connection test route", () => {
     expect(payload.ok).toBe(true);
     expect(payload.data.success).toBe(false);
     expect(payload.data.message).toContain("API key is required");
+  });
+
+  it("uses maxTokens >= 16 when probing provider connection", async () => {
+    const configPath = createTempConfigPath();
+    saveConfig(ConfigSchema.parse({}), configPath);
+
+    const chatSpy = vi.spyOn(LiteLLMProvider.prototype, "chat").mockResolvedValue({
+      content: "pong",
+      toolCalls: [],
+      finishReason: "stop",
+      usage: {}
+    });
+
+    const app = createUiRouter({
+      configPath,
+      publish: () => {}
+    });
+
+    const response = await app.request("http://localhost/api/config/providers/openai/test", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        apiKey: "sk_test_probe",
+        model: "gpt-5.2-codex"
+      })
+    });
+
+    expect(response.status).toBe(200);
+    const payload = await response.json() as {
+      ok: true;
+      data: {
+        success: boolean;
+      };
+    };
+    expect(payload.ok).toBe(true);
+    expect(payload.data.success).toBe(true);
+    expect(chatSpy).toHaveBeenCalledTimes(1);
+    expect(chatSpy.mock.calls[0]?.[0]?.maxTokens).toBeGreaterThanOrEqual(16);
   });
 
   it("persists provider custom models and exposes provider default models in meta", async () => {

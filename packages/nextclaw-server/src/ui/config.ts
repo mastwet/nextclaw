@@ -72,6 +72,7 @@ const PREFERRED_PROVIDER_ORDER_INDEX: Map<string, number> = new Map(
 const BUILTIN_PROVIDER_NAMES = new Set(PROVIDERS.map((spec) => spec.name));
 const CUSTOM_PROVIDER_WIRE_API_OPTIONS: Array<"auto" | "chat" | "responses"> = ["auto", "chat", "responses"];
 const CUSTOM_PROVIDER_PREFIX = "custom-";
+const PROVIDER_TEST_MAX_TOKENS = 16;
 
 function normalizeOptionalDisplayName(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -862,7 +863,7 @@ export async function testProviderConnection(
     await probe.chat({
       model,
       messages: [{ role: "user", content: "ping" }],
-      maxTokens: 8
+      maxTokens: PROVIDER_TEST_MAX_TOKENS
     });
     return {
       success: true,

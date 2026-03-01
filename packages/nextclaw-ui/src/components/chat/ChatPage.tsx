@@ -104,6 +104,7 @@ export function ChatPage() {
 
   const { confirm, ConfirmDialog } = useConfirmDialog();
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const isUserScrollingRef = useRef(false);
   const streamRunIdRef = useRef(0);
   const queueIdRef = useRef(0);
   const selectedSessionKeyRef = useRef<string | null>(selectedSessionKey);
@@ -200,15 +201,39 @@ export function ChatPage() {
 
   useEffect(() => {
     selectedSessionKeyRef.current = selectedSessionKey;
+    // Reset scroll state when switching sessions
+    isUserScrollingRef.current = false;
   }, [selectedSessionKey]);
 
+  // Check if user is near bottom (within 50px)
+  const isNearBottom = useCallback(() => {
+    const element = threadRef.current;
+    if (!element) return true;
+    const threshold = 50;
+    return element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
+  }, []);
+
+  // Handle scroll events to detect user scrolling up
+  const handleScroll = useCallback(() => {
+    if (isNearBottom()) {
+      isUserScrollingRef.current = false;
+    } else {
+      isUserScrollingRef.current = true;
+    }
+  }, [isNearBottom]);
+
+  // Auto-scroll to bottom only if user hasn't scrolled up
   useEffect(() => {
     const element = threadRef.current;
     if (!element) {
       return;
     }
+    // Don't auto-scroll if user has scrolled up
+    if (isUserScrollingRef.current) {
+      return;
+    }
     element.scrollTop = element.scrollHeight;
-  }, [mergedEvents, isSending, selectedSessionKey]);
+  }, [mergedEvents, isSending]);
 
   useEffect(() => {
     return () => {
@@ -532,7 +557,7 @@ export function ChatPage() {
             </div>
           </div>
 
-          <div ref={threadRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-5">
+          <div ref={threadRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-5">
             {!selectedSessionKey ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center text-gray-500">
