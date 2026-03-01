@@ -111,7 +111,7 @@ importers:
         specifier: ^1.58.0
         version: 1.58.0
       '@nextclaw/core':
-        specifier: ^0.6.34
+        specifier: ^0.6.39
         version: link:../../nextclaw-core
       '@slack/socket-mode':
         specifier: ^1.3.3
@@ -196,13 +196,13 @@ importers:
   packages/nextclaw:
     dependencies:
       '@nextclaw/core':
-        specifier: ^0.6.34
+        specifier: ^0.6.39
         version: link:../nextclaw-core
       '@nextclaw/openclaw-compat':
-        specifier: ^0.1.28
+        specifier: ^0.1.30
         version: link:../nextclaw-openclaw-compat
       '@nextclaw/server':
-        specifier: ^0.5.16
+        specifier: ^0.5.25
         version: link:../nextclaw-server
       chokidar:
         specifier: ^3.6.0
@@ -342,10 +342,10 @@ importers:
         specifier: ^0.1.5
         version: link:../extensions/nextclaw-channel-plugin-whatsapp
       '@nextclaw/channel-runtime':
-        specifier: ^0.1.20
+        specifier: ^0.1.22
         version: link:../extensions/nextclaw-channel-runtime
       '@nextclaw/core':
-        specifier: ^0.6.34
+        specifier: ^0.6.39
         version: link:../nextclaw-core
       ajv:
         specifier: ^8.17.1
@@ -397,10 +397,10 @@ importers:
         specifier: ^1.13.3
         version: 1.19.9(hono@4.11.9)
       '@nextclaw/core':
-        specifier: ^0.6.34
+        specifier: ^0.6.39
         version: link:../nextclaw-core
       '@nextclaw/openclaw-compat':
-        specifier: ^0.1.28
+        specifier: ^0.1.30
         version: link:../nextclaw-openclaw-compat
       hono:
         specifier: ^4.6.2

@@ -19,6 +19,16 @@ type DeployPlatform = {
   label: string;
 };
 
+type FAQItem = {
+  question: string;
+  answer: string;
+};
+
+type ComparisonRow = {
+  dimension: string;
+  values: string[]; // [NextClaw, OpenClaw, NanoBot, ...]
+};
+
 type LandingCopy = {
   navFeatures: string;
   navDocs: string;
@@ -62,6 +72,13 @@ type LandingCopy = {
   deployTitle: string;
   deploySubtitle: string;
   deployPlatforms: DeployPlatform[];
+  faqTitle: string;
+  faqSubtitle: string;
+  faq: FAQItem[];
+  comparisonTitle: string;
+  comparisonSubtitle: string;
+  comparisonProjects: string[];
+  comparison: ComparisonRow[];
 };
 
 declare global {
@@ -165,15 +182,17 @@ const COPY: Record<Locale, LandingCopy> = {
     providersTitle: '10+ AI Providers',
     providersSubtitle: 'Switch between any major AI provider. No lock-in, no rewiring.',
     providers: [
+      { name: 'OpenRouter', logo: '/logos/openrouter.svg' },
       { name: 'OpenAI', logo: '/logos/openai.svg' },
+      { name: 'Anthropic', logo: '/logos/anthropic.svg' },
       { name: 'Gemini', logo: '/logos/gemini.svg' },
       { name: 'DeepSeek', logo: '/logos/deepseek.png' },
       { name: 'Groq', logo: '/logos/groq.svg' },
-      { name: 'OpenRouter', logo: '/logos/openrouter.svg' },
       { name: 'MiniMax', logo: '/logos/minimax.svg' },
       { name: 'Moonshot', logo: '/logos/moonshot.png' },
       { name: 'DashScope', logo: '/logos/dashscope.png' },
       { name: 'Zhipu', logo: '/logos/zhipu.svg' },
+      { name: 'AiHubMix', logo: '/logos/aihubmix.png' },
       { name: 'vLLM', logo: '/logos/vllm.svg' }
     ],
     channelsTitle: '10+ Message Channels',
@@ -198,6 +217,43 @@ const COPY: Record<Locale, LandingCopy> = {
       { icon: 'terminal', label: 'Linux' },
       { icon: 'cloud', label: 'Cloud VMs' },
       { icon: 'box', label: 'Docker' }
+    ],
+    faqTitle: 'Frequently Asked Questions',
+    faqSubtitle: 'Quick answers to common questions about NextClaw.',
+    faq: [
+      {
+        question: 'What is the difference between NextClaw and OpenClaw?',
+        answer: 'NextClaw is inspired by OpenClaw and stays compatible with its plugin ecosystem. The main differences are: (1) One-command startup with a built-in UI for configuration, (2) Smaller codebase (~1/20 of OpenClaw) for easier maintenance, (3) Better support for Chinese domestic channels like QQ, Feishu, and DingTalk.'
+      }
+    ],
+    comparisonTitle: 'Ecosystem Comparison',
+    comparisonSubtitle: 'How NextClaw compares to other projects in the Claw ecosystem.',
+    comparisonProjects: ['NextClaw', 'OpenClaw', 'NanoBot', 'NanoClaw', 'ZeroClaw', 'PicoClaw'],
+    comparison: [
+      {
+        dimension: 'Positioning',
+        values: ['OpenClaw-compatible + UI-first', 'Full-stack AI platform', 'Lightweight Python agent', 'Minimal + container isolation', 'Rust security-first', 'Go lightweight']
+      },
+      {
+        dimension: 'Stack',
+        values: ['TS/Node monorepo', 'TS/Node + Swift/Kotlin', 'Python', 'TS/Node + container', 'Rust', 'Go']
+      },
+      {
+        dimension: 'Setup',
+        values: ['One command + Web UI', 'Wizard + daemon', 'pip + config.json', 'Claude Code + /setup', 'Bootstrap/binary', 'onboard + config']
+      },
+      {
+        dimension: 'Built-in UI',
+        values: ['Chat + Config + Plugins', 'Control UI + WebChat + Apps', 'CLI-focused', 'No dashboard', 'CLI/config-focused', 'Webhook/config']
+      },
+      {
+        dimension: 'CN Channels',
+        values: ['QQ/Feishu/DingTalk/WeCom', 'Partial', 'QQ/Feishu/DingTalk', 'Core channels only', 'QQ/DingTalk/Lark', 'QQ/DingTalk/WeCom']
+      },
+      {
+        dimension: 'Complexity',
+        values: ['Balanced', 'High', 'Low', 'Minimal', 'Medium', 'Low']
+      }
     ]
   },
   zh: {
@@ -268,15 +324,17 @@ const COPY: Record<Locale, LandingCopy> = {
     providersTitle: '10+ AI 提供商',
     providersSubtitle: '随时切换任意主流 AI 提供商，不锁定，不重新配置。',
     providers: [
+      { name: 'OpenRouter', logo: '/logos/openrouter.svg' },
       { name: 'OpenAI', logo: '/logos/openai.svg' },
+      { name: 'Anthropic', logo: '/logos/anthropic.svg' },
       { name: 'Gemini', logo: '/logos/gemini.svg' },
       { name: 'DeepSeek', logo: '/logos/deepseek.png' },
       { name: 'Groq', logo: '/logos/groq.svg' },
-      { name: 'OpenRouter', logo: '/logos/openrouter.svg' },
       { name: 'MiniMax', logo: '/logos/minimax.svg' },
       { name: 'Moonshot', logo: '/logos/moonshot.png' },
       { name: '通义千问', logo: '/logos/dashscope.png' },
       { name: '智谱', logo: '/logos/zhipu.svg' },
+      { name: 'AiHubMix', logo: '/logos/aihubmix.png' },
       { name: 'vLLM', logo: '/logos/vllm.svg' }
     ],
     channelsTitle: '10+ 消息渠道',
@@ -301,6 +359,43 @@ const COPY: Record<Locale, LandingCopy> = {
       { icon: 'terminal', label: 'Linux' },
       { icon: 'cloud', label: '云服务器' },
       { icon: 'box', label: 'Docker' }
+    ],
+    faqTitle: '常见问题',
+    faqSubtitle: '关于 NextClaw 的常见问题解答。',
+    faq: [
+      {
+        question: 'NextClaw 和 OpenClaw 有什么区别？',
+        answer: 'NextClaw 受 OpenClaw 启发，并保持与其插件生态兼容。主要区别：(1) 一条命令启动，内置 UI 配置界面；(2) 代码量约为 OpenClaw 的 1/20，更易维护；(3) 更好地支持国内渠道如 QQ、飞书、钉钉等。'
+      }
+    ],
+    comparisonTitle: '生态对比',
+    comparisonSubtitle: 'NextClaw 与 Claw 生态其他项目的横向对比。',
+    comparisonProjects: ['NextClaw', 'OpenClaw', 'NanoBot', 'NanoClaw', 'ZeroClaw', 'PicoClaw'],
+    comparison: [
+      {
+        dimension: '核心定位',
+        values: ['OpenClaw 兼容 + UI 优先', '全栈 AI 助手平台', '轻量 Python Agent', '极简 + 容器隔离', 'Rust 安全优先', 'Go 轻量多渠道']
+      },
+      {
+        dimension: '技术栈',
+        values: ['TS/Node monorepo', 'TS/Node + Swift/Kotlin', 'Python', 'TS/Node + 容器', 'Rust', 'Go']
+      },
+      {
+        dimension: '上手路径',
+        values: ['一条命令 + Web UI', '向导 + 守护进程', 'pip + config.json', 'Claude Code + /setup', 'Bootstrap/二进制', 'onboard + config']
+      },
+      {
+        dimension: '内置 UI',
+        values: ['对话 + 配置 + 插件', 'Control UI + WebChat + 多端', 'CLI 为主', '无 dashboard', 'CLI/配置为主', 'Webhook/配置']
+      },
+      {
+        dimension: '国内渠道',
+        values: ['QQ/飞书/钉钉/企微', '部分支持', 'QQ/飞书/钉钉', '核心渠道', 'QQ/钉钉/飞书', 'QQ/钉钉/企微']
+      },
+      {
+        dimension: '复杂度',
+        values: ['均衡', '高', '低', '极简', '中等', '低']
+      }
     ]
   }
 };
@@ -389,7 +484,18 @@ class LandingPage {
               <a href="${LINKS.github}" target="_blank" rel="noopener noreferrer" class="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-secondary" aria-label="GitHub">
                 <i data-lucide="github" class="w-5 h-5"></i>
               </a>
+              <button id="mobile-menu-btn" class="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-secondary" aria-label="Menu">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+              </button>
             </div>
+          </div>
+          <!-- Mobile menu -->
+          <div id="mobile-menu" class="hidden md:hidden border-t border-border/40 bg-background/95 backdrop-blur-sm">
+            <nav class="container mx-auto px-6 py-4 flex flex-col gap-4 text-sm font-medium">
+              <a href="#features" class="text-muted-foreground hover:text-foreground transition-colors py-2">${this.copy.navFeatures}</a>
+              <a href="#community" class="text-muted-foreground hover:text-foreground transition-colors py-2">${this.copy.navCommunity}</a>
+              <a href="${docsLink}" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground transition-colors py-2">${this.copy.navDocs}</a>
+            </nav>
           </div>
         </header>
 
@@ -519,6 +625,54 @@ class LandingPage {
           </div>
         </section>
 
+        <section id="faq" class="py-20 px-6 z-10 w-full max-w-4xl mx-auto">
+          <div class="text-center mb-12">
+            <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">${this.copy.faqTitle}</h2>
+            <p class="text-muted-foreground text-lg max-w-2xl mx-auto">${this.copy.faqSubtitle}</p>
+          </div>
+          <div class="space-y-4">
+            ${this.copy.faq.map((item) => `
+              <details class="glass-card rounded-2xl border border-border/50 group">
+                <summary class="px-6 py-5 cursor-pointer flex items-center justify-between text-left font-medium hover:text-primary transition-colors list-none">
+                  <span>${item.question}</span>
+                  <i data-lucide="chevron-down" class="w-5 h-5 text-muted-foreground group-open:rotate-180 transition-transform shrink-0 ml-4"></i>
+                </summary>
+                <div class="px-6 pb-5 text-muted-foreground leading-relaxed">
+                  ${item.answer}
+                </div>
+              </details>`).join('')}
+          </div>
+        </section>
+
+        <section class="py-20 px-6 z-10 w-full max-w-6xl mx-auto">
+          <div class="text-center mb-12">
+            <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">${this.copy.comparisonTitle}</h2>
+            <p class="text-muted-foreground text-lg max-w-2xl mx-auto">${this.copy.comparisonSubtitle}</p>
+          </div>
+          <div class="glass-card rounded-2xl border border-border/50 overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-border/40">
+                  <th class="px-4 py-4 text-left font-semibold sticky left-0 bg-white/90 backdrop-blur-sm z-10 min-w-[100px]"></th>
+                  ${this.copy.comparisonProjects.map((p, i) => `
+                    <th class="px-4 py-4 text-center font-semibold min-w-[120px] ${i === 0 ? 'text-primary' : ''}">${p}</th>
+                  `).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${this.copy.comparison.map((row) => `
+                  <tr class="border-b border-border/20 last:border-0">
+                    <td class="px-4 py-4 font-medium text-muted-foreground sticky left-0 bg-white/90 backdrop-blur-sm z-10">${row.dimension}</td>
+                    ${row.values.map((v, i) => `
+                      <td class="px-4 py-4 text-center ${i === 0 ? 'text-primary font-medium' : 'text-muted-foreground'}">${v}</td>
+                    `).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="py-24 px-6 z-10 w-full max-w-4xl mx-auto text-center">
           <div class="glass-card rounded-[2rem] p-12 relative overflow-hidden">
             <div class="absolute inset-0 bg-primary/5"></div>
@@ -580,8 +734,26 @@ class LandingPage {
 
     this.bindLocaleSelect();
     this.bindCopyAction();
+    this.bindMobileMenu();
     this.runTerminalAnimation();
     createIcons({ icons, nameAttr: 'data-lucide' });
+  }
+
+  private bindMobileMenu(): void {
+    const menuBtn = document.querySelector<HTMLButtonElement>('#mobile-menu-btn');
+    const mobileMenu = document.querySelector<HTMLElement>('#mobile-menu');
+    if (!menuBtn || !mobileMenu) {
+      return;
+    }
+    menuBtn.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden');
+    });
+    // Close menu when clicking a link
+    mobileMenu.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+      });
+    });
   }
 
   private bindLocaleSelect(): void {
