@@ -13,6 +13,7 @@ import { ActionLink } from '@/components/ui/action-link';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
+import { resolveChannelTutorialUrl } from '@/lib/channel-tutorials';
 
 const channelIcons: Record<string, typeof MessageCircle> = {
   telegram: MessageCircle,
@@ -66,6 +67,7 @@ export function ChannelsList() {
           const enabled = channelConfig?.enabled || false;
           const Icon = channelIcons[channel.name] || channelIcons.default;
           const channelHint = hintForPath(`channels.${channel.name}`, uiHints);
+          const tutorialUrl = resolveChannelTutorialUrl(channel);
           const description =
             channelHint?.help ||
             t(channelDescriptionKeys[channel.name] || 'channelDescriptionDefault');
@@ -98,11 +100,9 @@ export function ChannelsList() {
 
               <ConfigCardFooter>
                 <ActionLink label={enabled ? t('actionConfigure') : t('actionEnable')} />
-                {channel.tutorialUrl && (
+                {tutorialUrl && (
                   <a
-                    href={channel.tutorialUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={tutorialUrl}
                     onClick={(e) => e.stopPropagation()}
                     className="flex items-center justify-center h-6 w-6 rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100/60 transition-colors"
                     title={t('channelsGuideTitle')}

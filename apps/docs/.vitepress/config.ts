@@ -107,6 +107,13 @@ const enSidebar = [
     ]
   },
   {
+    text: 'Tutorials',
+    items: [
+      { text: 'Tutorial Hub', link: '/en/guide/tutorials' },
+      { text: 'Feishu Setup', link: '/en/guide/tutorials/feishu' }
+    ]
+  },
+  {
     text: 'Project',
     items: [{ text: 'Roadmap', link: '/en/guide/roadmap' }]
   }
@@ -138,6 +145,13 @@ const zhSidebar = [
     items: [
       { text: '命令', link: '/zh/guide/commands' },
       { text: '故障排查', link: '/zh/guide/troubleshooting' }
+    ]
+  },
+  {
+    text: '教程',
+    items: [
+      { text: '教程总览', link: '/zh/guide/tutorials' },
+      { text: '飞书配置教程', link: '/zh/guide/tutorials/feishu' }
     ]
   },
   {
@@ -178,6 +192,7 @@ export default defineConfig({
           { text: 'Configuration', link: '/en/guide/configuration' },
           { text: 'Secrets', link: '/en/guide/secrets' },
           { text: 'Channels', link: '/en/guide/channels' },
+          { text: 'Tutorials', link: '/en/guide/tutorials' },
           { text: 'Commands', link: '/en/guide/commands' },
           { text: 'Roadmap', link: '/en/guide/roadmap' },
         ],
@@ -203,6 +218,7 @@ export default defineConfig({
           { text: '配置', link: '/zh/guide/configuration' },
           { text: '密钥管理', link: '/zh/guide/secrets' },
           { text: '渠道', link: '/zh/guide/channels' },
+          { text: '教程', link: '/zh/guide/tutorials' },
           { text: '命令', link: '/zh/guide/commands' },
           { text: '路线图', link: '/zh/guide/roadmap' },
         ],

@@ -1,5 +1,14 @@
 # @nextclaw/ui
 
+## 0.5.35
+
+### Patch Changes
+
+- Add channel tutorial metadata and expose in the UI with localized links.
+  - Add a Tutorials module to docs (EN/ZH) and include a dedicated Feishu setup page.
+  - Extend config meta channel spec with `tutorialUrls` (`default/en/zh`) while keeping `tutorialUrl` for compatibility.
+  - Resolve localized tutorial URLs in UI and show guide entry points on channel cards and channel config modal headers.
+
 ## 0.5.34
 
 ### Patch Changes

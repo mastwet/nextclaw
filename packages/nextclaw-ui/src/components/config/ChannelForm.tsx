@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useConfig, useConfigSchema, useUpdateChannel, useExecuteConfigAction } from '@/hooks/useConfig';
+import { useConfig, useConfigMeta, useConfigSchema, useUpdateChannel, useExecuteConfigAction } from '@/hooks/useConfig';
 import { useUiStore } from '@/stores/ui.store';
 import {
   Dialog,
@@ -18,8 +18,9 @@ import { TagInput } from '@/components/common/TagInput';
 import { t } from '@/lib/i18n';
 import { hintForPath } from '@/lib/config-hints';
 import { toast } from 'sonner';
-import { MessageCircle, Settings, ToggleLeft, Hash, Mail, Globe, KeyRound } from 'lucide-react';
+import { MessageCircle, Settings, ToggleLeft, Hash, Mail, Globe, KeyRound, BookOpen } from 'lucide-react';
 import type { ConfigActionManifest } from '@/api/types';
+import { resolveChannelTutorialUrl } from '@/lib/channel-tutorials';
 
 type ChannelFieldType = 'boolean' | 'text' | 'email' | 'password' | 'number' | 'tags' | 'select' | 'json';
 type ChannelOption = { value: string; label: string };
@@ -210,6 +211,7 @@ function buildScopeDraft(scope: string, value: Record<string, unknown>): Record<
 export function ChannelForm() {
   const { channelModal, closeChannelModal } = useUiStore();
   const { data: config } = useConfig();
+  const { data: meta } = useConfigMeta();
   const { data: schema } = useConfigSchema();
   const updateChannel = useUpdateChannel();
   const executeAction = useExecuteConfigAction();
@@ -227,6 +229,8 @@ export function ChannelForm() {
   const channelLabel = channelName
     ? hintForPath(`channels.${channelName}`, uiHints)?.label ?? channelName
     : channelName;
+  const channelMeta = meta?.channels.find((item) => item.name === channelName);
+  const tutorialUrl = channelMeta ? resolveChannelTutorialUrl(channelMeta) : undefined;
 
   useEffect(() => {
     if (channelConfig) {
@@ -354,6 +358,15 @@ export function ChannelForm() {
             <div>
               <DialogTitle className="capitalize">{channelLabel}</DialogTitle>
               <DialogDescription>{t('configureMessageChannelParameters')}</DialogDescription>
+              {tutorialUrl && (
+                <a
+                  href={tutorialUrl}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary-hover transition-colors"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  {t('channelsGuideTitle')}
+                </a>
+              )}
             </div>
           </div>
         </DialogHeader>

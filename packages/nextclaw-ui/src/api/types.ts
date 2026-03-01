@@ -342,6 +342,11 @@ export type ChannelSpecView = {
   displayName?: string;
   enabled: boolean;
   tutorialUrl?: string;
+  tutorialUrls?: {
+    default?: string;
+    en?: string;
+    zh?: string;
+  };
 };
 
 export type ConfigMetaView = {

@@ -70,6 +70,27 @@ const PREFERRED_PROVIDER_ORDER_INDEX: Map<string, number> = new Map(
   PREFERRED_PROVIDER_ORDER.map((name, index) => [name, index])
 );
 
+type ChannelTutorialUrls = NonNullable<ConfigMetaView["channels"][number]["tutorialUrls"]>;
+
+const DOCS_BASE_URL = "https://docs.nextclaw.io";
+const CHANNEL_DEFAULT_TUTORIAL_URL = `${DOCS_BASE_URL}/guide/channels`;
+const CHANNEL_TUTORIAL_URLS: Record<string, ChannelTutorialUrls> = {
+  telegram: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
+  whatsapp: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
+  discord: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
+  feishu: {
+    default: `${DOCS_BASE_URL}/guide/tutorials/feishu`,
+    en: `${DOCS_BASE_URL}/en/guide/tutorials/feishu`,
+    zh: `${DOCS_BASE_URL}/zh/guide/tutorials/feishu`
+  },
+  mochat: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
+  dingtalk: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
+  wecom: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
+  email: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
+  slack: { default: CHANNEL_DEFAULT_TUTORIAL_URL },
+  qq: { default: CHANNEL_DEFAULT_TUTORIAL_URL }
+};
+
 type ExecuteActionResult =
   | { ok: true; data: ConfigActionExecuteResult }
   | { ok: false; code: string; message: string; details?: Record<string, unknown> };
@@ -423,11 +444,17 @@ export function buildConfigMeta(config: Config): ConfigMetaView {
     }
     return left.name.localeCompare(right.name);
   });
-  const channels = Object.keys(config.channels).map((name) => ({
-    name,
-    displayName: name,
-    enabled: Boolean((config.channels as Record<string, { enabled?: boolean }>)[name]?.enabled)
-  }));
+  const channels = Object.keys(config.channels).map((name) => {
+    const tutorialUrls = CHANNEL_TUTORIAL_URLS[name] ?? { default: CHANNEL_DEFAULT_TUTORIAL_URL };
+    const tutorialUrl = tutorialUrls.default ?? tutorialUrls.en ?? tutorialUrls.zh;
+    return {
+      name,
+      displayName: name,
+      enabled: Boolean((config.channels as Record<string, { enabled?: boolean }>)[name]?.enabled),
+      tutorialUrl,
+      tutorialUrls
+    };
+  });
   return { providers, channels };
 }
 
