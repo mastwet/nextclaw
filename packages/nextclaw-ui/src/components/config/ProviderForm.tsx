@@ -17,7 +17,7 @@ import { StatusDot } from '@/components/ui/status-dot';
 import { t } from '@/lib/i18n';
 import { hintForPath } from '@/lib/config-hints';
 import type { ProviderConfigUpdate, ProviderConnectionTestRequest } from '@/api/types';
-import { KeyRound, Globe, Hash, RotateCcw, CircleDotDashed, Sparkles, Plus, X, Trash2 } from 'lucide-react';
+import { CircleDotDashed, Plus, X, Trash2, ChevronDown, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CONFIG_DETAIL_CARD_CLASS, CONFIG_EMPTY_DETAIL_CARD_CLASS } from './config-layout';
 
@@ -152,6 +152,8 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
   const [models, setModels] = useState<string[]>([]);
   const [modelDraft, setModelDraft] = useState('');
   const [providerDisplayName, setProviderDisplayName] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showModelInput, setShowModelInput] = useState(false);
 
   const providerSpec = meta?.providers.find((p) => p.name === providerName);
   const providerConfig = providerName ? config?.providers[providerName] : null;
@@ -382,22 +384,31 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
 
   return (
     <div className={CONFIG_DETAIL_CARD_CLASS}>
-      <div className="border-b border-gray-100 px-6 py-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-lg font-semibold text-gray-900">{providerTitle}</h3>
-            <p className="mt-1 text-sm text-gray-500">{t('providerFormDescription')}</p>
+      <div className="border-b border-gray-100 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <h3 className="truncate text-lg font-semibold text-gray-900">{providerTitle}</h3>
+          <div className="flex items-center gap-3">
+            {isCustomProvider && (
+              <button
+                type="button"
+                onClick={handleDeleteProvider}
+                disabled={deleteProvider.isPending}
+                className="text-gray-400 hover:text-red-500 transition-colors"
+                title={t('providerDelete')}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+            <StatusDot status={providerConfig.apiKeySet ? 'ready' : 'setup'} label={statusLabel} />
           </div>
-          <StatusDot status={providerConfig.apiKeySet ? 'ready' : 'setup'} label={statusLabel} />
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
           {isCustomProvider && (
-            <div className="space-y-2.5">
-              <Label htmlFor="providerDisplayName" className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                <Hash className="h-3.5 w-3.5 text-gray-500" />
+            <div className="space-y-2">
+              <Label htmlFor="providerDisplayName" className="text-sm font-medium text-gray-900">
                 {t('providerDisplayName')}
               </Label>
               <Input
@@ -408,13 +419,12 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
                 placeholder={defaultDisplayName || t('providerDisplayNamePlaceholder')}
                 className="rounded-xl"
               />
-              <p className="text-xs text-gray-500">{t('providerDisplayNameHelp')}</p>
+              <p className="text-xs text-gray-500">{t('providerDisplayNameHelpShort')}</p>
             </div>
           )}
 
-          <div className="space-y-2.5">
-            <Label htmlFor="apiKey" className="flex items-center gap-2 text-sm font-medium text-gray-900">
-              <KeyRound className="h-3.5 w-3.5 text-gray-500" />
+          <div className="space-y-2">
+            <Label htmlFor="apiKey" className="text-sm font-medium text-gray-900">
               {apiKeyHint?.label ?? t('apiKey')}
             </Label>
             <MaskedInput
@@ -422,15 +432,14 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
               value={apiKey}
               isSet={providerConfig.apiKeySet}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={providerConfig.apiKeySet ? t('apiKeySet') : apiKeyHint?.placeholder ?? t('enterApiKey')}
+              placeholder={apiKeyHint?.placeholder ?? t('enterApiKey')}
               className="rounded-xl"
             />
             <p className="text-xs text-gray-500">{t('leaveBlankToKeepUnchanged')}</p>
           </div>
 
-          <div className="space-y-2.5">
-            <Label htmlFor="apiBase" className="flex items-center gap-2 text-sm font-medium text-gray-900">
-              <Globe className="h-3.5 w-3.5 text-gray-500" />
+          <div className="space-y-2">
+            <Label htmlFor="apiBase" className="text-sm font-medium text-gray-900">
               {apiBaseHint?.label ?? t('apiBase')}
             </Label>
             <Input
@@ -441,70 +450,66 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
               placeholder={defaultApiBase || apiBaseHint?.placeholder || 'https://api.example.com'}
               className="rounded-xl"
             />
-            <p className="text-xs text-gray-500">{apiBaseHelpText}</p>
-            {isCustomProvider && <p className="text-xs text-gray-500">{t('providerOpenAICompatHint')}</p>}
+            <p className="text-xs text-gray-500">{t('providerApiBaseHelpShort')}</p>
           </div>
 
-          {providerSpec.supportsWireApi && (
-            <div className="space-y-2.5">
-              <Label htmlFor="wireApi" className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                <Hash className="h-3.5 w-3.5 text-gray-500" />
-                {wireApiHint?.label ?? t('wireApi')}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-gray-900">
+                {t('providerModelsTitle')}
               </Label>
-              <Select value={wireApi} onValueChange={(v) => setWireApi(v as WireApiType)}>
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(providerSpec.wireApiOptions || ['auto', 'chat', 'responses']).map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option === 'chat' ? t('wireApiChat') : option === 'responses' ? t('wireApiResponses') : t('wireApiAuto')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {wireApiHint?.help && <p className="text-xs text-gray-500">{wireApiHint.help}</p>}
+              {!showModelInput && (
+                <button
+                  type="button"
+                  onClick={() => setShowModelInput(true)}
+                  className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  {t('providerAddModel')}
+                </button>
+              )}
             </div>
-          )}
 
-          <div className="space-y-2.5">
-            <Label className="flex items-center gap-2 text-sm font-medium text-gray-900">
-              <Hash className="h-3.5 w-3.5 text-gray-500" />
-              {extraHeadersHint?.label ?? t('extraHeaders')}
-            </Label>
-            <KeyValueEditor value={extraHeaders} onChange={setExtraHeaders} />
-            <p className="text-xs text-gray-500">{extraHeadersHint?.help || t('providerExtraHeadersHelp')}</p>
-          </div>
-
-          <div className="space-y-2.5">
-            <Label className="flex items-center gap-2 text-sm font-medium text-gray-900">
-              <Sparkles className="h-3.5 w-3.5 text-gray-500" />
-              {t('providerModelsTitle')}
-            </Label>
-
-            <div className="flex items-center gap-2">
-              <Input
-                value={modelDraft}
-                onChange={(event) => setModelDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    handleAddModel();
-                  }
-                }}
-                placeholder={t('providerModelInputPlaceholder')}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" onClick={handleAddModel} disabled={modelDraft.trim().length === 0}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {t('providerAddModel')}
-              </Button>
-            </div>
-            <p className="text-xs text-gray-500">{t('providerModelInputHint')}</p>
+            {showModelInput && (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={modelDraft}
+                  onChange={(event) => setModelDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      handleAddModel();
+                    }
+                    if (event.key === 'Escape') {
+                      setShowModelInput(false);
+                      setModelDraft('');
+                    }
+                  }}
+                  placeholder={t('providerModelInputPlaceholder')}
+                  className="flex-1 rounded-xl"
+                  autoFocus
+                />
+                <Button type="button" size="sm" onClick={handleAddModel} disabled={modelDraft.trim().length === 0}>
+                  {t('add')}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => { setShowModelInput(false); setModelDraft(''); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
 
             {models.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                {t('providerModelsEmpty')}
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
+                <p className="text-sm text-gray-500">{t('providerModelsEmptyShort')}</p>
+                {!showModelInput && (
+                  <button
+                    type="button"
+                    onClick={() => setShowModelInput(true)}
+                    className="mt-2 text-sm text-primary hover:text-primary/80 font-medium"
+                  >
+                    {t('providerAddFirstModel')}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -526,32 +531,61 @@ export function ProviderForm({ providerName, onProviderDeleted }: ProviderFormPr
                 ))}
               </div>
             )}
-            <p className="text-xs text-gray-500">{t('providerModelsHelp')}</p>
+          </div>
+
+          {/* Advanced Settings - Collapsible */}
+          <div className="border-t border-gray-100 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex w-full items-center justify-between text-sm text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                <Settings2 className="h-3.5 w-3.5" />
+                {t('providerAdvancedSettings')}
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4 space-y-5">
+                {providerSpec.supportsWireApi && (
+                  <div className="space-y-2">
+                    <Label htmlFor="wireApi" className="text-sm font-medium text-gray-900">
+                      {wireApiHint?.label ?? t('wireApi')}
+                    </Label>
+                    <Select value={wireApi} onValueChange={(v) => setWireApi(v as WireApiType)}>
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(providerSpec.wireApiOptions || ['auto', 'chat', 'responses']).map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option === 'chat' ? t('wireApiChat') : option === 'responses' ? t('wireApiResponses') : t('wireApiAuto')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-900">
+                    {extraHeadersHint?.label ?? t('extraHeaders')}
+                  </Label>
+                  <KeyValueEditor value={extraHeaders} onChange={setExtraHeaders} />
+                  <p className="text-xs text-gray-500">{t('providerExtraHeadersHelpShort')}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-6 py-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={resetToDefault}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              {t('resetToDefault')}
-            </Button>
-            {isCustomProvider && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDeleteProvider}
-                disabled={deleteProvider.isPending}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {deleteProvider.isPending ? t('saving') : t('providerDelete')}
-              </Button>
-            )}
-            <Button type="button" variant="outline" onClick={handleTestConnection} disabled={testProviderConnection.isPending}>
-              <CircleDotDashed className="mr-2 h-4 w-4" />
-              {testProviderConnection.isPending ? t('providerTestingConnection') : t('providerTestConnection')}
-            </Button>
-          </div>
+        <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4">
+          <Button type="button" variant="outline" size="sm" onClick={handleTestConnection} disabled={testProviderConnection.isPending}>
+            <CircleDotDashed className="mr-1.5 h-4 w-4" />
+            {testProviderConnection.isPending ? t('providerTestingConnection') : t('providerTestConnection')}
+          </Button>
           <Button type="submit" disabled={updateProvider.isPending || !hasChanges}>
             {updateProvider.isPending ? t('saving') : hasChanges ? t('save') : t('unchanged')}
           </Button>

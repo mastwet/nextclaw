@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
-import { which } from "../utils.js";
+import { findExecutableOnPath } from "../utils.js";
 
 const DEFAULT_TIMEOUT_MS = 20 * 60_000;
 
@@ -33,6 +33,13 @@ export function runSelfUpdate(options: SelfUpdateOptions = {}): SelfUpdateResult
   const updateCommand = options.updateCommand ?? process.env.NEXTCLAW_UPDATE_COMMAND?.trim();
   const packageName = options.packageName ?? "nextclaw";
 
+  const resolveShellCommand = (command: string): { cmd: string; args: string[] } => {
+    if (process.platform === "win32") {
+      return { cmd: process.env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", command] };
+    }
+    return { cmd: process.env.SHELL || "sh", args: ["-c", command] };
+  };
+
   const runStep = (cmd: string, args: string[], cwd: string): { ok: boolean; code: number | null } => {
     const result = spawnSync(cmd, args, {
       cwd,
@@ -53,15 +60,17 @@ export function runSelfUpdate(options: SelfUpdateOptions = {}): SelfUpdateResult
 
   if (updateCommand) {
     const cwd = options.cwd ? resolve(options.cwd) : process.cwd();
-    const ok = runStep("sh", ["-c", updateCommand], cwd);
+    const shellCommand = resolveShellCommand(updateCommand);
+    const ok = runStep(shellCommand.cmd, shellCommand.args, cwd);
     if (!ok.ok) {
       return { ok: false, error: "update command failed", strategy: "command", steps };
     }
     return { ok: true, strategy: "command", steps };
   }
 
-  if (which("npm")) {
-    const ok = runStep("npm", ["i", "-g", packageName], process.cwd());
+  const npmExecutable = findExecutableOnPath("npm");
+  if (npmExecutable) {
+    const ok = runStep(npmExecutable, ["i", "-g", packageName], process.cwd());
     if (!ok.ok) {
       return { ok: false, error: `npm install -g ${packageName} failed`, strategy: "npm", steps };
     }

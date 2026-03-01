@@ -172,15 +172,93 @@ export function openBrowser(url: string): void {
   child.unref();
 }
 
-export function which(binary: string): boolean {
-  const paths = (process.env.PATH ?? "").split(":");
-  for (const dir of paths) {
-    const full = join(dir, binary);
-    if (existsSync(full)) {
-      return true;
+export type ExecutableLookupEnv = {
+  [key: string]: string | undefined;
+  PATH?: string;
+  Path?: string;
+  path?: string;
+  PATHEXT?: string;
+};
+
+function normalizePathEntries(rawPath: string, platform: NodeJS.Platform): string[] {
+  const delimiter = platform === "win32" ? ";" : ":";
+  return rawPath
+    .split(delimiter)
+    .map((entry) => entry.trim().replace(/^"+|"+$/g, ""))
+    .filter((entry) => entry.length > 0);
+}
+
+function normalizeWindowsPathExt(rawPathExt: string | undefined): string[] {
+  const source = (rawPathExt && rawPathExt.trim().length > 0) ? rawPathExt : ".COM;.EXE;.BAT;.CMD";
+  const unique = new Set<string>();
+  for (const ext of source.split(";")) {
+    const trimmed = ext.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const normalized = trimmed.startsWith(".") ? trimmed : `.${trimmed}`;
+    unique.add(normalized.toUpperCase());
+  }
+  return [...unique];
+}
+
+function hasFileExtension(binary: string): boolean {
+  const lastSlash = Math.max(binary.lastIndexOf("/"), binary.lastIndexOf("\\"));
+  const lastDot = binary.lastIndexOf(".");
+  return lastDot > lastSlash;
+}
+
+export function findExecutableOnPath(
+  binary: string,
+  env: ExecutableLookupEnv = process.env,
+  platform: NodeJS.Platform = process.platform
+): string | null {
+  const target = binary.trim();
+  if (!target) {
+    return null;
+  }
+
+  if (target.includes("/") || target.includes("\\")) {
+    return existsSync(target) ? target : null;
+  }
+
+  const rawPath = env.PATH ?? env.Path ?? env.path ?? "";
+  if (!rawPath.trim()) {
+    return null;
+  }
+
+  const entries = normalizePathEntries(rawPath, platform);
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const checkCandidates = (candidate: string): string | null => (
+    existsSync(candidate) ? candidate : null
+  );
+
+  for (const dir of entries) {
+    const direct = checkCandidates(join(dir, target));
+    if (direct) {
+      return direct;
+    }
+
+    if (platform !== "win32" || hasFileExtension(target)) {
+      continue;
+    }
+
+    for (const ext of normalizeWindowsPathExt(env.PATHEXT)) {
+      const withExt = checkCandidates(join(dir, `${target}${ext}`));
+      if (withExt) {
+        return withExt;
+      }
     }
   }
-  return false;
+
+  return null;
+}
+
+export function which(binary: string): boolean {
+  return findExecutableOnPath(binary) !== null;
 }
 
 function resolveVersionFromPackageTree(startDir: string, expectedName?: string): string | null {

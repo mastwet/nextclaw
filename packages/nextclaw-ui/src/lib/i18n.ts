@@ -243,6 +243,12 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
     zh: '系统会先填充预置模型；你可以在这里新增或删除。请填写当前提供商自己的模型 ID（不带当前 provider 前缀）；若输入带当前 provider 前缀会自动去除，但会保留后续路径（如 openai/gpt-5）。',
     en: 'Built-in models are prefilled and can be added or removed here. Enter provider-local model ids without the current provider prefix; if prefixed input is entered, only the current provider prefix is removed while the remaining path is preserved (for example, openai/gpt-5).'
   },
+  providerModelsEmptyShort: { zh: '暂无可用模型', en: 'No models available' },
+  providerAddFirstModel: { zh: '添加第一个模型', en: 'Add first model' },
+  providerDisplayNameHelpShort: { zh: '便于区分多个自定义提供商', en: 'Helps distinguish multiple custom providers' },
+  providerApiBaseHelpShort: { zh: '一般只需填写域名，系统自动补全路径', en: 'Usually just the domain; path auto-appended' },
+  providerExtraHeadersHelpShort: { zh: '可选，用于自定义鉴权等场景', en: 'Optional, for custom auth etc.' },
+  providerAdvancedSettings: { zh: '高级设置', en: 'Advanced Settings' },
   resetToDefault: { zh: '恢复默认', en: 'Reset to Default' },
   leaveBlankToKeepUnchanged: { zh: '留空则保持不变', en: 'Leave blank to keep unchanged' },
 

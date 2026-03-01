@@ -1,5 +1,13 @@
 # @nextclaw/ui
 
+## 0.5.42
+
+### Patch Changes
+
+- - ui: refine provider config form layout (display name in primary section, Wire API Mode in advanced settings), plus related input rendering polish.
+  - cli: fix Windows self-update strategy detection by supporting PATH/PATHEXT executable resolution and platform-aware update command shell execution.
+  - docs: add iteration logs for provider advanced layout and Windows update strategy fix.
+
 ## 0.5.41
 
 ### Patch Changes
