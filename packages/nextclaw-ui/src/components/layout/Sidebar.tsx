@@ -1,14 +1,20 @@
 import { cn } from '@/lib/utils';
 import { LANGUAGE_OPTIONS, t, type I18nLanguage } from '@/lib/i18n';
 import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
-import { Cpu, GitBranch, History, MessageCircle, MessageSquare, Sparkles, BookOpen, Plug, BrainCircuit, AlarmClock, Languages, Palette, KeyRound } from 'lucide-react';
+import { Cpu, GitBranch, History, MessageCircle, MessageSquare, Sparkles, BookOpen, Plug, BrainCircuit, AlarmClock, Languages, Palette, KeyRound, Settings, ArrowLeft } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useDocBrowser } from '@/components/doc-browser';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 
-export function Sidebar() {
+type SidebarMode = 'main' | 'settings';
+
+type SidebarProps = {
+  mode: SidebarMode;
+};
+
+export function Sidebar({ mode }: SidebarProps) {
   const docBrowser = useDocBrowser();
   const { language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
@@ -31,12 +37,25 @@ export function Sidebar() {
   };
 
   // Core navigation items - primary features
-  const coreNavItems = [
+  const mainNavItems = [
     {
       target: '/chat',
       label: t('chat'),
       icon: MessageCircle,
     },
+    {
+      target: '/chat/cron',
+      label: t('cron'),
+      icon: AlarmClock,
+    },
+    {
+      target: '/chat/skills',
+      label: t('marketplaceFilterSkills'),
+      icon: BrainCircuit,
+    }
+  ];
+
+  const settingsNavItems = [
     {
       target: '/model',
       label: t('model'),
@@ -52,20 +71,6 @@ export function Sidebar() {
       label: t('channels'),
       icon: MessageSquare,
     },
-    {
-      target: '/cron',
-      label: t('cron'),
-      icon: AlarmClock,
-    },
-    {
-      target: '/marketplace/skills',
-      label: t('marketplaceFilterSkills'),
-      icon: BrainCircuit,
-    }
-  ];
-
-  // Advanced navigation items - secondary features
-  const advancedNavItems = [
     {
       target: '/runtime',
       label: t('runtime'),
@@ -87,24 +92,41 @@ export function Sidebar() {
       icon: Plug,
     }
   ];
+  const navItems = mode === 'main' ? mainNavItems : settingsNavItems;
 
   return (
     <aside className="w-[240px] shrink-0 flex flex-col h-full py-6 px-4 bg-secondary">
-      {/* Logo Area */}
-      <div className="px-2 mb-8">
-        <div className="flex items-center gap-2.5 cursor-pointer">
-          <div className="h-7 w-7 rounded-lg overflow-hidden flex items-center justify-center">
-            <img src="/logo.svg" alt="NextClaw" className="h-full w-full object-contain" />
+      {mode === 'settings' ? (
+        <div className="px-2 mb-6">
+          <NavLink
+            to="/chat"
+            className="group inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 text-gray-500 group-hover:text-gray-800" />
+            <span>{t('backToMain')}</span>
+          </NavLink>
+          <div className="mt-5 px-1">
+            <div className="flex items-center gap-2.5">
+              <Settings className="h-5 w-5 text-gray-700" />
+              <h1 className="text-[28px] leading-none font-semibold tracking-[-0.02em] text-gray-900">{t('settings')}</h1>
+            </div>
           </div>
-          <span className="text-[15px] font-semibold text-gray-800 tracking-[-0.01em]">NextClaw</span>
         </div>
-      </div>
+      ) : (
+        <div className="px-2 mb-8">
+          <div className="flex items-center gap-2.5 cursor-pointer">
+            <div className="h-7 w-7 rounded-lg overflow-hidden flex items-center justify-center">
+              <img src="/logo.svg" alt="NextClaw" className="h-full w-full object-contain" />
+            </div>
+            <span className="text-[15px] font-semibold text-gray-800 tracking-[-0.01em]">NextClaw</span>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 flex flex-col">
-        {/* Core Navigation */}
         <ul className="space-y-1">
-          {coreNavItems.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
 
             return (
@@ -129,49 +151,33 @@ export function Sidebar() {
                   )}
                 </NavLink>
               </li>
-            );
-          })}
-        </ul>
-
-        {/* Advanced Navigation */}
-        <div className="mt-3 pt-3 border-t border-[#dde0ea]">
-          <div className="px-3 mb-2">
-            <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{t('advanced')}</span>
-          </div>
-          <ul className="space-y-1">
-            {advancedNavItems.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <li key={item.target}>
-                  <NavLink
-                    to={item.target}
-                    className={({ isActive }) => cn(
-                      'group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-base',
-                      isActive
-                        ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
-                        : 'text-gray-600 hover:bg-gray-200/60 hover:text-gray-900'
-                    )}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon className={cn(
-                          'h-[17px] w-[17px] transition-colors',
-                          isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800'
-                        )} />
-                        <span className="flex-1 text-left">{item.label}</span>
-                      </>
-                    )}
-                  </NavLink>
-                </li>
               );
             })}
           </ul>
-        </div>
       </nav>
 
       {/* Help Button */}
       <div className="pt-3 border-t border-[#dde0ea] mt-3">
+        {mode === 'main' && (
+          <div className="mb-2">
+            <NavLink
+              to="/settings"
+              className={({ isActive }) => cn(
+                'group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-base',
+                isActive
+                  ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
+                  : 'text-gray-600 hover:bg-[#e4e7ef] hover:text-gray-900'
+              )}
+            >
+              {({ isActive }) => (
+                <>
+                  <Settings className={cn('h-[17px] w-[17px] transition-colors', isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800')} />
+                  <span className="flex-1 text-left">{t('settings')}</span>
+                </>
+              )}
+            </NavLink>
+          </div>
+        )}
         <div className="mb-2">
           <Select value={theme} onValueChange={(value) => handleThemeSwitch(value as UiTheme)}>
             <SelectTrigger className="w-full h-auto rounded-xl border-0 bg-transparent shadow-none px-3 py-2.5 text-[14px] font-medium text-gray-600 hover:bg-[#e4e7ef] focus:ring-0">

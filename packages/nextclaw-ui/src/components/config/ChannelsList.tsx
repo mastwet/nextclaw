@@ -74,10 +74,10 @@ export function ChannelsList() {
   }
 
   return (
-    <PageLayout>
+    <PageLayout className="xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:pb-0">
       <PageHeader title={t('channelsPageTitle')} description={t('channelsPageDescription')} />
 
-      <div className={CONFIG_SPLIT_GRID_CLASS}>
+      <div className={cn(CONFIG_SPLIT_GRID_CLASS, 'xl:min-h-0 xl:flex-1')}>
         <section className={CONFIG_SIDEBAR_CARD_CLASS}>
           <div className="border-b border-gray-100 px-4 pt-4">
             <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} className="mb-0" />
@@ -95,7 +95,7 @@ export function ChannelsList() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-3">
             {filteredChannels.map((channel) => {
               const channelConfig = config.channels[channel.name];
               const enabled = channelConfig?.enabled || false;

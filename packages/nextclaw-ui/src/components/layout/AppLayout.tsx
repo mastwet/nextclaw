@@ -11,22 +11,50 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+function isMainWorkspaceRoute(pathname: string): boolean {
+  const normalized = pathname.toLowerCase();
+  return (
+    normalized === '/chat' ||
+    normalized.startsWith('/chat/') ||
+    normalized === '/skills' ||
+    normalized.startsWith('/skills/') ||
+    normalized === '/cron' ||
+    normalized.startsWith('/cron/')
+  );
+}
+
+function isChannelsRoute(pathname: string): boolean {
+  const normalized = pathname.toLowerCase();
+  return normalized === '/channels' || normalized.startsWith('/channels/');
+}
+
 function AppLayoutInner({ children }: AppLayoutProps) {
   const { isOpen, mode } = useDocBrowser();
   useDocLinkInterceptor();
   const { pathname } = useLocation();
-  const isChatRoute = pathname === '/chat' || pathname.startsWith('/chat/');
+  const isMainRoute = isMainWorkspaceRoute(pathname);
+  const lockPageScroll = isChannelsRoute(pathname);
 
   return (
     <div className="h-screen flex bg-background font-sans text-foreground">
-      {!isChatRoute && <Sidebar />}
+      {!isMainRoute && <Sidebar mode="settings" />}
       <div className="flex-1 flex min-w-0 overflow-hidden relative">
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {isChatRoute ? (
+          {isMainRoute ? (
             <div className="flex-1 h-full overflow-hidden">{children}</div>
           ) : (
-            <main className="flex-1 overflow-auto custom-scrollbar p-8">
-              <div className="max-w-6xl mx-auto animate-fade-in h-full">
+            <main
+              className={cn(
+                'flex-1 custom-scrollbar p-8',
+                lockPageScroll ? 'overflow-auto xl:overflow-hidden' : 'overflow-auto'
+              )}
+            >
+              <div
+                className={cn(
+                  'max-w-6xl mx-auto animate-fade-in h-full',
+                  lockPageScroll && 'min-h-0 xl:overflow-hidden'
+                )}
+              >
                 {children}
               </div>
             </main>

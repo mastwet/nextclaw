@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Toaster } from 'sonner';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +20,6 @@ const ProvidersListPage = lazy(async () => ({ default: (await import('@/componen
 const ChannelsListPage = lazy(async () => ({ default: (await import('@/components/config/ChannelsList')).ChannelsList }));
 const RuntimeConfigPage = lazy(async () => ({ default: (await import('@/components/config/RuntimeConfig')).RuntimeConfig }));
 const SessionsConfigPage = lazy(async () => ({ default: (await import('@/components/config/SessionsConfig')).SessionsConfig }));
-const CronConfigPage = lazy(async () => ({ default: (await import('@/components/config/CronConfig')).CronConfig }));
 const SecretsConfigPage = lazy(async () => ({ default: (await import('@/components/config/SecretsConfig')).SecretsConfig }));
 const MarketplacePage = lazy(async () => ({ default: (await import('@/components/marketplace/MarketplacePage')).MarketplacePage }));
 
@@ -34,21 +33,26 @@ function LazyRoute({ children }: { children: JSX.Element }) {
 
 function AppContent() {
   useWebSocket(queryClient); // Initialize WebSocket connection
-  const location = useLocation();
 
   return (
     <QueryClientProvider client={queryClient}>
       <AppLayout>
-        <div key={location.pathname} className="animate-fade-in w-full h-full">
+        <div className="w-full h-full">
           <Routes>
-            <Route path="/chat" element={<LazyRoute><ChatPage /></LazyRoute>} />
+            <Route path="/chat/skills" element={<Navigate to="/skills" replace />} />
+            <Route path="/chat/cron" element={<Navigate to="/cron" replace />} />
+            <Route path="/chat/:sessionId" element={<LazyRoute><ChatPage view="chat" /></LazyRoute>} />
+            <Route path="/chat" element={<LazyRoute><ChatPage view="chat" /></LazyRoute>} />
+            <Route path="/skills" element={<LazyRoute><ChatPage view="skills" /></LazyRoute>} />
+            <Route path="/cron" element={<LazyRoute><ChatPage view="cron" /></LazyRoute>} />
             <Route path="/model" element={<LazyRoute><ModelConfigPage /></LazyRoute>} />
             <Route path="/providers" element={<LazyRoute><ProvidersListPage /></LazyRoute>} />
             <Route path="/channels" element={<LazyRoute><ChannelsListPage /></LazyRoute>} />
             <Route path="/runtime" element={<LazyRoute><RuntimeConfigPage /></LazyRoute>} />
             <Route path="/sessions" element={<LazyRoute><SessionsConfigPage /></LazyRoute>} />
-            <Route path="/cron" element={<LazyRoute><CronConfigPage /></LazyRoute>} />
             <Route path="/secrets" element={<LazyRoute><SecretsConfigPage /></LazyRoute>} />
+            <Route path="/settings" element={<Navigate to="/model" replace />} />
+            <Route path="/marketplace/skills" element={<Navigate to="/skills" replace />} />
             <Route path="/marketplace" element={<Navigate to="/marketplace/plugins" replace />} />
             <Route path="/marketplace/:type" element={<LazyRoute><MarketplacePage /></LazyRoute>} />
             <Route path="/" element={<Navigate to="/chat" replace />} />

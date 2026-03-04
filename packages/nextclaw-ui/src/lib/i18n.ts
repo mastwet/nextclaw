@@ -132,6 +132,8 @@ export const LABELS: Record<string, { zh: string; en: string }> = {
   runtime: { zh: '路由与运行时', en: 'Routing & Runtime' },
   marketplace: { zh: '市场', en: 'Marketplace' },
   advanced: { zh: '高级', en: 'Advanced' },
+  settings: { zh: '设置', en: 'Settings' },
+  backToMain: { zh: '返回主界面', en: 'Back to Main' },
 
   // Common
   enabled: { zh: '启用', en: 'Enabled' },

@@ -13,39 +13,15 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import type { ChatModelOption } from '@/components/chat/ChatInputBar';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatConversationPanel } from '@/components/chat/ChatConversationPanel';
+import { CronConfig } from '@/components/config/CronConfig';
+import { MarketplacePage } from '@/components/marketplace/MarketplacePage';
 import { useChatStreamController } from '@/components/chat/useChatStreamController';
 import { buildFallbackEventsFromMessages } from '@/lib/chat-message';
 import { buildProviderModelCatalog, composeProviderModel } from '@/lib/provider-models';
 import { t } from '@/lib/i18n';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-const CHAT_SESSION_STORAGE_KEY = 'nextclaw.ui.chat.activeSession';
-
-function readStoredSessionKey(): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  try {
-    const value = window.localStorage.getItem(CHAT_SESSION_STORAGE_KEY);
-    return value && value.trim().length > 0 ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredSessionKey(value: string | null): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    if (!value) {
-      window.localStorage.removeItem(CHAT_SESSION_STORAGE_KEY);
-      return;
-    }
-    window.localStorage.setItem(CHAT_SESSION_STORAGE_KEY, value);
-  } catch {
-    // ignore storage errors
-  }
-}
+const SESSION_ROUTE_PREFIX = 'sid_';
 
 function resolveAgentIdFromSessionKey(sessionKey: string): string | null {
   const match = /^agent:([^:]+):/i.exec(sessionKey.trim());
@@ -61,6 +37,50 @@ function buildNewSessionKey(agentId: string): string {
   return `agent:${agentId}:ui:direct:web-${Date.now().toString(36)}${slug}`;
 }
 
+function encodeSessionRouteId(sessionKey: string): string {
+  const bytes = new TextEncoder().encode(sessionKey);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  const base64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return `${SESSION_ROUTE_PREFIX}${base64}`;
+}
+
+function decodeSessionRouteId(routeValue: string): string | null {
+  if (!routeValue.startsWith(SESSION_ROUTE_PREFIX)) {
+    return null;
+  }
+  const encoded = routeValue.slice(SESSION_ROUTE_PREFIX.length).replace(/-/g, '+').replace(/_/g, '/');
+  const padding = encoded.length % 4 === 0 ? '' : '='.repeat(4 - (encoded.length % 4));
+  try {
+    const binary = atob(encoded + padding);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function parseSessionKeyFromRoute(routeValue?: string): string | null {
+  if (!routeValue) {
+    return null;
+  }
+  const decodedToken = decodeSessionRouteId(routeValue);
+  if (decodedToken) {
+    return decodedToken;
+  }
+  try {
+    return decodeURIComponent(routeValue);
+  } catch {
+    return routeValue;
+  }
+}
+
+function buildSessionPath(sessionKey: string): string {
+  return `/chat/${encodeSessionRouteId(sessionKey)}`;
+}
+
 function sessionDisplayName(session: SessionEntryView): string {
   if (session.label && session.label.trim()) {
     return session.label.trim();
@@ -69,18 +89,31 @@ function sessionDisplayName(session: SessionEntryView): string {
   return chunks[chunks.length - 1] || session.key;
 }
 
-export function ChatPage() {
+type MainPanelView = 'chat' | 'cron' | 'skills';
+
+type ChatPageProps = {
+  view: MainPanelView;
+};
+
+export function ChatPage({ view }: ChatPageProps) {
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
-  const [selectedSessionKey, setSelectedSessionKey] = useState<string | null>(() => readStoredSessionKey());
+  const [selectedSessionKey, setSelectedSessionKey] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState('main');
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
   const { confirm, ConfirmDialog } = useConfirmDialog();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { sessionId: routeSessionIdParam } = useParams<{ sessionId?: string }>();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const isUserScrollingRef = useRef(false);
   const selectedSessionKeyRef = useRef<string | null>(selectedSessionKey);
+  const routeSessionKey = useMemo(
+    () => parseSessionKeyFromRoute(routeSessionIdParam),
+    [routeSessionIdParam]
+  );
 
   const configQuery = useConfig();
   const configMetaQuery = useConfigMeta();
@@ -213,14 +246,20 @@ export function ChatPage() {
   }, [historyEvents, optimisticUserEvent, streamingAssistantText, streamingAssistantTimestamp, streamingSessionEvents]);
 
   useEffect(() => {
-    if (!selectedSessionKey && sessions.length > 0) {
-      setSelectedSessionKey(sessions[0].key);
+    if (view !== 'chat') {
+      return;
     }
-  }, [sessions, selectedSessionKey]);
-
-  useEffect(() => {
-    writeStoredSessionKey(selectedSessionKey);
-  }, [selectedSessionKey]);
+    if (routeSessionKey) {
+      if (selectedSessionKey !== routeSessionKey) {
+        setSelectedSessionKey(routeSessionKey);
+      }
+      return;
+    }
+    if (selectedSessionKey !== null) {
+      setSelectedSessionKey(null);
+      resetStreamState();
+    }
+  }, [resetStreamState, routeSessionKey, selectedSessionKey, view]);
 
   useEffect(() => {
     const inferred = selectedSessionKey ? resolveAgentIdFromSessionKey(selectedSessionKey) : null;
@@ -262,9 +301,11 @@ export function ChatPage() {
 
   const createNewSession = useCallback(() => {
     resetStreamState();
-    const next = buildNewSessionKey(selectedAgentId);
-    setSelectedSessionKey(next);
-  }, [resetStreamState, selectedAgentId]);
+    setSelectedSessionKey(null);
+    if (location.pathname !== '/chat') {
+      navigate('/chat');
+    }
+  }, [location.pathname, navigate, resetStreamState]);
 
   const handleDeleteSession = useCallback(async () => {
     if (!selectedSessionKey) {
@@ -284,11 +325,12 @@ export function ChatPage() {
         onSuccess: async () => {
           resetStreamState();
           setSelectedSessionKey(null);
+          navigate('/chat', { replace: true });
           await sessionsQuery.refetch();
         }
       }
     );
-  }, [confirm, deleteSession, resetStreamState, selectedSessionKey, sessionsQuery]);
+  }, [confirm, deleteSession, navigate, resetStreamState, selectedSessionKey, sessionsQuery]);
 
   const handleSend = useCallback(async () => {
     const message = draft.trim();
@@ -299,7 +341,7 @@ export function ChatPage() {
 
     const sessionKey = selectedSessionKey ?? buildNewSessionKey(selectedAgentId);
     if (!selectedSessionKey) {
-      setSelectedSessionKey(sessionKey);
+      navigate(buildSessionPath(sessionKey), { replace: true });
     }
     setDraft('');
     setSelectedSkills([]);
@@ -319,12 +361,19 @@ export function ChatPage() {
     draft,
     selectedAgentId,
     selectedModel,
+    navigate,
     selectedSessionKey,
     selectedSkills,
     sendMessage
   ]);
 
   const currentSessionDisplayName = selectedSession ? sessionDisplayName(selectedSession) : undefined;
+  const handleSelectSession = useCallback((nextSessionKey: string) => {
+    const target = buildSessionPath(nextSessionKey);
+    if (location.pathname !== target) {
+      navigate(target);
+    }
+  }, [location.pathname, navigate]);
 
   return (
     <div className="h-full flex">
@@ -332,7 +381,7 @@ export function ChatPage() {
       <ChatSidebar
         sessions={sessions}
         selectedSessionKey={selectedSessionKey}
-        onSelectSession={setSelectedSessionKey}
+        onSelectSession={handleSelectSession}
         onCreateSession={createNewSession}
         sessionTitle={sessionDisplayName}
         isLoading={sessionsQuery.isLoading}
@@ -340,41 +389,50 @@ export function ChatPage() {
         onQueryChange={setQuery}
       />
 
-      {/* Main conversation area */}
-      <ChatConversationPanel
-        modelOptions={modelOptions}
-        selectedModel={selectedModel}
-        onSelectedModelChange={setSelectedModel}
-        skillRecords={skillRecords}
-        isSkillsLoading={installedSkillsQuery.isLoading}
-        selectedSkills={selectedSkills}
-        onSelectedSkillsChange={setSelectedSkills}
-        selectedSessionKey={selectedSessionKey}
-        sessionDisplayName={currentSessionDisplayName}
-        canDeleteSession={Boolean(selectedSession)}
-        isDeletePending={deleteSession.isPending}
-        onDeleteSession={() => {
-          void handleDeleteSession();
-        }}
-        onCreateSession={createNewSession}
-        threadRef={threadRef}
-        onThreadScroll={handleScroll}
-        isHistoryLoading={historyQuery.isLoading}
-        mergedEvents={mergedEvents}
-        isSending={isSending}
-        isAwaitingAssistantOutput={isAwaitingAssistantOutput}
-        streamingAssistantText={streamingAssistantText}
-        draft={draft}
-        onDraftChange={setDraft}
-        onSend={handleSend}
-        onStop={() => {
-          void stopCurrentRun();
-        }}
-        canStopGeneration={canStopCurrentRun}
-        stopDisabledReason={stopDisabledReason}
-        sendError={lastSendError}
-        queuedCount={queuedCount}
-      />
+      {view === 'chat' ? (
+        <ChatConversationPanel
+          modelOptions={modelOptions}
+          selectedModel={selectedModel}
+          onSelectedModelChange={setSelectedModel}
+          skillRecords={skillRecords}
+          isSkillsLoading={installedSkillsQuery.isLoading}
+          selectedSkills={selectedSkills}
+          onSelectedSkillsChange={setSelectedSkills}
+          selectedSessionKey={selectedSessionKey}
+          sessionDisplayName={currentSessionDisplayName}
+          canDeleteSession={Boolean(selectedSession)}
+          isDeletePending={deleteSession.isPending}
+          onDeleteSession={() => {
+            void handleDeleteSession();
+          }}
+          onCreateSession={createNewSession}
+          threadRef={threadRef}
+          onThreadScroll={handleScroll}
+          isHistoryLoading={historyQuery.isLoading}
+          mergedEvents={mergedEvents}
+          isSending={isSending}
+          isAwaitingAssistantOutput={isAwaitingAssistantOutput}
+          streamingAssistantText={streamingAssistantText}
+          draft={draft}
+          onDraftChange={setDraft}
+          onSend={handleSend}
+          onStop={() => {
+            void stopCurrentRun();
+          }}
+          canStopGeneration={canStopCurrentRun}
+          stopDisabledReason={stopDisabledReason}
+          sendError={lastSendError}
+          queuedCount={queuedCount}
+        />
+      ) : (
+        <section className="flex-1 min-h-0 overflow-hidden bg-gradient-to-b from-gray-50/60 to-white">
+          <div className="h-full overflow-auto custom-scrollbar">
+            <div className="mx-auto w-full max-w-[min(1120px,100%)] px-6 py-5">
+              {view === 'cron' ? <CronConfig /> : <MarketplacePage forcedType="skills" />}
+            </div>
+          </div>
+        </section>
+      )}
 
       <ConfirmDialog />
     </div>

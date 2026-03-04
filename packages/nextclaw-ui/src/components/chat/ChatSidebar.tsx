@@ -9,7 +9,7 @@ import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { NavLink } from 'react-router-dom';
-import { AlarmClock, BrainCircuit, History, Languages, MessageSquareText, Palette, Plus, Search } from 'lucide-react';
+import { AlarmClock, BrainCircuit, Languages, MessageSquareText, Palette, Plus, Search, Settings } from 'lucide-react';
 
 type ChatSidebarProps = {
   sessions: SessionEntryView[];
@@ -61,8 +61,7 @@ function groupSessionsByDate(sessions: SessionEntryView[]): DateGroup[] {
 
 const navItems = [
   { target: '/cron', label: () => t('chatSidebarScheduledTasks'), icon: AlarmClock },
-  { target: '/marketplace/skills', label: () => t('chatSidebarSkills'), icon: BrainCircuit },
-  { target: '/sessions', label: () => t('chatSidebarTaskRecords'), icon: History },
+  { target: '/skills', label: () => t('chatSidebarSkills'), icon: BrainCircuit },
 ];
 
 export function ChatSidebar(props: ChatSidebarProps) {
@@ -193,6 +192,22 @@ export function ChatSidebar(props: ChatSidebarProps) {
 
       {/* Settings footer */}
       <div className="px-3 py-3 border-t border-gray-200/60 space-y-0.5">
+        <NavLink
+          to="/settings"
+          className={({ isActive }) => cn(
+            'group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150',
+            isActive
+              ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
+              : 'text-gray-600 hover:bg-gray-200/60 hover:text-gray-900'
+          )}
+        >
+          {({ isActive }) => (
+            <>
+              <Settings className={cn('h-4 w-4 transition-colors', isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800')} />
+              <span>{t('settings')}</span>
+            </>
+          )}
+        </NavLink>
         <Select value={theme} onValueChange={(v) => setTheme(v as UiTheme)}>
           <SelectTrigger className="w-full h-auto rounded-xl border-0 bg-transparent shadow-none px-3 py-2 text-[13px] font-medium text-gray-600 hover:bg-gray-200/60 focus:ring-0">
             <div className="flex items-center gap-2.5 min-w-0">

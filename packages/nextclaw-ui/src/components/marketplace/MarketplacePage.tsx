@@ -50,6 +50,9 @@ type InstalledRenderEntry = {
 };
 
 type MarketplaceRouteType = 'plugins' | 'skills';
+type MarketplacePageProps = {
+  forcedType?: MarketplaceRouteType;
+};
 
 function normalizeMarketplaceKey(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase();
@@ -506,24 +509,31 @@ function PaginationBar(props: {
   );
 }
 
-export function MarketplacePage() {
+export function MarketplacePage(props: MarketplacePageProps = {}) {
   const navigate = useNavigate();
   const params = useParams<{ type?: string }>();
   const { language } = useI18n();
   const docBrowser = useDocBrowser();
+  const forcedType = props.forcedType;
 
   const routeType: MarketplaceRouteType | null = useMemo(() => {
+    if (forcedType === 'plugins' || forcedType === 'skills') {
+      return forcedType;
+    }
     if (params.type === 'plugins' || params.type === 'skills') {
       return params.type;
     }
     return null;
-  }, [params.type]);
+  }, [forcedType, params.type]);
 
   useEffect(() => {
+    if (forcedType) {
+      return;
+    }
     if (!routeType) {
       navigate('/marketplace/plugins', { replace: true });
     }
-  }, [routeType, navigate]);
+  }, [forcedType, routeType, navigate]);
 
   const typeFilter: MarketplaceItemType = routeType === 'skills' ? 'skill' : 'plugin';
   const localeFallbacks = useMemo(() => buildLocaleFallbacks(language), [language]);

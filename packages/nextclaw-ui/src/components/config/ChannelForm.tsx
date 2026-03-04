@@ -371,7 +371,7 @@ export function ChannelForm({ channelName }: ChannelFormProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-5">
           {fields.map((field) => {
             const hint = channelName
               ? hintForPath(`channels.${channelName}.${field.name}`, uiHints)
