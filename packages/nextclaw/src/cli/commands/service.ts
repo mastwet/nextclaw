@@ -592,7 +592,7 @@ export class ServiceCommands {
 
       await this.printPublicUiUrls(parsedUi.host, parsedUi.port);
       console.log(`Logs: ${existing.logPath}`);
-      console.log(`Stop: ${APP_NAME} stop`);
+      this.printServiceControlHints();
       return;
     }
     if (existing) {
@@ -671,7 +671,7 @@ export class ServiceCommands {
     console.log(`API: ${apiUrl}`);
     await this.printPublicUiUrls(uiConfig.host, uiConfig.port);
     console.log(`Logs: ${logPath}`);
-    console.log(`Stop: ${APP_NAME} stop`);
+    this.printServiceControlHints();
 
     if (options.open) {
       openBrowser(uiUrl);
@@ -862,6 +862,12 @@ export class ServiceCommands {
     const publicBase = `http://${publicIp}:${port}`;
     console.log(`Public UI (if firewall/NAT allows): ${publicBase}`);
     console.log(`Public API (if firewall/NAT allows): ${publicBase}/api`);
+  }
+
+  private printServiceControlHints(): void {
+    console.log("Service controls:");
+    console.log(`  - Check status: ${APP_NAME} status`);
+    console.log(`  - If you need to stop the service, run: ${APP_NAME} stop`);
   }
 
   private startUiIfEnabled(
