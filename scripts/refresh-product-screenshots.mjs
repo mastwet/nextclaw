@@ -119,6 +119,38 @@ const scenes = [
       'images/screenshots/nextclaw-chat-page-cn.png',
       'apps/landing/public/nextclaw-chat-page-cn.png'
     ]
+  },
+  {
+    id: 'skills-detail-en',
+    route: '/marketplace/skills',
+    language: 'en',
+    waitText: uiText.en.skillMarketplace,
+    afterLoad: async ({ page }) => {
+      const firstSkillCard = page.locator('article').first();
+      await firstSkillCard.waitFor({ timeout: 10_000 });
+      await firstSkillCard.click();
+      await page.locator('iframe[src^="data:text/html"]').first().waitFor({ timeout: 10_000 });
+    },
+    outputs: [
+      'images/screenshots/nextclaw-skills-doc-browser-en.png',
+      'apps/landing/public/nextclaw-skills-doc-browser-en.png'
+    ]
+  },
+  {
+    id: 'skills-detail-zh',
+    route: '/marketplace/skills',
+    language: 'zh',
+    waitText: uiText.zh.skillMarketplace,
+    afterLoad: async ({ page }) => {
+      const firstSkillCard = page.locator('article').first();
+      await firstSkillCard.waitFor({ timeout: 10_000 });
+      await firstSkillCard.click();
+      await page.locator('iframe[src^="data:text/html"]').first().waitFor({ timeout: 10_000 });
+    },
+    outputs: [
+      'images/screenshots/nextclaw-skills-doc-browser-cn.png',
+      'apps/landing/public/nextclaw-skills-doc-browser-cn.png'
+    ]
   }
 ];
 

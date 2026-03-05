@@ -27,6 +27,7 @@ The command updates both screenshot locations in one run:
 - `apps/landing/public/nextclaw-chat-page-*.png`
 - `apps/landing/public/nextclaw-providers-page-*.png`
 - `apps/landing/public/nextclaw-channels-page-*.png`
+- `apps/landing/public/nextclaw-skills-doc-browser-*.png`
 
 ## CI Automation
 
@@ -45,4 +46,5 @@ After running refresh:
    - `images/screenshots/nextclaw-chat-page-en.png`
    - `images/screenshots/nextclaw-providers-page-en.png`
    - `images/screenshots/nextclaw-channels-page-en.png`
+   - `images/screenshots/nextclaw-skills-doc-browser-en.png`
 3. Landing public mirrors should stay in sync with screenshot source set.

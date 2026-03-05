@@ -1,5 +1,6 @@
 # Logs
 
+- [docs/logs/2026-03-05-landing-skill-detail-screenshot/v0.0.1-landing-skill-detail-screenshot/ITERATION.md](docs/logs/2026-03-05-landing-skill-detail-screenshot/v0.0.1-landing-skill-detail-screenshot/ITERATION.md)
 - [docs/logs/2026-03-05-product-screenshot-automation/v0.0.1-product-screenshot-automation/ITERATION.md](docs/logs/2026-03-05-product-screenshot-automation/v0.0.1-product-screenshot-automation/ITERATION.md)
 - [docs/logs/2026-03-05-brand-copy-tone-adjust/v0.0.1-brand-copy-tone-adjust/ITERATION.md](docs/logs/2026-03-05-brand-copy-tone-adjust/v0.0.1-brand-copy-tone-adjust/ITERATION.md)
 - [docs/logs/2026-03-05-openclaw-link-prune/v0.0.1-openclaw-link-prune/ITERATION.md](docs/logs/2026-03-05-openclaw-link-prune/v0.0.1-openclaw-link-prune/ITERATION.md)
