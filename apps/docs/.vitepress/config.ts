@@ -104,6 +104,7 @@ const enSidebar = [
     text: 'Learn & Resources',
     items: [
       { text: 'Tutorial Hub', link: '/en/guide/tutorials' },
+      { text: 'Qwen Portal Setup', link: '/en/guide/tutorials/qwen-portal' },
       { text: 'Feishu Setup', link: '/en/guide/tutorials/feishu' },
       { text: 'Skills Tutorial', link: '/en/guide/tutorials/skills' },
       { text: 'Local Ollama + Qwen3 (macOS)', link: '/en/guide/tutorials/local-ollama-qwen3' },
@@ -160,6 +161,7 @@ const zhSidebar = [
     text: '学习与资源',
     items: [
       { text: '教程总览', link: '/zh/guide/tutorials' },
+      { text: 'Qwen Portal 免费配置教程', link: '/zh/guide/tutorials/qwen-portal' },
       { text: '飞书配置教程', link: '/zh/guide/tutorials/feishu' },
       { text: 'Skills 教程', link: '/zh/guide/tutorials/skills' },
       { text: '本地 Ollama + Qwen3 教程（macOS）', link: '/zh/guide/tutorials/local-ollama-qwen3' },

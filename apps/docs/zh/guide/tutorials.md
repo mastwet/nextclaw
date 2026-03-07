@@ -4,6 +4,7 @@
 
 ## 当前教程
 
+- [Qwen Portal 免费配置教程（小白版）](/zh/guide/tutorials/qwen-portal)
 - [飞书配置教程](/zh/guide/tutorials/feishu)
 - [Skills 教程（安装 + 使用）](/zh/guide/tutorials/skills)
 - [本地 Ollama + Qwen3 教程（macOS）](/zh/guide/tutorials/local-ollama-qwen3)

@@ -4,6 +4,7 @@ This section provides practical setup walkthroughs for specific channels and int
 
 ## Available Tutorials
 
+- [Qwen Portal Setup Tutorial (Beginner-Friendly)](/en/guide/tutorials/qwen-portal)
 - [Feishu Setup Tutorial](/en/guide/tutorials/feishu)
 - [Skills Tutorial (Install + Use)](/en/guide/tutorials/skills)
 - [Local Ollama + Qwen3 Tutorial (macOS)](/en/guide/tutorials/local-ollama-qwen3)
