@@ -17,6 +17,15 @@ export type StartCommandOptions = {
   startTimeout?: string | number;
 };
 
+export type InstallSystemdCommandOptions = {
+  name?: string;
+  uiPort?: string | number;
+};
+
+export type UninstallSystemdCommandOptions = {
+  name?: string;
+};
+
 export type AgentCommandOptions = {
   message?: string;
   session?: string;

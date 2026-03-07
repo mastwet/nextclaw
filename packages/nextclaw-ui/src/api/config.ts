@@ -1,5 +1,6 @@
 import { api, API_BASE } from './client';
 import type {
+  AppMetaView,
   ConfigView,
   ConfigMetaView,
   ConfigSchemaResponse,
@@ -39,6 +40,15 @@ import type {
   ChatTurnStreamDeltaEvent,
   ChatTurnStreamSessionEvent
 } from './types';
+
+// GET /api/app/meta
+export async function fetchAppMeta(): Promise<AppMetaView> {
+  const response = await api.get<AppMetaView>('/api/app/meta');
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
 
 // GET /api/config
 export async function fetchConfig(): Promise<ConfigView> {

@@ -67,6 +67,7 @@ import type {
   CronAddOptions,
   DoctorCommandOptions,
   GatewayCommandOptions,
+  InstallSystemdCommandOptions,
   PluginsInfoOptions,
   PluginsInstallOptions,
   PluginsListOptions,
@@ -75,6 +76,7 @@ import type {
   StartCommandOptions,
   StatusCommandOptions,
   UiCommandOptions,
+  UninstallSystemdCommandOptions,
   UpdateCommandOptions,
 } from "./types.js";
 
@@ -508,6 +510,14 @@ export class CliRuntime {
 
   async stop(): Promise<void> {
     await this.serviceCommands.stopService();
+  }
+
+  async serviceInstallSystemd(opts: InstallSystemdCommandOptions): Promise<void> {
+    await this.serviceCommands.installSystemdService(opts);
+  }
+
+  async serviceUninstallSystemd(opts: UninstallSystemdCommandOptions): Promise<void> {
+    await this.serviceCommands.uninstallSystemdService(opts);
   }
 
   async agent(opts: AgentCommandOptions): Promise<void> {

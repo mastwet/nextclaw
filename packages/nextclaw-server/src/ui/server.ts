@@ -42,6 +42,7 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
     "/",
     createUiRouter({
       configPath: options.configPath,
+      productVersion: options.productVersion,
       publish,
       marketplace: options.marketplace,
       cronService: options.cronService,

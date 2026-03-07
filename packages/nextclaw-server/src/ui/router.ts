@@ -23,6 +23,7 @@ import {
 } from "./config.js";
 import { importProviderAuthFromCli, pollProviderAuth, startProviderAuth } from "./provider-auth.js";
 import type {
+  AppMetaView,
   ChatRunListView,
   ChatRunState,
   ChatRunView,
@@ -70,11 +71,20 @@ import type {
 
 type UiRouterOptions = {
   configPath: string;
+  productVersion?: string;
   publish: (event: UiServerEvent) => void;
   marketplace?: MarketplaceApiConfig;
   cronService?: InstanceType<typeof NextclawCore.CronService>;
   chatRuntime?: UiChatRuntime;
 };
+
+function buildAppMetaView(options: UiRouterOptions): AppMetaView {
+  const productVersion = options.productVersion?.trim();
+  return {
+    name: "NextClaw",
+    productVersion: productVersion && productVersion.length > 0 ? productVersion : "0.0.0"
+  };
+}
 
 type CronJobEntry = {
   id: string;
@@ -1703,6 +1713,8 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   app.notFound((c) => c.json(err("NOT_FOUND", "endpoint not found"), 404));
 
   app.get("/api/health", (c) => c.json(ok({ status: "ok" })));
+
+  app.get("/api/app/meta", (c) => c.json(ok(buildAppMetaView(options))));
 
   app.get("/api/config", (c) => {
     const config = loadConfigOrDefault(options.configPath);

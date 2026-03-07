@@ -7,12 +7,16 @@
 | `nextclaw start` | Start gateway + UI in the background |
 | `nextclaw restart` | Restart the background service |
 | `nextclaw stop` | Stop the background service |
+| `sudo nextclaw service install-systemd` | Install a managed Linux `systemd` service |
+| `sudo nextclaw service uninstall-systemd` | Remove the managed Linux `systemd` service |
 | `nextclaw ui` | Start UI and gateway in the foreground |
 | `nextclaw gateway` | Start gateway only (for channels) |
 | `nextclaw serve` | Run gateway + UI in the foreground |
 | `nextclaw status` | Show runtime status (`--json`, `--verbose`, `--fix`) |
 | `nextclaw doctor` | Run runtime diagnostics |
 | `nextclaw update` | Self-update the CLI |
+
+If you expose NextClaw behind Nginx/Caddy/Traefik on a Linux server, use `sudo nextclaw service install-systemd` instead of relying on a one-time `nextclaw start`. Otherwise a reboot or exited process can surface as `502 Bad Gateway` at the reverse proxy.
 
 ## Agent Commands
 

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  fetchAppMeta,
   fetchConfig,
   fetchConfigMeta,
   fetchConfigSchema,
@@ -37,6 +38,14 @@ export function useConfig() {
     queryFn: fetchConfig,
     staleTime: 30_000,
     refetchOnWindowFocus: true
+  });
+}
+
+export function useAppMeta() {
+  return useQuery({
+    queryKey: ['app-meta'],
+    queryFn: fetchAppMeta,
+    staleTime: Infinity
   });
 }
 

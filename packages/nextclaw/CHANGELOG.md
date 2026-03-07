@@ -1,5 +1,13 @@
 # nextclaw
 
+## 0.9.10
+
+### Patch Changes
+
+- Expose the NextClaw product version via app metadata and display it in the UI sidebar brand header.
+- Updated dependencies
+  - @nextclaw/server@0.6.4
+
 ## 0.9.9
 
 ### Patch Changes

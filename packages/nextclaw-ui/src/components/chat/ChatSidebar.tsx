@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { SessionEntryView } from '@/api/types';
 import { Button } from '@/components/ui/button';
+import { BrandHeader } from '@/components/common/BrandHeader';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { SessionRunBadge } from '@/components/common/SessionRunBadge';
@@ -85,12 +86,7 @@ export function ChatSidebar(props: ChatSidebarProps) {
     <aside className="w-[280px] shrink-0 flex flex-col h-full bg-secondary border-r border-gray-200/60">
       {/* Logo */}
       <div className="px-5 pt-5 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-lg overflow-hidden flex items-center justify-center">
-            <img src="/logo.svg" alt="NextClaw" className="h-full w-full object-contain" />
-          </div>
-          <span className="text-[15px] font-semibold text-gray-800 tracking-[-0.01em]">NextClaw</span>
-        </div>
+        <BrandHeader />
       </div>
 
       {/* New Task button */}

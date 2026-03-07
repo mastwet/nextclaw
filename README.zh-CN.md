@@ -66,6 +66,8 @@ nextclaw start
 
 浏览器打开 **http://127.0.0.1:18791** → 设置 Provider 与模型 → 开始对话。
 
+> Linux 服务器 + Nginx 公网部署：不要只执行一次 `nextclaw start` 就结束。`start` 适合本机后台启动；如果服务器重启、进程退出或被手动停止，反代会直接变成 `502 Bad Gateway`。请改用受管常驻方式：`sudo nextclaw service install-systemd`。安装完成后，用 `systemctl status nextclaw` 与 `curl http://127.0.0.1:18791/api/health` 验证服务状态。
+
 ```bash
 nextclaw stop    # 停止服务
 ```

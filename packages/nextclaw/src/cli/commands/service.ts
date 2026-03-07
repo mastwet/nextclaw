@@ -7,11 +7,12 @@ import {
   stopPluginChannelGateways
 } from "@nextclaw/openclaw-compat";
 import { startUiServer, type UiServerEvent } from "@nextclaw/server";
-import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, openSync, rmSync } from "node:fs";
+import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
+import { homedir, userInfo } from "node:os";
 import { fileURLToPath } from "node:url";
 import chokidar from "chokidar";
 import { GatewayControllerImpl } from "../gateway/controller.js";
@@ -20,6 +21,7 @@ import { MissingProvider } from "../missing-provider.js";
 import {
   buildServeArgs,
   clearServiceState,
+  getPackageVersion,
   isLoopbackHost,
   isProcessRunning,
   openBrowser,
@@ -41,6 +43,7 @@ import {
   toPluginConfigView
 } from "./plugins.js";
 import type { RequestRestartParams } from "../types.js";
+import type { InstallSystemdCommandOptions, UninstallSystemdCommandOptions } from "../types.js";
 import {
   consumeRestartSentinel,
   formatRestartSentinelMessage,
@@ -744,6 +747,99 @@ export class ServiceCommands {
     console.log(`✓ ${APP_NAME} stopped`);
   }
 
+  async installSystemdService(options: InstallSystemdCommandOptions): Promise<void> {
+    if (process.platform !== "linux") {
+      console.error("Error: systemd installation is only supported on Linux.");
+      return;
+    }
+    if (typeof process.getuid === "function" && process.getuid() !== 0) {
+      console.error("Error: Run this command as root (for example: sudo nextclaw service install-systemd).");
+      return;
+    }
+
+    const serviceName = this.resolveSystemdServiceName(options.name);
+    const config = loadConfig();
+    const uiConfig = resolveUiConfig(config, { enabled: true, host: "0.0.0.0" });
+    const uiPort = this.parseSystemdUiPort(options.uiPort, uiConfig.port);
+    if (uiPort === null) {
+      console.error("Error: Invalid --ui-port. Provide a positive integer.");
+      return;
+    }
+
+    const systemctlAvailable = this.runSystemCommand("systemctl", ["--version"]);
+    if (!systemctlAvailable.ok) {
+      console.error("Error: systemctl is not available on this machine.");
+      return;
+    }
+
+    const runUser = this.resolveSystemdRunUser();
+    const runHome = this.resolveSystemdRunHome(runUser);
+    const servicePath = `/etc/systemd/system/${serviceName}.service`;
+    const cliPath = fileURLToPath(new URL("../index.js", import.meta.url));
+    const execArgs = [process.execPath, ...process.execArgv, cliPath, "serve", "--ui-port", String(uiPort)];
+    const unit = this.buildSystemdUnit({
+      runUser,
+      runHome,
+      execArgs,
+    });
+
+    writeFileSync(servicePath, unit, "utf-8");
+
+    const daemonReload = this.runSystemCommand("systemctl", ["daemon-reload"]);
+    if (!daemonReload.ok) {
+      console.error(`Error: Failed to reload systemd. ${daemonReload.stderr}`.trim());
+      return;
+    }
+
+    const enableStart = this.runSystemCommand("systemctl", ["enable", "--now", `${serviceName}.service`]);
+    if (!enableStart.ok) {
+      console.error(`Error: Failed to enable/start ${serviceName}.service. ${enableStart.stderr}`.trim());
+      return;
+    }
+
+    const active = this.runSystemCommand("systemctl", ["is-active", `${serviceName}.service`]);
+    if (!active.ok || active.stdout.trim() !== "active") {
+      console.error(`Error: ${serviceName}.service is not active. ${active.stderr || active.stdout}`.trim());
+      return;
+    }
+
+    console.log(`✓ Installed systemd service: ${serviceName}.service`);
+    console.log(`Run user: ${runUser}`);
+    console.log(`UI port: ${uiPort}`);
+    console.log(`Unit file: ${servicePath}`);
+    console.log(`Health: http://127.0.0.1:${uiPort}/api/health`);
+    console.log(`Logs: journalctl -u ${serviceName}.service -f`);
+  }
+
+  async uninstallSystemdService(options: UninstallSystemdCommandOptions): Promise<void> {
+    if (process.platform !== "linux") {
+      console.error("Error: systemd removal is only supported on Linux.");
+      return;
+    }
+    if (typeof process.getuid === "function" && process.getuid() !== 0) {
+      console.error("Error: Run this command as root.");
+      return;
+    }
+
+    const serviceName = this.resolveSystemdServiceName(options.name);
+    const servicePath = `/etc/systemd/system/${serviceName}.service`;
+    if (!existsSync(servicePath)) {
+      console.error(`Error: ${servicePath} does not exist.`);
+      return;
+    }
+
+    this.runSystemCommand("systemctl", ["disable", "--now", `${serviceName}.service`]);
+    rmSync(servicePath, { force: true });
+
+    const daemonReload = this.runSystemCommand("systemctl", ["daemon-reload"]);
+    if (!daemonReload.ok) {
+      console.error(`Warning: Removed unit file but failed to reload systemd. ${daemonReload.stderr}`.trim());
+      return;
+    }
+
+    console.log(`✓ Removed systemd service: ${serviceName}.service`);
+  }
+
   async waitForBackgroundServiceReady(params: {
     pid: number;
     healthUrl: string;
@@ -780,6 +876,89 @@ export class ServiceCommands {
       : null;
     const resolved = fromOverride ?? fromEnv ?? fallback;
     return Math.max(3000, resolved);
+  }
+
+  private resolveSystemdServiceName(rawName: string | undefined): string {
+    const trimmed = rawName?.trim() || APP_NAME;
+    return trimmed.endsWith(".service") ? trimmed.slice(0, -".service".length) : trimmed;
+  }
+
+  private parseSystemdUiPort(rawPort: string | number | undefined, fallbackPort: number): number | null {
+    if (rawPort === undefined || rawPort === null || rawPort === "") {
+      return fallbackPort;
+    }
+    const parsed = Number(rawPort);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return null;
+    }
+    return parsed;
+  }
+
+  private resolveSystemdRunUser(): string {
+    const sudoUser = process.env.SUDO_USER?.trim();
+    if (sudoUser && sudoUser !== "root") {
+      return sudoUser;
+    }
+    return userInfo().username;
+  }
+
+  private resolveSystemdRunHome(runUser: string): string {
+    const passwd = this.runSystemCommand("getent", ["passwd", runUser]);
+    if (passwd.ok) {
+      const fields = passwd.stdout.trim().split(":");
+      if (fields.length >= 6 && fields[5]) {
+        return fields[5];
+      }
+    }
+    return process.env.HOME?.trim() || homedir();
+  }
+
+  private buildSystemdUnit(params: {
+    runUser: string;
+    runHome: string;
+    execArgs: string[];
+  }): string {
+    const execStart = params.execArgs.map((arg) => this.escapeSystemdArg(arg)).join(" ");
+    return [
+      "[Unit]",
+      `Description=${APP_NAME} gateway + UI`,
+      "After=network-online.target",
+      "Wants=network-online.target",
+      "",
+      "[Service]",
+      "Type=simple",
+      `User=${params.runUser}`,
+      `WorkingDirectory=${params.runHome}`,
+      `Environment=HOME=${params.runHome}`,
+      "Environment=NODE_ENV=production",
+      `ExecStart=${execStart}`,
+      "Restart=always",
+      "RestartSec=3",
+      "TimeoutStopSec=20",
+      "",
+      "[Install]",
+      "WantedBy=multi-user.target",
+      "",
+    ].join("\n");
+  }
+
+  private escapeSystemdArg(value: string): string {
+    if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) {
+      return value;
+    }
+    return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+  }
+
+  private runSystemCommand(command: string, args: string[]): { ok: boolean; stdout: string; stderr: string } {
+    const result = spawnSync(command, args, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return {
+      ok: result.status === 0,
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
+    };
   }
 
   private appendStartupStage(logPath: string, message: string): void {
@@ -1009,6 +1188,7 @@ export class ServiceCommands {
       host: uiConfig.host,
       port: uiConfig.port,
       configPath: getConfigPath(),
+      productVersion: getPackageVersion(),
       staticDir: uiStaticDir ?? undefined,
       cronService,
       marketplace: {

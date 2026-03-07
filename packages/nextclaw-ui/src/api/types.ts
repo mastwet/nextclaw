@@ -9,6 +9,11 @@ export type ApiResponse<T> =
   | { ok: true; data: T }
   | { ok: false; error: ApiError };
 
+export type AppMetaView = {
+  name: string;
+  productVersion: string;
+};
+
 export type ProviderConfigView = {
   displayName?: string;
   apiKeySet: boolean;

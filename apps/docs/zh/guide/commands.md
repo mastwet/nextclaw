@@ -7,12 +7,16 @@
 | `nextclaw start` | 后台启动网关 + UI |
 | `nextclaw restart` | 重启后台服务 |
 | `nextclaw stop` | 停止后台服务 |
+| `sudo nextclaw service install-systemd` | 安装受管的 Linux `systemd` 服务 |
+| `sudo nextclaw service uninstall-systemd` | 移除受管的 Linux `systemd` 服务 |
 | `nextclaw ui` | 前台启动 UI 与网关 |
 | `nextclaw gateway` | 仅启动网关（用于渠道） |
 | `nextclaw serve` | 前台运行网关 + UI |
 | `nextclaw status` | 查看运行状态（`--json`、`--verbose`、`--fix`） |
 | `nextclaw doctor` | 运行诊断 |
 | `nextclaw update` | 自更新 CLI |
+
+如果你是在 Linux 服务器上通过 Nginx / Caddy / Traefik 对外暴露 NextClaw，请不要只依赖一次性的 `nextclaw start`。一旦机器重启或进程退出，反向代理层通常就会直接表现为 `502 Bad Gateway`。此时应使用 `sudo nextclaw service install-systemd` 安装受管常驻服务。
 
 ## Agent 命令
 

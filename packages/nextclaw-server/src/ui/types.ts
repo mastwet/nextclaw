@@ -10,6 +10,11 @@ export type ApiResponse<T> =
   | { ok: true; data: T }
   | { ok: false; error: ApiError };
 
+export type AppMetaView = {
+  name: string;
+  productVersion: string;
+};
+
 export type ProviderConfigView = {
   displayName?: string;
   apiKeySet: boolean;
@@ -733,6 +738,7 @@ export type UiServerOptions = {
   host: string;
   port: number;
   configPath: string;
+  productVersion?: string;
   corsOrigins?: string[] | "*";
   staticDir?: string;
   marketplace?: MarketplaceApiConfig;

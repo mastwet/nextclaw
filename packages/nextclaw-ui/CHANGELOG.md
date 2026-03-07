@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.6.7
+
+### Patch Changes
+
+- Expose the NextClaw product version via app metadata and display it in the UI sidebar brand header.
+
 ## 0.6.6
 
 ### Patch Changes

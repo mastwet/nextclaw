@@ -5,6 +5,7 @@ dist/
 coverage/
 .DS_Store
 .npmrc
+.npmrc.publish.local
 tmp
 apps/docs/.vitepress/dist/
 apps/docs/.vitepress/cache/

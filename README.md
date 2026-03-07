@@ -66,6 +66,8 @@ nextclaw start
 
 Open **http://127.0.0.1:18791** → set your provider and model → start chatting.
 
+> Linux server + Nginx public deployment: do not stop at a one-time `nextclaw start`. `start` is fine for local background use, but after a reboot, manual stop, or unexpected exit your reverse proxy will fall straight into `502 Bad Gateway`. Install a managed service instead: `sudo nextclaw service install-systemd`. Then verify with `systemctl status nextclaw` and `curl http://127.0.0.1:18791/api/health`.
+
 ```bash
 nextclaw stop    # stop the service
 ```

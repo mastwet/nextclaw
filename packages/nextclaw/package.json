@@ -1,6 +1,6 @@
 {
   "name": "nextclaw",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "description": "Lightweight personal AI assistant with CLI, multi-provider routing, and channel integrations.",
   "private": false,
   "type": "module",
@@ -49,7 +49,7 @@
     "commander": "^12.1.0",
     "@nextclaw/core": "^0.7.1",
     "@nextclaw/runtime": "^0.1.1",
-    "@nextclaw/server": "^0.6.3",
+    "@nextclaw/server": "^0.6.4",
     "@nextclaw/openclaw-compat": "^0.2.0"
   },
   "devDependencies": {

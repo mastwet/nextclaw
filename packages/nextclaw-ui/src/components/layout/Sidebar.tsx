@@ -4,6 +4,7 @@ import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
 import { Cpu, GitBranch, History, MessageCircle, MessageSquare, Sparkles, BookOpen, Plug, BrainCircuit, AlarmClock, Languages, Palette, KeyRound, Settings, ArrowLeft } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useDocBrowser } from '@/components/doc-browser';
+import { BrandHeader } from '@/components/common/BrandHeader';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
@@ -114,12 +115,7 @@ export function Sidebar({ mode }: SidebarProps) {
         </div>
       ) : (
         <div className="px-2 mb-8">
-          <div className="flex items-center gap-2.5 cursor-pointer">
-            <div className="h-7 w-7 rounded-lg overflow-hidden flex items-center justify-center">
-              <img src="/logo.svg" alt="NextClaw" className="h-full w-full object-contain" />
-            </div>
-            <span className="text-[15px] font-semibold text-gray-800 tracking-[-0.01em]">NextClaw</span>
-          </div>
+          <BrandHeader className="flex items-center gap-2.5 cursor-pointer" />
         </div>
       )}
 
