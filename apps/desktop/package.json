@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/desktop",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "private": true,
   "description": "NextClaw desktop shell powered by Electron.",
   "author": "NextClaw Team",
@@ -58,7 +58,7 @@
       "package.json"
     ],
     "npmRebuild": false,
-    "asar": false,
+    "asar": true,
     "afterPack": "./scripts/electron-after-pack.cjs",
     "mac": {
       "icon": "build/icons/icon.icns",
