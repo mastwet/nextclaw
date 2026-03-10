@@ -1,5 +1,25 @@
 # @nextclaw/openclaw-compat
 
+## 0.2.3
+
+### Patch Changes
+
+- Unified ecosystem release for accumulated chat runtime alignment, stop behavior hardening,
+  frontend sticky autoscroll fixes, and package dependency consistency.
+- Updated dependencies
+  - @nextclaw/channel-plugin-dingtalk@0.1.8
+  - @nextclaw/channel-plugin-discord@0.1.9
+  - @nextclaw/channel-plugin-email@0.1.8
+  - @nextclaw/channel-plugin-feishu@0.1.8
+  - @nextclaw/channel-plugin-mochat@0.1.8
+  - @nextclaw/channel-plugin-qq@0.1.8
+  - @nextclaw/channel-plugin-slack@0.1.8
+  - @nextclaw/channel-plugin-telegram@0.1.8
+  - @nextclaw/channel-plugin-wecom@0.1.8
+  - @nextclaw/channel-plugin-whatsapp@0.1.8
+  - @nextclaw/channel-runtime@0.1.32
+  - @nextclaw/core@0.7.4
+
 ## 0.2.2
 
 ### Patch Changes

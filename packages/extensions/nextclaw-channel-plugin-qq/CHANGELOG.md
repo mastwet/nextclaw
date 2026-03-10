@@ -1,5 +1,14 @@
 # @nextclaw/channel-plugin-qq
 
+## 0.1.8
+
+### Patch Changes
+
+- Unified ecosystem release for accumulated chat runtime alignment, stop behavior hardening,
+  frontend sticky autoscroll fixes, and package dependency consistency.
+- Updated dependencies
+  - @nextclaw/channel-runtime@0.1.32
+
 ## 0.1.7
 
 ### Patch Changes

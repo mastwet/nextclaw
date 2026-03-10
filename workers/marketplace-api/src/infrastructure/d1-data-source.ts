@@ -391,6 +391,10 @@ abstract class D1MarketplaceSectionDataSourceBase extends BaseMarketplaceDataSou
 }
 
 export class D1MarketplacePluginDataSource extends D1MarketplaceSectionDataSourceBase {
+  constructor(db: D1Database) {
+    super(db);
+  }
+
   protected getItemType(): MarketplaceItemType {
     return "plugin";
   }
@@ -405,6 +409,10 @@ export class D1MarketplacePluginDataSource extends D1MarketplaceSectionDataSourc
 }
 
 export class D1MarketplaceSkillDataSource extends D1MarketplaceSectionDataSourceBase {
+  constructor(db: D1Database) {
+    super(db);
+  }
+
   protected getItemType(): MarketplaceItemType {
     return "skill";
   }

@@ -1,5 +1,14 @@
 # @nextclaw/ui
 
+## 0.6.11
+
+### Patch Changes
+
+- Unified ecosystem release for accumulated chat runtime alignment, stop behavior hardening,
+  frontend sticky autoscroll fixes, and package dependency consistency.
+- Updated dependencies
+  - @nextclaw/agent-chat@0.1.1
+
 ## 0.6.10
 
 ### Patch Changes

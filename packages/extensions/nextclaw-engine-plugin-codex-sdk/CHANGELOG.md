@@ -1,5 +1,14 @@
 # @nextclaw/nextclaw-engine-codex-sdk
 
+## 0.2.1
+
+### Patch Changes
+
+- Unified ecosystem release for accumulated chat runtime alignment, stop behavior hardening,
+  frontend sticky autoscroll fixes, and package dependency consistency.
+- Updated dependencies
+  - @nextclaw/core@0.7.4
+
 ## 0.2.0
 
 ### Minor Changes

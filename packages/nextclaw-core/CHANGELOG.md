@@ -1,5 +1,12 @@
 # nextclaw-core
 
+## 0.7.4
+
+### Patch Changes
+
+- Unified ecosystem release for accumulated chat runtime alignment, stop behavior hardening,
+  frontend sticky autoscroll fixes, and package dependency consistency.
+
 ## 0.7.3
 
 ### Patch Changes

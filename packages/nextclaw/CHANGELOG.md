@@ -1,5 +1,17 @@
 # nextclaw
 
+## 0.9.21
+
+### Patch Changes
+
+- Unified ecosystem release for accumulated chat runtime alignment, stop behavior hardening,
+  frontend sticky autoscroll fixes, and package dependency consistency.
+- Updated dependencies
+  - @nextclaw/core@0.7.4
+  - @nextclaw/openclaw-compat@0.2.3
+  - @nextclaw/runtime@0.1.3
+  - @nextclaw/server@0.6.8
+
 ## 0.9.20
 
 ### Patch Changes
