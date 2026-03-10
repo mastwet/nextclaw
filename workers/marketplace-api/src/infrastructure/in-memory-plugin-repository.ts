@@ -1,6 +1,5 @@
-import type { MarketplaceCatalogSection, MarketplaceCatalogSnapshot } from "../domain/model";
 import type { PluginRepository } from "../domain/plugin-repository";
-import type { MarketplaceDataSource } from "../domain/repository";
+import type { MarketplaceSectionDataSource } from "../domain/repository";
 import { InMemorySectionRepositoryBase } from "./in-memory-section-repository-base";
 
 type RepositoryOptions = {
@@ -8,12 +7,8 @@ type RepositoryOptions = {
 };
 
 export class InMemoryPluginRepository extends InMemorySectionRepositoryBase implements PluginRepository {
-  constructor(dataSource: MarketplaceDataSource, options: RepositoryOptions = {}) {
+  constructor(dataSource: MarketplaceSectionDataSource, options: RepositoryOptions = {}) {
     super(dataSource, options);
-  }
-
-  protected getSection(snapshot: MarketplaceCatalogSnapshot): MarketplaceCatalogSection {
-    return snapshot.plugins;
   }
 
   protected getResultType(): "plugin" {

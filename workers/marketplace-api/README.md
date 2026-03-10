@@ -31,14 +31,21 @@ pnpm -C workers/marketplace-api dev
 
 ## D1 初始化
 
-1. 在 `wrangler.toml` 配置 `MARKETPLACE_DB` 绑定（`database_id` 改成你的真实 D1 id）。
-2. 执行 migration（会包含 `0002_seed_legacy_skills_20260227.sql`，用于把历史 skills-catalog 全量迁移到 D1）：
+1. 在 `wrangler.toml` 配置两个 D1 绑定：
+   - `MARKETPLACE_SKILLS_DB`（技能）
+   - `MARKETPLACE_PLUGINS_DB`（插件）
+2. 执行 migration：
+   - 技能库包含 `0002_seed_legacy_skills_20260227.sql`（历史 skills-catalog 迁移）
+   - 插件库包含 `0002_seed_official_channel_plugins_20260310.sql`（仓库内官方渠道插件）
 
 ```bash
 pnpm -C workers/marketplace-api db:migrate:local
 # 或
 pnpm -C workers/marketplace-api db:migrate:remote
 ```
+
+说明：迁移按目录拆分，技能使用 `migrations/skills`，插件使用 `migrations/plugins`。
+旧的根目录 migration 已废弃，不再被脚本调用。
 
 ## 质量检查
 

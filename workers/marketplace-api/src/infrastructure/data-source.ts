@@ -1,6 +1,6 @@
-import type { MarketplaceCatalogSnapshot } from "../domain/model";
-import type { MarketplaceDataSource } from "../domain/repository";
+import type { MarketplaceCatalogSection } from "../domain/model";
+import type { MarketplaceSectionDataSource } from "../domain/repository";
 
-export abstract class BaseMarketplaceDataSource implements MarketplaceDataSource {
-  abstract loadSnapshot(): Promise<MarketplaceCatalogSnapshot>;
+export abstract class BaseMarketplaceDataSource implements MarketplaceSectionDataSource {
+  abstract loadSection(): Promise<MarketplaceCatalogSection>;
 }

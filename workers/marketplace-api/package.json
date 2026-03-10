@@ -9,8 +9,12 @@
     "lint": "eslint src --max-warnings=0",
     "tsc": "tsc -p tsconfig.json --noEmit",
     "deploy": "wrangler deploy",
-    "db:migrate:local": "wrangler d1 migrations apply MARKETPLACE_DB --local",
-    "db:migrate:remote": "wrangler d1 migrations apply MARKETPLACE_DB --remote"
+    "db:migrate:skills:local": "wrangler d1 migrations apply MARKETPLACE_SKILLS_DB --local",
+    "db:migrate:skills:remote": "wrangler d1 migrations apply MARKETPLACE_SKILLS_DB --remote",
+    "db:migrate:plugins:local": "wrangler d1 migrations apply MARKETPLACE_PLUGINS_DB --local",
+    "db:migrate:plugins:remote": "wrangler d1 migrations apply MARKETPLACE_PLUGINS_DB --remote",
+    "db:migrate:local": "pnpm run db:migrate:skills:local && pnpm run db:migrate:plugins:local",
+    "db:migrate:remote": "pnpm run db:migrate:skills:remote && pnpm run db:migrate:plugins:remote"
   },
   "dependencies": {
     "hono": "^4.9.8"

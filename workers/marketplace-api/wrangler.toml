@@ -9,6 +9,13 @@ enabled = true
 MARKETPLACE_CACHE_TTL_SECONDS = "120"
 
 [[d1_databases]]
-binding = "MARKETPLACE_DB"
-database_name = "nextclaw-marketplace"
-database_id = "252a64a3-94a7-4d34-89ab-945754f39f98"
+binding = "MARKETPLACE_SKILLS_DB"
+database_name = "nextclaw-marketplace-skills"
+database_id = "a39c3efd-4811-40f2-b1c9-f26f18a07c3b"
+migrations_dir = "migrations/skills"
+
+[[d1_databases]]
+binding = "MARKETPLACE_PLUGINS_DB"
+database_name = "nextclaw-marketplace-plugins"
+database_id = "17df1af4-5db9-4870-83e9-c151af7bc313"
+migrations_dir = "migrations/plugins"

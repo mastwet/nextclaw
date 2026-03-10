@@ -1,5 +1,5 @@
-import type { MarketplaceCatalogSnapshot } from "./model";
+import type { MarketplaceCatalogSection } from "./model";
 
-export type MarketplaceDataSource = {
-  loadSnapshot(): Promise<MarketplaceCatalogSnapshot>;
+export type MarketplaceSectionDataSource = {
+  loadSection(): Promise<MarketplaceCatalogSection>;
 };

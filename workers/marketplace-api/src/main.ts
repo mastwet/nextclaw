@@ -7,14 +7,15 @@ import { ListSkillItemsUseCase } from "./application/skills/list-skill-items.use
 import { ListSkillRecommendationsUseCase } from "./application/skills/list-skill-recommendations.usecase";
 import { DomainValidationError, ResourceNotFoundError } from "./domain/errors";
 import type { MarketplaceItem } from "./domain/model";
-import { D1MarketplaceDataSource } from "./infrastructure/d1-data-source";
+import { D1MarketplacePluginDataSource, D1MarketplaceSkillDataSource } from "./infrastructure/d1-data-source";
 import { InMemoryPluginRepository } from "./infrastructure/in-memory-plugin-repository";
 import { InMemorySkillRepository } from "./infrastructure/in-memory-skill-repository";
 import { MarketplaceQueryParser } from "./presentation/http/query-parser";
 import { ApiResponseFactory } from "./presentation/http/response";
 
 type MarketplaceBindings = {
-  MARKETPLACE_DB: D1Database;
+  MARKETPLACE_SKILLS_DB: D1Database;
+  MARKETPLACE_PLUGINS_DB: D1Database;
   MARKETPLACE_CACHE_TTL_SECONDS?: string;
   MARKETPLACE_ADMIN_TOKEN?: string;
 };
@@ -28,7 +29,8 @@ class MarketplaceAuthError extends Error {}
 class MarketplaceRuntime {
   readonly responses = new ApiResponseFactory();
   readonly parser = new MarketplaceQueryParser();
-  readonly dataSource: D1MarketplaceDataSource;
+  readonly pluginDataSource: D1MarketplacePluginDataSource;
+  readonly skillDataSource: D1MarketplaceSkillDataSource;
 
   readonly pluginRepository: InMemoryPluginRepository;
   readonly listPluginItems: ListPluginItemsUseCase;
@@ -41,17 +43,18 @@ class MarketplaceRuntime {
   readonly listSkillRecommendations: ListSkillRecommendationsUseCase;
 
   constructor(bindings: MarketplaceBindings) {
-    this.dataSource = new D1MarketplaceDataSource(bindings.MARKETPLACE_DB);
+    this.pluginDataSource = new D1MarketplacePluginDataSource(bindings.MARKETPLACE_PLUGINS_DB);
+    this.skillDataSource = new D1MarketplaceSkillDataSource(bindings.MARKETPLACE_SKILLS_DB);
     const ttlSeconds = this.parseCacheTtlSeconds(bindings.MARKETPLACE_CACHE_TTL_SECONDS);
 
-    this.pluginRepository = new InMemoryPluginRepository(this.dataSource, {
+    this.pluginRepository = new InMemoryPluginRepository(this.pluginDataSource, {
       cacheTtlMs: ttlSeconds * 1000
     });
     this.listPluginItems = new ListPluginItemsUseCase(this.pluginRepository);
     this.getPluginItem = new GetPluginItemUseCase(this.pluginRepository);
     this.listPluginRecommendations = new ListPluginRecommendationsUseCase(this.pluginRepository);
 
-    this.skillRepository = new InMemorySkillRepository(this.dataSource, {
+    this.skillRepository = new InMemorySkillRepository(this.skillDataSource, {
       cacheTtlMs: ttlSeconds * 1000
     });
     this.listSkillItems = new ListSkillItemsUseCase(this.skillRepository);
@@ -77,18 +80,28 @@ class MarketplaceRuntime {
 }
 
 const responses = new ApiResponseFactory();
-const runtimes = new WeakMap<D1Database, MarketplaceRuntime>();
+const runtimes = new WeakMap<D1Database, WeakMap<D1Database, MarketplaceRuntime>>();
 
 function getRuntime(bindings: MarketplaceBindings): MarketplaceRuntime {
-  if (!bindings.MARKETPLACE_DB) {
-    throw new Error("MARKETPLACE_DB binding is required");
+  if (!bindings.MARKETPLACE_PLUGINS_DB) {
+    throw new Error("MARKETPLACE_PLUGINS_DB binding is required");
   }
-  const cached = runtimes.get(bindings.MARKETPLACE_DB);
+  if (!bindings.MARKETPLACE_SKILLS_DB) {
+    throw new Error("MARKETPLACE_SKILLS_DB binding is required");
+  }
+  const pluginDb = bindings.MARKETPLACE_PLUGINS_DB;
+  const skillDb = bindings.MARKETPLACE_SKILLS_DB;
+  let bySkill = runtimes.get(pluginDb);
+  if (!bySkill) {
+    bySkill = new WeakMap();
+    runtimes.set(pluginDb, bySkill);
+  }
+  const cached = bySkill.get(skillDb);
   if (cached) {
     return cached;
   }
   const created = new MarketplaceRuntime(bindings);
-  runtimes.set(bindings.MARKETPLACE_DB, created);
+  bySkill.set(skillDb, created);
   return created;
 }
 
@@ -183,7 +196,8 @@ app.get("/health", (c) => {
   return responses.ok(c, {
     status: "ok",
     service: "marketplace-api",
-    storage: "d1"
+    storage: "d1",
+    databases: ["skills", "plugins"]
   });
 });
 
@@ -224,7 +238,7 @@ app.get("/api/v1/skills/items/:slug", async (c) => {
 app.get("/api/v1/skills/items/:slug/files", async (c) => {
   const runtime = getRuntime(c.env);
   const slug = c.req.param("slug");
-  const payload = await runtime.dataSource.getSkillFilesBySlug(slug);
+  const payload = await runtime.skillDataSource.getSkillFilesBySlug(slug);
   if (!payload) {
     throw new ResourceNotFoundError(`skill item not found: ${slug}`);
   }
@@ -243,7 +257,7 @@ app.get("/api/v1/skills/items/:slug/files", async (c) => {
 app.get("/api/v1/skills/items/:slug/content", async (c) => {
   const runtime = getRuntime(c.env);
   const slug = c.req.param("slug");
-  const payload = await runtime.dataSource.getSkillFilesBySlug(slug);
+  const payload = await runtime.skillDataSource.getSkillFilesBySlug(slug);
   if (!payload) {
     throw new ResourceNotFoundError(`skill item not found: ${slug}`);
   }
@@ -285,7 +299,7 @@ app.post("/api/v1/admin/skills/upsert", async (c) => {
   }
 
   const runtime = getRuntime(c.env);
-  const result = await runtime.dataSource.upsertSkill(body);
+  const result = await runtime.skillDataSource.upsertSkill(body);
   runtime.invalidateCache();
   return runtime.responses.ok(c, {
     created: result.created,

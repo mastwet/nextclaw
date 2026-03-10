@@ -64,13 +64,6 @@ export type MarketplaceCatalogSection = {
   recommendations: MarketplaceRecommendationScene[];
 };
 
-export type MarketplaceCatalogSnapshot = {
-  version: string;
-  generatedAt: string;
-  plugins: MarketplaceCatalogSection;
-  skills: MarketplaceCatalogSection;
-};
-
 export type MarketplaceListQuery = {
   q?: string;
   tag?: string;

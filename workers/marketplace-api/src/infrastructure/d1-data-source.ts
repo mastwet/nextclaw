@@ -2,7 +2,6 @@ import { DomainValidationError } from "../domain/errors";
 import type {
   LocalizedTextMap,
   MarketplaceCatalogSection,
-  MarketplaceCatalogSnapshot,
   MarketplaceItem,
   MarketplaceItemType,
   MarketplacePluginInstallSpec,
@@ -14,7 +13,6 @@ import { BaseMarketplaceDataSource } from "./data-source";
 type ItemRow = {
   id: string;
   slug: string;
-  type: MarketplaceItemType;
   name: string;
   summary: string;
   summary_i18n: string;
@@ -33,7 +31,6 @@ type ItemRow = {
 
 type SceneRow = {
   scene_id: string;
-  scene_type: MarketplaceItemType;
   title: string;
   description: string | null;
   item_id: string | null;
@@ -46,10 +43,15 @@ type SkillFileRow = {
   updated_at: string;
 };
 
-type ExistingItemRow = {
+type ExistingSkillRow = {
   id: string;
-  type: MarketplaceItemType;
   published_at: string;
+};
+
+type TableNames = {
+  items: string;
+  scenes: string;
+  sceneItems: string;
 };
 
 export type MarketplaceSkillFile = {
@@ -79,18 +81,21 @@ export type MarketplaceSkillUpsertInput = {
   updatedAt?: string;
 };
 
-export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
-  constructor(private readonly db: D1Database) {
+abstract class D1MarketplaceSectionDataSourceBase extends BaseMarketplaceDataSource {
+  protected constructor(protected readonly db: D1Database) {
     super();
   }
 
-  async loadSnapshot(): Promise<MarketplaceCatalogSnapshot> {
+  protected abstract getItemType(): MarketplaceItemType;
+  protected abstract getTables(): TableNames;
+
+  async loadSection(): Promise<MarketplaceCatalogSection> {
+    const tables = this.getTables();
     const itemsResult = await this.db
       .prepare(`
         SELECT
           id,
           slug,
-          type,
           name,
           summary,
           summary_i18n,
@@ -105,7 +110,7 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
           install_command,
           published_at,
           updated_at
-        FROM marketplace_items
+        FROM ${tables.items}
       `)
       .all<ItemRow>();
 
@@ -113,30 +118,302 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
       .prepare(`
         SELECT
           s.id AS scene_id,
-          s.type AS scene_type,
           s.title,
           s.description,
           i.item_id
-        FROM marketplace_recommendation_scenes s
-        LEFT JOIN marketplace_recommendation_items i ON i.scene_id = s.id
-        ORDER BY s.type ASC, s.id ASC, i.sort_order ASC
+        FROM ${tables.scenes} s
+        LEFT JOIN ${tables.sceneItems} i ON i.scene_id = s.id
+        ORDER BY s.id ASC, i.sort_order ASC
       `)
       .all<SceneRow>();
 
     const items = (itemsResult.results ?? []).map((row) => this.mapItemRow(row));
-    const scenes = this.mapScenes(sceneResult.results ?? [], items);
-
-    const pluginSection = this.buildSection("plugin", items, scenes);
-    const skillSection = this.buildSection("skill", items, scenes);
-
-    const generatedAt = this.pickSnapshotGeneratedAt(items);
-    const version = generatedAt;
+    const recommendations = this.mapScenes(sceneResult.results ?? [], items);
 
     return {
-      version,
-      generatedAt,
-      plugins: pluginSection,
-      skills: skillSection
+      items,
+      recommendations
+    };
+  }
+
+  protected mapItemRow(row: ItemRow): MarketplaceItem {
+    const summaryI18n = this.parseLocalizedMap(row.summary_i18n, `marketplace_items.summary_i18n(${row.slug})`, row.summary);
+    const description = row.description ?? undefined;
+    const descriptionI18n = description
+      ? this.parseLocalizedMap(row.description_i18n, `marketplace_items.description_i18n(${row.slug})`, description)
+      : undefined;
+
+    const base = {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      summary: row.summary,
+      summaryI18n,
+      description,
+      descriptionI18n,
+      tags: this.parseStringArray(row.tags, `marketplace_items.tags(${row.slug})`),
+      author: row.author,
+      sourceRepo: row.source_repo ?? undefined,
+      homepage: row.homepage ?? undefined,
+      publishedAt: row.published_at,
+      updatedAt: row.updated_at
+    };
+
+    const type = this.getItemType();
+    if (type === "plugin") {
+      return {
+        ...base,
+        type: "plugin",
+        install: this.mapInstall("plugin", row.install_kind, row.install_spec, row.install_command, row.slug)
+      };
+    }
+
+    return {
+      ...base,
+      type: "skill",
+      install: this.mapInstall("skill", row.install_kind, row.install_spec, row.install_command, row.slug)
+    };
+  }
+
+  protected mapScenes(rows: SceneRow[], items: MarketplaceItem[]): MarketplaceRecommendationScene[] {
+    const itemIds = new Set(items.map((item) => item.id));
+    const sceneMap = new Map<string, MarketplaceRecommendationScene>();
+
+    for (const row of rows) {
+      let scene = sceneMap.get(row.scene_id);
+      if (!scene) {
+        scene = {
+          id: row.scene_id,
+          title: row.title,
+          description: row.description ?? undefined,
+          itemIds: []
+        };
+        sceneMap.set(row.scene_id, scene);
+      }
+
+      if (row.item_id && itemIds.has(row.item_id)) {
+        scene.itemIds.push(row.item_id);
+      }
+    }
+
+    return [...sceneMap.values()];
+  }
+
+  protected mapInstall(
+    type: "plugin",
+    kind: string,
+    spec: string,
+    command: string,
+    slug: string
+  ): MarketplacePluginInstallSpec;
+  protected mapInstall(
+    type: "skill",
+    kind: string,
+    spec: string,
+    command: string,
+    slug: string
+  ): MarketplaceSkillInstallSpec;
+  protected mapInstall(
+    type: MarketplaceItemType,
+    kind: string,
+    spec: string,
+    command: string,
+    slug: string
+  ): MarketplacePluginInstallSpec | MarketplaceSkillInstallSpec {
+    if (type === "plugin") {
+      if (kind !== "npm") {
+        throw new DomainValidationError(`plugin install.kind must be npm: ${slug}`);
+      }
+      return {
+        kind: "npm",
+        spec,
+        command
+      };
+    }
+
+    if (kind !== "builtin" && kind !== "marketplace") {
+      throw new DomainValidationError(`skill install.kind must be builtin|marketplace: ${slug}`);
+    }
+
+    return {
+      kind,
+      spec,
+      command
+    };
+  }
+
+  protected parseStringArray(raw: string, path: string): string[] {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new DomainValidationError(`${path} must be valid JSON array`);
+    }
+
+    if (!Array.isArray(parsed)) {
+      throw new DomainValidationError(`${path} must be an array`);
+    }
+
+    return parsed.map((entry, index) => this.readString(entry, `${path}[${index}]`));
+  }
+
+  protected parseLocalizedMap(raw: string | null, path: string, fallbackEn: string): LocalizedTextMap {
+    if (!raw) {
+      return {
+        en: fallbackEn,
+        zh: fallbackEn
+      };
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new DomainValidationError(`${path} must be valid JSON object`);
+    }
+
+    return this.readLocalizedTextMap(parsed, path, fallbackEn);
+  }
+
+  protected readLocalizedTextMap(value: unknown, path: string, fallbackEn: string): LocalizedTextMap {
+    const localized: LocalizedTextMap = {};
+
+    if (this.isRecord(value)) {
+      for (const [locale, text] of Object.entries(value)) {
+        localized[locale] = this.readString(text, `${path}.${locale}`);
+      }
+    }
+
+    if (!localized.en) {
+      localized.en = this.pickLocaleFamilyValue(localized, "en") ?? fallbackEn;
+    }
+    if (!localized.zh) {
+      localized.zh = this.pickLocaleFamilyValue(localized, "zh") ?? localized.en;
+    }
+
+    return localized;
+  }
+
+  protected pickLocaleFamilyValue(localized: LocalizedTextMap, localeFamily: string): string | undefined {
+    const normalizedFamily = this.normalizeLocaleTag(localeFamily).split("-")[0];
+    if (!normalizedFamily) {
+      return undefined;
+    }
+
+    let familyMatch: string | undefined;
+    for (const [locale, text] of Object.entries(localized)) {
+      const normalizedLocale = this.normalizeLocaleTag(locale);
+      if (!normalizedLocale) {
+        continue;
+      }
+      if (normalizedLocale === normalizedFamily) {
+        return text;
+      }
+      if (!familyMatch && normalizedLocale.startsWith(`${normalizedFamily}-`)) {
+        familyMatch = text;
+      }
+    }
+
+    return familyMatch;
+  }
+
+  protected normalizeLocaleTag(value: string): string {
+    return value.trim().toLowerCase().replace(/_/g, "-");
+  }
+
+  protected readSlug(value: unknown, path: string): string {
+    const slug = this.readString(value, path);
+    if (!/^[A-Za-z0-9._-]+$/.test(slug)) {
+      throw new DomainValidationError(`${path} must match /^[A-Za-z0-9._-]+$/`);
+    }
+    return slug;
+  }
+
+  protected readString(value: unknown, path: string): string {
+    if (typeof value !== "string" || value.trim().length === 0) {
+      throw new DomainValidationError(`${path} must be a non-empty string`);
+    }
+    return value.trim();
+  }
+
+  protected readOptionalString(value: unknown, path: string): string | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    return this.readString(value, path);
+  }
+
+  protected readOptionalDateTime(value: unknown, path: string): string | undefined {
+    const text = this.readOptionalString(value, path);
+    if (!text) {
+      return undefined;
+    }
+    if (Number.isNaN(Date.parse(text))) {
+      throw new DomainValidationError(`${path} must be a valid datetime string`);
+    }
+    return text;
+  }
+
+  protected readStringArray(value: unknown, path: string): string[] {
+    if (value === undefined || value === null) {
+      return [];
+    }
+    if (!Array.isArray(value)) {
+      throw new DomainValidationError(`${path} must be an array`);
+    }
+    return value.map((entry, index) => this.readString(entry, `${path}[${index}]`));
+  }
+
+  protected decodeBase64(raw: string, path: string): Uint8Array {
+    let binary: string;
+    try {
+      binary = atob(raw);
+    } catch {
+      throw new DomainValidationError(`${path} must be valid base64`);
+    }
+
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+
+  protected async sha256Hex(bytes: Uint8Array): Promise<string> {
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const digestBytes = new Uint8Array(digest);
+    return [...digestBytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+  }
+
+  protected isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+}
+
+export class D1MarketplacePluginDataSource extends D1MarketplaceSectionDataSourceBase {
+  protected getItemType(): MarketplaceItemType {
+    return "plugin";
+  }
+
+  protected getTables(): TableNames {
+    return {
+      items: "marketplace_plugin_items",
+      scenes: "marketplace_plugin_recommendation_scenes",
+      sceneItems: "marketplace_plugin_recommendation_items"
+    };
+  }
+}
+
+export class D1MarketplaceSkillDataSource extends D1MarketplaceSectionDataSourceBase {
+  protected getItemType(): MarketplaceItemType {
+    return "skill";
+  }
+
+  protected getTables(): TableNames {
+    return {
+      items: "marketplace_skill_items",
+      scenes: "marketplace_skill_recommendation_scenes",
+      sceneItems: "marketplace_skill_recommendation_items"
     };
   }
 
@@ -172,13 +449,9 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
     const nowIso = new Date().toISOString();
 
     const existing = await this.db
-      .prepare("SELECT id, type, published_at FROM marketplace_items WHERE slug = ?")
+      .prepare("SELECT id, published_at FROM marketplace_skill_items WHERE slug = ?")
       .bind(input.slug)
-      .first<ExistingItemRow>();
-
-    if (existing && existing.type !== "skill") {
-      throw new DomainValidationError(`slug already exists for non-skill item: ${input.slug}`);
-    }
+      .first<ExistingSkillRow>();
 
     const itemId = existing?.id ?? input.id ?? `skill-${input.slug}`;
     const publishedAt = input.publishedAt ?? existing?.published_at ?? nowIso;
@@ -191,11 +464,11 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
 
     await this.db
       .prepare(`
-        INSERT INTO marketplace_items (
-          id, slug, type, name, summary, summary_i18n, description, description_i18n,
+        INSERT INTO marketplace_skill_items (
+          id, slug, name, summary, summary_i18n, description, description_i18n,
           tags, author, source_repo, homepage, install_kind, install_spec, install_command,
           published_at, updated_at
-        ) VALUES (?, ?, 'skill', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(slug) DO UPDATE SET
           name = excluded.name,
           summary = excluded.summary,
@@ -268,14 +541,14 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
     const sceneId = "skills-default";
     await this.db
       .prepare(`
-        INSERT OR IGNORE INTO marketplace_recommendation_scenes (id, type, title, description)
-        VALUES (?, 'skill', ?, ?)
+        INSERT OR IGNORE INTO marketplace_skill_recommendation_scenes (id, title, description)
+        VALUES (?, ?, ?)
       `)
       .bind(sceneId, "Recommended Skills", "Curated skill list")
       .run();
 
     const maxSortRow = await this.db
-      .prepare("SELECT MAX(sort_order) AS max_sort FROM marketplace_recommendation_items WHERE scene_id = ?")
+      .prepare("SELECT MAX(sort_order) AS max_sort FROM marketplace_skill_recommendation_items WHERE scene_id = ?")
       .bind(sceneId)
       .first<{ max_sort: number | null }>();
 
@@ -283,7 +556,7 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
 
     await this.db
       .prepare(`
-        INSERT OR IGNORE INTO marketplace_recommendation_items (scene_id, item_id, sort_order)
+        INSERT OR IGNORE INTO marketplace_skill_recommendation_items (scene_id, item_id, sort_order)
         VALUES (?, ?, ?)
       `)
       .bind(sceneId, itemId, nextSort)
@@ -296,7 +569,6 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
         SELECT
           id,
           slug,
-          type,
           name,
           summary,
           summary_i18n,
@@ -311,8 +583,8 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
           install_command,
           published_at,
           updated_at
-        FROM marketplace_items
-        WHERE type = 'skill' AND slug = ?
+        FROM marketplace_skill_items
+        WHERE slug = ?
         LIMIT 1
       `)
       .bind(slug)
@@ -411,305 +683,5 @@ export class D1MarketplaceDataSource extends BaseMarketplaceDataSource {
       }
     }
     return segments.join("/");
-  }
-
-  private mapItemRow(row: ItemRow): MarketplaceItem {
-    const summaryI18n = this.parseLocalizedMap(row.summary_i18n, `marketplace_items.summary_i18n(${row.slug})`, row.summary);
-    const description = row.description ?? undefined;
-    const descriptionI18n = description
-      ? this.parseLocalizedMap(row.description_i18n, `marketplace_items.description_i18n(${row.slug})`, description)
-      : undefined;
-
-    const base = {
-      id: row.id,
-      slug: row.slug,
-      name: row.name,
-      summary: row.summary,
-      summaryI18n,
-      description,
-      descriptionI18n,
-      tags: this.parseStringArray(row.tags, `marketplace_items.tags(${row.slug})`),
-      author: row.author,
-      sourceRepo: row.source_repo ?? undefined,
-      homepage: row.homepage ?? undefined,
-      publishedAt: row.published_at,
-      updatedAt: row.updated_at
-    };
-
-    if (row.type === "plugin") {
-      return {
-        ...base,
-        type: "plugin",
-        install: this.mapInstall("plugin", row.install_kind, row.install_spec, row.install_command, row.slug)
-      };
-    }
-
-    return {
-      ...base,
-      type: "skill",
-      install: this.mapInstall("skill", row.install_kind, row.install_spec, row.install_command, row.slug)
-    };
-  }
-
-  private mapInstall(
-    type: "plugin",
-    kind: string,
-    spec: string,
-    command: string,
-    slug: string
-  ): MarketplacePluginInstallSpec;
-  private mapInstall(
-    type: "skill",
-    kind: string,
-    spec: string,
-    command: string,
-    slug: string
-  ): MarketplaceSkillInstallSpec;
-  private mapInstall(
-    type: MarketplaceItemType,
-    kind: string,
-    spec: string,
-    command: string,
-    slug: string
-  ): MarketplacePluginInstallSpec | MarketplaceSkillInstallSpec {
-    if (type === "plugin") {
-      if (kind !== "npm") {
-        throw new DomainValidationError(`plugin install.kind must be npm: ${slug}`);
-      }
-      return {
-        kind: "npm",
-        spec,
-        command
-      };
-    }
-
-    if (kind !== "builtin" && kind !== "marketplace") {
-      throw new DomainValidationError(`skill install.kind must be builtin|marketplace: ${slug}`);
-    }
-
-    return {
-      kind,
-      spec,
-      command
-    };
-  }
-
-  private mapScenes(rows: SceneRow[], items: MarketplaceItem[]): Map<MarketplaceItemType, MarketplaceRecommendationScene[]> {
-    const itemTypeById = new Map(items.map((item) => [item.id, item.type] as const));
-    const sceneMap = new Map<string, { type: MarketplaceItemType; scene: MarketplaceRecommendationScene }>();
-
-    for (const row of rows) {
-      const key = `${row.scene_type}:${row.scene_id}`;
-      let existing = sceneMap.get(key);
-      if (!existing) {
-        existing = {
-          type: row.scene_type,
-          scene: {
-            id: row.scene_id,
-            title: row.title,
-            description: row.description ?? undefined,
-            itemIds: []
-          }
-        };
-        sceneMap.set(key, existing);
-      }
-
-      if (row.item_id) {
-        const itemType = itemTypeById.get(row.item_id);
-        if (itemType === row.scene_type) {
-          existing.scene.itemIds.push(row.item_id);
-        }
-      }
-    }
-
-    const byType = new Map<MarketplaceItemType, MarketplaceRecommendationScene[]>([
-      ["plugin", []],
-      ["skill", []]
-    ]);
-
-    for (const value of sceneMap.values()) {
-      const list = byType.get(value.type);
-      if (list) {
-        list.push(value.scene);
-      }
-    }
-
-    return byType;
-  }
-
-  private buildSection(
-    type: MarketplaceItemType,
-    items: MarketplaceItem[],
-    scenes: Map<MarketplaceItemType, MarketplaceRecommendationScene[]>
-  ): MarketplaceCatalogSection {
-    return {
-      items: items.filter((item) => item.type === type),
-      recommendations: scenes.get(type) ?? []
-    };
-  }
-
-  private pickSnapshotGeneratedAt(items: MarketplaceItem[]): string {
-    const first = items[0];
-    if (!first) {
-      return new Date(0).toISOString();
-    }
-
-    let latest = first.updatedAt;
-    let latestTs = Date.parse(latest);
-    for (const item of items.slice(1)) {
-      const ts = Date.parse(item.updatedAt);
-      if (!Number.isNaN(ts) && (Number.isNaN(latestTs) || ts > latestTs)) {
-        latestTs = ts;
-        latest = item.updatedAt;
-      }
-    }
-    return latest;
-  }
-
-  private parseStringArray(raw: string, path: string): string[] {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      throw new DomainValidationError(`${path} must be valid JSON array`);
-    }
-
-    if (!Array.isArray(parsed)) {
-      throw new DomainValidationError(`${path} must be an array`);
-    }
-
-    return parsed.map((entry, index) => this.readString(entry, `${path}[${index}]`));
-  }
-
-  private parseLocalizedMap(raw: string | null, path: string, fallbackEn: string): LocalizedTextMap {
-    if (!raw) {
-      return {
-        en: fallbackEn,
-        zh: fallbackEn
-      };
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      throw new DomainValidationError(`${path} must be valid JSON object`);
-    }
-
-    return this.readLocalizedTextMap(parsed, path, fallbackEn);
-  }
-
-  private readLocalizedTextMap(value: unknown, path: string, fallbackEn: string): LocalizedTextMap {
-    const localized: LocalizedTextMap = {};
-
-    if (this.isRecord(value)) {
-      for (const [locale, text] of Object.entries(value)) {
-        localized[locale] = this.readString(text, `${path}.${locale}`);
-      }
-    }
-
-    if (!localized.en) {
-      localized.en = this.pickLocaleFamilyValue(localized, "en") ?? fallbackEn;
-    }
-    if (!localized.zh) {
-      localized.zh = this.pickLocaleFamilyValue(localized, "zh") ?? localized.en;
-    }
-
-    return localized;
-  }
-
-  private pickLocaleFamilyValue(localized: LocalizedTextMap, localeFamily: string): string | undefined {
-    const normalizedFamily = this.normalizeLocaleTag(localeFamily).split("-")[0];
-    if (!normalizedFamily) {
-      return undefined;
-    }
-
-    let familyMatch: string | undefined;
-    for (const [locale, text] of Object.entries(localized)) {
-      const normalizedLocale = this.normalizeLocaleTag(locale);
-      if (!normalizedLocale) {
-        continue;
-      }
-      if (normalizedLocale === normalizedFamily) {
-        return text;
-      }
-      if (!familyMatch && normalizedLocale.startsWith(`${normalizedFamily}-`)) {
-        familyMatch = text;
-      }
-    }
-
-    return familyMatch;
-  }
-
-  private normalizeLocaleTag(value: string): string {
-    return value.trim().toLowerCase().replace(/_/g, "-");
-  }
-
-  private readSlug(value: unknown, path: string): string {
-    const slug = this.readString(value, path);
-    if (!/^[A-Za-z0-9._-]+$/.test(slug)) {
-      throw new DomainValidationError(`${path} must match /^[A-Za-z0-9._-]+$/`);
-    }
-    return slug;
-  }
-
-  private readString(value: unknown, path: string): string {
-    if (typeof value !== "string" || value.trim().length === 0) {
-      throw new DomainValidationError(`${path} must be a non-empty string`);
-    }
-    return value.trim();
-  }
-
-  private readOptionalString(value: unknown, path: string): string | undefined {
-    if (value === undefined || value === null) {
-      return undefined;
-    }
-    return this.readString(value, path);
-  }
-
-  private readOptionalDateTime(value: unknown, path: string): string | undefined {
-    const text = this.readOptionalString(value, path);
-    if (!text) {
-      return undefined;
-    }
-    if (Number.isNaN(Date.parse(text))) {
-      throw new DomainValidationError(`${path} must be a valid datetime string`);
-    }
-    return text;
-  }
-
-  private readStringArray(value: unknown, path: string): string[] {
-    if (value === undefined || value === null) {
-      return [];
-    }
-    if (!Array.isArray(value)) {
-      throw new DomainValidationError(`${path} must be an array`);
-    }
-    return value.map((entry, index) => this.readString(entry, `${path}[${index}]`));
-  }
-
-  private decodeBase64(raw: string, path: string): Uint8Array {
-    let binary: string;
-    try {
-      binary = atob(raw);
-    } catch {
-      throw new DomainValidationError(`${path} must be valid base64`);
-    }
-
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return bytes;
-  }
-
-  private async sha256Hex(bytes: Uint8Array): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    const digestBytes = new Uint8Array(digest);
-    return [...digestBytes].map((value) => value.toString(16).padStart(2, "0")).join("");
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 }

@@ -10,7 +10,9 @@
 
 ## 前置准备
 
-1. `wrangler.toml` 已配置 `MARKETPLACE_DB`（真实 `database_id`）。
+1. `wrangler.toml` 已配置：
+   - `MARKETPLACE_SKILLS_DB`
+   - `MARKETPLACE_PLUGINS_DB`
 2. 已配置 Cloudflare 凭证：
    - `CLOUDFLARE_API_TOKEN`
    - `CLOUDFLARE_ACCOUNT_ID`

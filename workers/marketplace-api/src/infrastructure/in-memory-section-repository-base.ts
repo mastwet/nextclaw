@@ -1,6 +1,5 @@
 import type {
   MarketplaceCatalogSection,
-  MarketplaceCatalogSnapshot,
   MarketplaceItem,
   MarketplaceItemSummary,
   MarketplaceListQuery,
@@ -8,10 +7,10 @@ import type {
   MarketplaceRecommendationResult,
   MarketplaceSort
 } from "../domain/model";
-import type { MarketplaceDataSource } from "../domain/repository";
+import type { MarketplaceSectionDataSource } from "../domain/repository";
 
 type CacheEntry = {
-  snapshot: MarketplaceCatalogSnapshot;
+  section: MarketplaceCatalogSection;
   expiresAt: number;
 };
 
@@ -29,18 +28,16 @@ export abstract class InMemorySectionRepositoryBase {
   private readonly cacheTtlMs: number;
 
   protected constructor(
-    private readonly dataSource: MarketplaceDataSource,
+    private readonly dataSource: MarketplaceSectionDataSource,
     options: RepositoryOptions = {}
   ) {
     this.cacheTtlMs = options.cacheTtlMs ?? 120_000;
   }
 
-  protected abstract getSection(snapshot: MarketplaceCatalogSnapshot): MarketplaceCatalogSection;
   protected abstract getResultType(): "plugin" | "skill";
 
   async listItems(query: MarketplaceListQuery): Promise<MarketplaceListResult> {
-    const snapshot = await this.loadSnapshot();
-    const section = this.getSection(snapshot);
+    const section = await this.loadSection();
     const filtered = this.filterItems(section.items, query);
     const sorted = this.sortItems(filtered, query.sort, query.q);
 
@@ -61,8 +58,7 @@ export abstract class InMemorySectionRepositoryBase {
   }
 
   async getItemBySlug(slug: string): Promise<MarketplaceItem | null> {
-    const snapshot = await this.loadSnapshot();
-    const section = this.getSection(snapshot);
+    const section = await this.loadSection();
     const item = section.items.find((entry) => entry.slug === slug);
 
     return item ?? null;
@@ -72,8 +68,7 @@ export abstract class InMemorySectionRepositoryBase {
     sceneId: string | undefined,
     limit: number
   ): Promise<MarketplaceRecommendationResult> {
-    const snapshot = await this.loadSnapshot();
-    const section = this.getSection(snapshot);
+    const section = await this.loadSection();
     const selectedScene = this.selectScene(section, sceneId);
     const selectedItems = selectedScene.itemIds
       .map((itemId) => section.items.find((entry) => entry.id === itemId))
@@ -95,18 +90,18 @@ export abstract class InMemorySectionRepositoryBase {
     this.cache = undefined;
   }
 
-  private async loadSnapshot(): Promise<MarketplaceCatalogSnapshot> {
+  private async loadSection(): Promise<MarketplaceCatalogSection> {
     const now = Date.now();
     if (this.cache && this.cache.expiresAt > now) {
-      return this.cache.snapshot;
+      return this.cache.section;
     }
 
-    const snapshot = await this.dataSource.loadSnapshot();
+    const section = await this.dataSource.loadSection();
     this.cache = {
-      snapshot,
+      section,
       expiresAt: now + this.cacheTtlMs
     };
-    return snapshot;
+    return section;
   }
 
   private filterItems(items: MarketplaceItem[], query: MarketplaceListQuery): ScoreEntry[] {
