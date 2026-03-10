@@ -94,6 +94,8 @@ jobs:
         run: |
           set -euo pipefail
           export CSC_IDENTITY_AUTO_DISCOVERY=false
+          pnpm -C packages/nextclaw-core build
+          pnpm -C packages/nextclaw-runtime build
           pnpm -C packages/nextclaw-ui build
           pnpm -C packages/nextclaw-openclaw-compat build
           pnpm -C packages/nextclaw-server build
@@ -161,6 +163,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          pnpm -C packages/nextclaw-core build
+          pnpm -C packages/nextclaw-runtime build
           pnpm -C packages/nextclaw-ui build
           pnpm -C packages/nextclaw-openclaw-compat build
           pnpm -C packages/nextclaw-server build
