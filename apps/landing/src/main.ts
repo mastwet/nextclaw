@@ -30,7 +30,7 @@ type ComparisonRow = {
   values: string[]; // [NextClaw, OpenClaw, NanoBot, ...]
 };
 
-type DownloadAssetKey = 'macArm64Dmg' | 'windowsX64Zip';
+type DownloadAssetKey = 'macArm64Dmg' | 'macX64Dmg' | 'windowsX64Zip';
 
 type DownloadOption = {
   key: DownloadAssetKey;
@@ -156,14 +156,16 @@ const LINKS: Record<'github' | 'npm' | 'discord' | 'wechatGroupImage', string> &
 };
 
 const DESKTOP_RELEASE_FALLBACK: DesktopReleaseInfo = {
-  tag: 'v0.9.21-desktop.8',
+  tag: 'v0.9.21-desktop.9',
   version: '0.0.26',
-  url: 'https://github.com/Peiiii/nextclaw/releases/tag/v0.9.21-desktop.8',
+  url: 'https://github.com/Peiiii/nextclaw/releases/tag/v0.9.21-desktop.9',
   assets: {
     macArm64Dmg:
-      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.8/NextClaw.Desktop-0.0.26-arm64.dmg',
+      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.9/NextClaw.Desktop-0.0.26-arm64.dmg',
+    macX64Dmg:
+      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.9/NextClaw.Desktop-0.0.26-x64.dmg',
     windowsX64Zip:
-      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.8/NextClaw.Desktop-win32-x64-unpacked.zip'
+      'https://github.com/Peiiii/nextclaw/releases/download/v0.9.21-desktop.9/NextClaw.Desktop-win32-x64-unpacked.zip'
   }
 };
 
@@ -171,11 +173,12 @@ const GITHUB_RELEASES_API = 'https://api.github.com/repos/Peiiii/nextclaw/releas
 
 const DESKTOP_ASSET_PATTERNS: Record<DownloadAssetKey, RegExp> = {
   macArm64Dmg: /NextClaw\.Desktop-(\d+\.\d+\.\d+)-arm64\.dmg$/,
+  macX64Dmg: /NextClaw\.Desktop-(\d+\.\d+\.\d+)-x64\.dmg$/,
   windowsX64Zip: /NextClaw\.Desktop-win32-x64-unpacked\.zip$/
 };
 
 function inferDesktopVersionFromAssetName(assetName: string): string | null {
-  const match = assetName.match(DESKTOP_ASSET_PATTERNS.macArm64Dmg);
+  const match = assetName.match(DESKTOP_ASSET_PATTERNS.macArm64Dmg) ?? assetName.match(DESKTOP_ASSET_PATTERNS.macX64Dmg);
   return match?.[1] ?? null;
 }
 
@@ -201,23 +204,25 @@ function resolveDesktopReleaseInfo(input: unknown): DesktopReleaseInfo | null {
   }
 
   const assets = Array.isArray(release.assets) ? release.assets : [];
-  const macAsset = assets.find((item) => typeof item.name === 'string' && DESKTOP_ASSET_PATTERNS.macArm64Dmg.test(item.name));
+  const macArmAsset = assets.find((item) => typeof item.name === 'string' && DESKTOP_ASSET_PATTERNS.macArm64Dmg.test(item.name));
+  const macX64Asset = assets.find((item) => typeof item.name === 'string' && DESKTOP_ASSET_PATTERNS.macX64Dmg.test(item.name));
   const windowsAsset = assets.find(
     (item) => typeof item.name === 'string' && DESKTOP_ASSET_PATTERNS.windowsX64Zip.test(item.name)
   );
 
-  if (!macAsset?.browser_download_url || !windowsAsset?.browser_download_url || !macAsset.name) {
+  if (!macArmAsset?.browser_download_url || !macX64Asset?.browser_download_url || !windowsAsset?.browser_download_url || !macArmAsset.name) {
     return null;
   }
 
-  const version = inferDesktopVersionFromAssetName(macAsset.name) ?? DESKTOP_RELEASE_FALLBACK.version;
+  const version = inferDesktopVersionFromAssetName(macArmAsset.name) ?? DESKTOP_RELEASE_FALLBACK.version;
 
   return {
     tag: release.tag_name,
     version,
     url: release.html_url ?? `https://github.com/Peiiii/nextclaw/releases/tag/${release.tag_name}`,
     assets: {
-      macArm64Dmg: macAsset.browser_download_url,
+      macArm64Dmg: macArmAsset.browser_download_url,
+      macX64Dmg: macX64Asset.browser_download_url,
       windowsX64Zip: windowsAsset.browser_download_url
     }
   };
@@ -260,8 +265,15 @@ function detectRecommendedDesktopAsset(): DownloadAssetKey | 'unknown' {
     return 'windowsX64Zip';
   }
 
-  if (userAgent.includes('mac')) {
-    return 'macArm64Dmg';
+  const userAgentData = (navigator as Navigator & { userAgentData?: { architecture?: string; platform?: string } }).userAgentData;
+  if (userAgentData?.platform?.toLowerCase() === 'macos') {
+    const arch = userAgentData.architecture?.toLowerCase();
+    if (arch === 'arm' || arch === 'arm64' || arch === 'aarch64') {
+      return 'macArm64Dmg';
+    }
+    if (arch === 'x86' || arch === 'x86_64' || arch === 'x64') {
+      return 'macX64Dmg';
+    }
   }
 
   return 'unknown';
@@ -307,6 +319,13 @@ const COPY: Record<Locale, LandingCopy> = {
         icon: 'apple',
         title: 'macOS (Apple Silicon)',
         description: 'DMG package for M-series Macs.',
+        buttonLabel: 'Download DMG'
+      },
+      {
+        key: 'macX64Dmg',
+        icon: 'apple',
+        title: 'macOS (Intel)',
+        description: 'DMG package for Intel Macs.',
         buttonLabel: 'Download DMG'
       },
       {
@@ -496,6 +515,13 @@ const COPY: Record<Locale, LandingCopy> = {
         icon: 'apple',
         title: 'macOS（Apple Silicon）',
         description: '适用于 M 系列芯片 Mac 的 DMG 包。',
+        buttonLabel: '下载 DMG'
+      },
+      {
+        key: 'macX64Dmg',
+        icon: 'apple',
+        title: 'macOS（Intel）',
+        description: '适用于 Intel 芯片 Mac 的 DMG 包。',
         buttonLabel: '下载 DMG'
       },
       {
@@ -1150,17 +1176,20 @@ class LandingPage {
 
     const linkNodes: Record<DownloadAssetKey, HTMLAnchorElement | null> = {
       macArm64Dmg: document.querySelector<HTMLAnchorElement>('[data-download-link="macArm64Dmg"]'),
+      macX64Dmg: document.querySelector<HTMLAnchorElement>('[data-download-link="macX64Dmg"]'),
       windowsX64Zip: document.querySelector<HTMLAnchorElement>('[data-download-link="windowsX64Zip"]')
     };
 
-    if (!linkNodes.macArm64Dmg || !linkNodes.windowsX64Zip || !releasePrimary || !releaseSecondary) {
+    if (!linkNodes.macArm64Dmg || !linkNodes.macX64Dmg || !linkNodes.windowsX64Zip || !releasePrimary || !releaseSecondary) {
       return;
     }
     const macDownloadLink = linkNodes.macArm64Dmg;
+    const macX64DownloadLink = linkNodes.macX64Dmg;
     const windowsDownloadLink = linkNodes.windowsX64Zip;
 
     const cardNodes: Record<DownloadAssetKey, HTMLElement | null> = {
       macArm64Dmg: document.querySelector<HTMLElement>('[data-download-card="macArm64Dmg"]'),
+      macX64Dmg: document.querySelector<HTMLElement>('[data-download-card="macX64Dmg"]'),
       windowsX64Zip: document.querySelector<HTMLElement>('[data-download-card="windowsX64Zip"]')
     };
 
@@ -1176,13 +1205,19 @@ class LandingPage {
         releaseSecondary.href = release.url;
       }
       macDownloadLink.setAttribute('href', release.assets.macArm64Dmg);
+      macX64DownloadLink.setAttribute('href', release.assets.macX64Dmg);
       windowsDownloadLink.setAttribute('href', release.assets.windowsX64Zip);
     };
 
     const recommended = detectRecommendedDesktopAsset();
+    const userAgent = navigator.userAgent.toLowerCase();
     if (detectedNode) {
       if (recommended === 'unknown') {
-        detectedNode.textContent = this.copy.downloadUnknownPlatform;
+        if (userAgent.includes('mac')) {
+          detectedNode.textContent = this.locale === 'zh' ? 'macOS（请选择芯片）' : 'macOS (choose your chip)';
+        } else {
+          detectedNode.textContent = this.copy.downloadUnknownPlatform;
+        }
       } else {
         const match = this.copy.downloadOptions.find((option) => option.key === recommended);
         detectedNode.textContent = match?.title ?? this.copy.downloadUnknownPlatform;
