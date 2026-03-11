@@ -20,6 +20,7 @@
 
 | Date | Idea | Source | Owner | Issue | Next Action |
 | --- | --- | --- | --- | --- | --- |
+| 2026-03-11 | Brave Search API 获取需绑卡，评估 Firecrawl / Tavily 作为默认或可选替代 | user-feedback | @owner | `TBD` | create issue: compare providers and decide default strategy |
 | YYYY-MM-DD | 一句话描述待办 | user/ops/dev | @owner | `TBD` | create issue or drop |
 
 ## 2. Now（当前迭代必须做）
