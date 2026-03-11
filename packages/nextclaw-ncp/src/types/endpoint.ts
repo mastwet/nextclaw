@@ -32,14 +32,26 @@ export type NcpResponseEnvelope = {
 };
 
 /**
+ * Which part of the message this delta belongs to.
+ * Omit or use "text" for main assistant text; "reasoning" for reasoning block;
+ * "tool-args" for streaming tool call arguments (must set toolCallId).
+ */
+export type NcpDeltaPartKind = "text" | "reasoning" | "tool-args";
+
+/**
  * Fine-grained streaming delta for use in UIs and streaming transports.
- * Emitted repeatedly between `message.received` and `message.completed`.
+ * Emitted repeatedly between message.received and message.completed.
+ * When partKind is omitted, treat as "text". When partKind is "tool-args", toolCallId is required.
  */
 export type NcpDeltaEnvelope = {
   sessionKey: string;
   messageId: string;
-  /** Incremental text fragment — accumulate in order to reconstruct the full content. */
+  /** Incremental fragment — append in order to the part indicated by partKind/toolCallId. */
   delta: string;
+  /** Default "text". Use "reasoning" for reasoning block; "tool-args" for tool invocation args (set toolCallId). */
+  partKind?: NcpDeltaPartKind;
+  /** Required when partKind is "tool-args"; identifies which tool-invocation part to append to. */
+  toolCallId?: string;
   metadata?: Record<string, unknown>;
 };
 
