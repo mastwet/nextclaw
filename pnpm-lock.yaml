@@ -66,6 +66,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/nextclaw
     devDependencies:
+      '@electron/notarize':
+        specifier: ^2.5.0
+        version: 2.5.0
       '@types/node':
         specifier: ^20.17.6
         version: 20.19.33

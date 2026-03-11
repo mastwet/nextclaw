@@ -36,6 +36,7 @@
     "nextclaw": "workspace:*"
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "@types/node": "^20.17.6",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
@@ -60,8 +61,13 @@
     "npmRebuild": false,
     "asar": true,
     "afterPack": "./scripts/electron-after-pack.cjs",
+    "afterSign": "./scripts/electron-after-sign.cjs",
     "mac": {
       "icon": "build/icons/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
       "target": [
         "dmg",
         "zip"
