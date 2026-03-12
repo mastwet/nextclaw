@@ -78,11 +78,13 @@ find_runtime_script() {
 find_app_bin() {
   local extract_dir="$1"
   local candidates=(
+    "${extract_dir}/@nextclawdesktop"
     "${extract_dir}/nextclaw-desktop"
     "${extract_dir}/NextClaw Desktop"
-    "${extract_dir}/AppRun"
+    "${extract_dir}/usr/bin/@nextclawdesktop"
     "${extract_dir}/usr/bin/nextclaw-desktop"
     "${extract_dir}/usr/bin/NextClaw Desktop"
+    "${extract_dir}/AppRun"
   )
 
   local candidate

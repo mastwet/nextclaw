@@ -81,6 +81,9 @@ jobs:
         run: |
           set -euo pipefail
           DMG_PATH="$(find apps/desktop/release -maxdepth 1 -type f -name "*-${{ matrix.arch }}.dmg" | head -n 1)"
+          if [ -z "${DMG_PATH}" ] && [ "${{ matrix.arch }}" = "x64" ]; then
+            DMG_PATH="$(find apps/desktop/release -maxdepth 1 -type f -name "*.dmg" ! -name "*-arm64.dmg" | head -n 1)"
+          fi
           if [ -z "${DMG_PATH}" ]; then
             echo "macOS dmg for arch ${{ matrix.arch }} not found in apps/desktop/release"
             exit 1
