@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { NcpMessage } from "@nextclaw/ncp";
+import { type NcpMessage, NcpEventType } from "@nextclaw/ncp";
 import { DefaultNcpAgentConversationStateManager } from "./agent-conversation-state-manager.js";
 
 const now = "2026-03-12T00:00:00.000Z";
@@ -21,14 +21,14 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     const manager = new DefaultNcpAgentConversationStateManager();
 
     manager.dispatch({
-      type: "message.text-start",
+      type: NcpEventType.MessageTextStart,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-1",
       },
     });
     manager.dispatch({
-      type: "message.text-delta",
+      type: NcpEventType.MessageTextDelta,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-1",
@@ -36,7 +36,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
       },
     });
     manager.dispatch({
-      type: "message.text-delta",
+      type: NcpEventType.MessageTextDelta,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-1",
@@ -44,7 +44,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
       },
     });
     manager.dispatch({
-      type: "message.text-end",
+      type: NcpEventType.MessageTextEnd,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-1",
@@ -56,7 +56,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     expect(midSnapshot.streamingMessage?.parts).toEqual([{ type: "text", text: "hello world" }]);
 
     manager.dispatch({
-      type: "message.completed",
+      type: NcpEventType.MessageCompleted,
       payload: {
         sessionId: "session-1",
         message: createMessage({
@@ -79,14 +79,14 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     const manager = new DefaultNcpAgentConversationStateManager();
 
     manager.dispatch({
-      type: "message.reasoning-start",
+      type: NcpEventType.MessageReasoningStart,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-2",
       },
     });
     manager.dispatch({
-      type: "message.reasoning-delta",
+      type: NcpEventType.MessageReasoningDelta,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-2",
@@ -94,7 +94,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
       },
     });
     manager.dispatch({
-      type: "message.reasoning-delta",
+      type: NcpEventType.MessageReasoningDelta,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-2",
@@ -103,7 +103,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
     });
 
     manager.dispatch({
-      type: "message.tool-call-start",
+      type: NcpEventType.MessageToolCallStart,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-2",
@@ -112,7 +112,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
       },
     });
     manager.dispatch({
-      type: "message.tool-call-args-delta",
+      type: NcpEventType.MessageToolCallArgsDelta,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-2",
@@ -121,7 +121,7 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
       },
     });
     manager.dispatch({
-      type: "message.tool-call-args-delta",
+      type: NcpEventType.MessageToolCallArgsDelta,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-2",
@@ -130,14 +130,14 @@ describe("DefaultNcpAgentConversationStateManager streaming", () => {
       },
     });
     manager.dispatch({
-      type: "message.tool-call-end",
+      type: NcpEventType.MessageToolCallEnd,
       payload: {
         sessionId: "session-1",
         toolCallId: "tool-1",
       },
     });
     manager.dispatch({
-      type: "message.tool-call-result",
+      type: NcpEventType.MessageToolCallResult,
       payload: {
         sessionId: "session-1",
         toolCallId: "tool-1",
@@ -166,14 +166,14 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     const manager = new DefaultNcpAgentConversationStateManager();
 
     manager.dispatch({
-      type: "message.text-start",
+      type: NcpEventType.MessageTextStart,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-3",
       },
     });
     manager.dispatch({
-      type: "message.text-delta",
+      type: NcpEventType.MessageTextDelta,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-3",
@@ -181,7 +181,7 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
       },
     });
     manager.dispatch({
-      type: "message.failed",
+      type: NcpEventType.MessageFailed,
       payload: {
         sessionId: "session-1",
         messageId: "assistant-3",
@@ -208,7 +208,7 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     });
 
     manager.dispatch({
-      type: "message.accepted",
+      type: NcpEventType.MessageAccepted,
       payload: {
         messageId: "assistant-0",
       },
@@ -236,7 +236,7 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     const manager = new DefaultNcpAgentConversationStateManager();
 
     manager.dispatch({
-      type: "run.error",
+      type: NcpEventType.RunError,
       payload: {},
     });
     expect(manager.getSnapshot().error).toMatchObject({
@@ -245,7 +245,7 @@ describe("DefaultNcpAgentConversationStateManager error and notify", () => {
     });
 
     manager.dispatch({
-      type: "endpoint.error",
+      type: NcpEventType.EndpointError,
       payload: {
         code: "auth-error",
         message: "missing token",

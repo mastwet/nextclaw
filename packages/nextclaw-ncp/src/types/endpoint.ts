@@ -16,7 +16,7 @@ import type { NcpEndpointManifest } from "./manifest.js";
  * const endpoint: NcpEndpoint = new MyAgentEndpoint(options);
  * await endpoint.start();
  * endpoint.subscribe((event) => { ... });
- * await endpoint.emit({ type: "message.request", payload: envelope });
+ * await endpoint.emit({ type: NcpEventType.MessageRequest, payload: envelope });
  */
 export interface NcpEndpoint {
   /** Static capability declaration — available before `start()` is called. */
@@ -50,7 +50,7 @@ export interface NcpEndpoint {
    *
    * @example
    * const unsubscribe = endpoint.subscribe((event) => {
-   *   if (event.type === "message.completed") handleReply(event.payload);
+   *   if (event.type === NcpEventType.MessageCompleted) handleReply(event.payload);
    * });
    * unsubscribe();
    */

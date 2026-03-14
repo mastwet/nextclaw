@@ -1,6 +1,6 @@
 import type { NcpMessage } from "../types/message.js";
 import type { NcpAgentRunInput } from "./runtime.js";
-import type { NcpModelInput } from "./model.js";
+import type { NcpLLMApiInput } from "./llm-api.js";
 
 export type NcpContextPrepareOptions = {
   sessionMessages?: ReadonlyArray<NcpMessage>;
@@ -9,5 +9,5 @@ export type NcpContextPrepareOptions = {
 };
 
 export interface NcpContextBuilder {
-  prepare(input: NcpAgentRunInput, options?: NcpContextPrepareOptions): NcpModelInput;
+  prepare(input: NcpAgentRunInput, options?: NcpContextPrepareOptions): NcpLLMApiInput;
 }

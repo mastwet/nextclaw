@@ -246,41 +246,80 @@ export type NcpToolCallResultPayload = {
 };
 
 // ---------------------------------------------------------------------------
+// Event type enum
+// ---------------------------------------------------------------------------
+
+export enum NcpEventType {
+  EndpointReady = "endpoint.ready",
+  EndpointError = "endpoint.error",
+  MessageRequest = "message.request",
+  MessageResumeRequest = "message.resume-request",
+  MessageSent = "message.sent",
+  MessageAccepted = "message.accepted",
+  MessageIncoming = "message.incoming",
+  MessageCompleted = "message.completed",
+  MessageFailed = "message.failed",
+  MessageAbort = "message.abort",
+  MessageTextStart = "message.text-start",
+  MessageTextDelta = "message.text-delta",
+  MessageTextEnd = "message.text-end",
+  MessageReasoningStart = "message.reasoning-start",
+  MessageReasoningDelta = "message.reasoning-delta",
+  MessageReasoningEnd = "message.reasoning-end",
+  MessageToolCallStart = "message.tool-call-start",
+  MessageToolCallArgs = "message.tool-call-args",
+  MessageToolCallArgsDelta = "message.tool-call-args-delta",
+  MessageToolCallEnd = "message.tool-call-end",
+  MessageToolCallResult = "message.tool-call-result",
+  MessageRead = "message.read",
+  MessageDelivered = "message.delivered",
+  MessageRecalled = "message.recalled",
+  MessageReaction = "message.reaction",
+  RunStarted = "run.started",
+  RunFinished = "run.finished",
+  RunError = "run.error",
+  RunMetadata = "run.metadata",
+  TypingStart = "typing.start",
+  TypingEnd = "typing.end",
+  PresenceUpdated = "presence.updated",
+}
+
+// ---------------------------------------------------------------------------
 // Event union (aligned with agent-chat EventType + endpoint lifecycle)
 // ---------------------------------------------------------------------------
 
 export type NcpEndpointEvent =
-  | { type: "endpoint.ready" }
-  | { type: "message.request"; payload: NcpRequestEnvelope }
-  | { type: "message.resume-request"; payload: NcpResumeRequestPayload }
-  | { type: "message.sent"; payload: NcpMessageSentPayload }
-  | { type: "message.accepted"; payload: NcpMessageAcceptedPayload }
-  | { type: "message.incoming"; payload: NcpResponseEnvelope }
-  | { type: "message.completed"; payload: NcpCompletedEnvelope }
-  | { type: "message.failed"; payload: NcpFailedEnvelope }
-  | { type: "message.abort"; payload: NcpMessageAbortPayload }
-  | { type: "endpoint.error"; payload: NcpError }
-  | { type: "run.started"; payload: NcpRunStartedPayload }
-  | { type: "run.finished"; payload: NcpRunFinishedPayload }
-  | { type: "run.error"; payload: NcpRunErrorPayload }
-  | { type: "run.metadata"; payload: NcpRunMetadataPayload }
-  | { type: "message.text-start"; payload: NcpTextStartPayload }
-  | { type: "message.text-delta"; payload: NcpTextDeltaPayload }
-  | { type: "message.text-end"; payload: NcpTextEndPayload }
-  | { type: "message.reasoning-start"; payload: NcpReasoningStartPayload }
-  | { type: "message.reasoning-delta"; payload: NcpReasoningDeltaPayload }
-  | { type: "message.reasoning-end"; payload: NcpReasoningEndPayload }
-  | { type: "message.tool-call-start"; payload: NcpToolCallStartPayload }
-  | { type: "message.tool-call-args"; payload: NcpToolCallArgsPayload }
-  | { type: "message.tool-call-args-delta"; payload: NcpToolCallArgsDeltaPayload }
-  | { type: "message.tool-call-end"; payload: NcpToolCallEndPayload }
-  | { type: "message.tool-call-result"; payload: NcpToolCallResultPayload }
-  | { type: "typing.start"; payload: NcpTypingStartPayload }
-  | { type: "typing.end"; payload: NcpTypingEndPayload }
-  | { type: "presence.updated"; payload: NcpPresenceUpdatedPayload }
-  | { type: "message.read"; payload: NcpMessageReadPayload }
-  | { type: "message.delivered"; payload: NcpMessageDeliveredPayload }
-  | { type: "message.recalled"; payload: NcpMessageRecalledPayload }
-  | { type: "message.reaction"; payload: NcpMessageReactionPayload };
+  | { type: NcpEventType.EndpointReady }
+  | { type: NcpEventType.MessageRequest; payload: NcpRequestEnvelope }
+  | { type: NcpEventType.MessageResumeRequest; payload: NcpResumeRequestPayload }
+  | { type: NcpEventType.MessageSent; payload: NcpMessageSentPayload }
+  | { type: NcpEventType.MessageAccepted; payload: NcpMessageAcceptedPayload }
+  | { type: NcpEventType.MessageIncoming; payload: NcpResponseEnvelope }
+  | { type: NcpEventType.MessageCompleted; payload: NcpCompletedEnvelope }
+  | { type: NcpEventType.MessageFailed; payload: NcpFailedEnvelope }
+  | { type: NcpEventType.MessageAbort; payload: NcpMessageAbortPayload }
+  | { type: NcpEventType.EndpointError; payload: NcpError }
+  | { type: NcpEventType.RunStarted; payload: NcpRunStartedPayload }
+  | { type: NcpEventType.RunFinished; payload: NcpRunFinishedPayload }
+  | { type: NcpEventType.RunError; payload: NcpRunErrorPayload }
+  | { type: NcpEventType.RunMetadata; payload: NcpRunMetadataPayload }
+  | { type: NcpEventType.MessageTextStart; payload: NcpTextStartPayload }
+  | { type: NcpEventType.MessageTextDelta; payload: NcpTextDeltaPayload }
+  | { type: NcpEventType.MessageTextEnd; payload: NcpTextEndPayload }
+  | { type: NcpEventType.MessageReasoningStart; payload: NcpReasoningStartPayload }
+  | { type: NcpEventType.MessageReasoningDelta; payload: NcpReasoningDeltaPayload }
+  | { type: NcpEventType.MessageReasoningEnd; payload: NcpReasoningEndPayload }
+  | { type: NcpEventType.MessageToolCallStart; payload: NcpToolCallStartPayload }
+  | { type: NcpEventType.MessageToolCallArgs; payload: NcpToolCallArgsPayload }
+  | { type: NcpEventType.MessageToolCallArgsDelta; payload: NcpToolCallArgsDeltaPayload }
+  | { type: NcpEventType.MessageToolCallEnd; payload: NcpToolCallEndPayload }
+  | { type: NcpEventType.MessageToolCallResult; payload: NcpToolCallResultPayload }
+  | { type: NcpEventType.TypingStart; payload: NcpTypingStartPayload }
+  | { type: NcpEventType.TypingEnd; payload: NcpTypingEndPayload }
+  | { type: NcpEventType.PresenceUpdated; payload: NcpPresenceUpdatedPayload }
+  | { type: NcpEventType.MessageRead; payload: NcpMessageReadPayload }
+  | { type: NcpEventType.MessageDelivered; payload: NcpMessageDeliveredPayload }
+  | { type: NcpEventType.MessageRecalled; payload: NcpMessageRecalledPayload }
+  | { type: NcpEventType.MessageReaction; payload: NcpMessageReactionPayload };
 
 export type NcpEndpointSubscriber = (event: NcpEndpointEvent) => void;

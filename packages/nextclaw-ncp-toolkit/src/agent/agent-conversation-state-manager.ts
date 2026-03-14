@@ -1,35 +1,36 @@
-import type {
-  NcpAgentConversationSnapshot,
-  NcpAgentConversationStateManager,
-  NcpCompletedEnvelope,
-  NcpEndpointEvent,
-  NcpError,
-  NcpFailedEnvelope,
-  NcpMessage,
-  NcpMessageAbortPayload,
-  NcpMessageAcceptedPayload,
-  NcpMessageRole,
-  NcpMessageSentPayload,
-  NcpMessageStatus,
-  NcpRequestEnvelope,
-  NcpResponseEnvelope,
-  NcpRunContext,
-  NcpRunErrorPayload,
-  NcpRunFinishedPayload,
-  NcpRunMetadataPayload,
-  NcpRunReadyMetadata,
-  NcpRunStartedPayload,
-  NcpReasoningDeltaPayload,
-  NcpReasoningEndPayload,
-  NcpReasoningStartPayload,
-  NcpTextDeltaPayload,
-  NcpTextEndPayload,
-  NcpTextStartPayload,
-  NcpToolCallArgsDeltaPayload,
-  NcpToolCallArgsPayload,
-  NcpToolCallEndPayload,
-  NcpToolCallResultPayload,
-  NcpToolCallStartPayload,
+import {
+  type NcpAgentConversationSnapshot,
+  type NcpAgentConversationStateManager,
+  type NcpCompletedEnvelope,
+  type NcpEndpointEvent,
+  type NcpError,
+  type NcpFailedEnvelope,
+  type NcpMessage,
+  type NcpMessageAbortPayload,
+  type NcpMessageAcceptedPayload,
+  type NcpMessageRole,
+  type NcpMessageSentPayload,
+  type NcpMessageStatus,
+  type NcpRequestEnvelope,
+  type NcpResponseEnvelope,
+  type NcpRunContext,
+  type NcpRunErrorPayload,
+  type NcpRunFinishedPayload,
+  type NcpRunMetadataPayload,
+  type NcpRunReadyMetadata,
+  type NcpRunStartedPayload,
+  type NcpReasoningDeltaPayload,
+  type NcpReasoningEndPayload,
+  type NcpReasoningStartPayload,
+  type NcpTextDeltaPayload,
+  type NcpTextEndPayload,
+  type NcpTextStartPayload,
+  type NcpToolCallArgsDeltaPayload,
+  type NcpToolCallArgsPayload,
+  type NcpToolCallEndPayload,
+  type NcpToolCallResultPayload,
+  type NcpToolCallStartPayload,
+  NcpEventType,
 } from "@nextclaw/ncp";
 
 const DEFAULT_ASSISTANT_ROLE: NcpMessageRole = "assistant";
@@ -86,85 +87,85 @@ export class DefaultNcpAgentConversationStateManager
   async dispatch(event: NcpEndpointEvent): Promise<void> {
     const versionBeforeDispatch = this.stateVersion;
     switch (event.type) {
-      case "message.request":
+      case NcpEventType.MessageRequest:
         this.handleMessageRequest(event.payload);
         break;
-      case "message.resume-request":
+      case NcpEventType.MessageResumeRequest:
         break;
-      case "message.sent":
+      case NcpEventType.MessageSent:
         this.handleMessageSent(event.payload);
         break;
-      case "message.accepted":
+      case NcpEventType.MessageAccepted:
         this.handleMessageAccepted(event.payload);
         break;
-      case "message.incoming":
+      case NcpEventType.MessageIncoming:
         this.handleMessageIncoming(event.payload);
         break;
-      case "message.completed":
+      case NcpEventType.MessageCompleted:
         this.handleMessageCompleted(event.payload);
         break;
-      case "message.failed":
+      case NcpEventType.MessageFailed:
         this.handleMessageFailed(event.payload);
         break;
-      case "message.abort":
+      case NcpEventType.MessageAbort:
         this.handleMessageAbort(event.payload);
         break;
-      case "message.text-start":
+      case NcpEventType.MessageTextStart:
         this.handleMessageTextStart(event.payload);
         break;
-      case "message.text-delta":
+      case NcpEventType.MessageTextDelta:
         this.handleMessageTextDelta(event.payload);
         break;
-      case "message.text-end":
+      case NcpEventType.MessageTextEnd:
         this.handleMessageTextEnd(event.payload);
         break;
-      case "message.reasoning-start":
+      case NcpEventType.MessageReasoningStart:
         this.handleMessageReasoningStart(event.payload);
         break;
-      case "message.reasoning-delta":
+      case NcpEventType.MessageReasoningDelta:
         this.handleMessageReasoningDelta(event.payload);
         break;
-      case "message.reasoning-end":
+      case NcpEventType.MessageReasoningEnd:
         this.handleMessageReasoningEnd(event.payload);
         break;
-      case "message.tool-call-start":
+      case NcpEventType.MessageToolCallStart:
         this.handleMessageToolCallStart(event.payload);
         break;
-      case "message.tool-call-args":
+      case NcpEventType.MessageToolCallArgs:
         this.handleMessageToolCallArgs(event.payload);
         break;
-      case "message.tool-call-args-delta":
+      case NcpEventType.MessageToolCallArgsDelta:
         this.handleMessageToolCallArgsDelta(event.payload);
         break;
-      case "message.tool-call-end":
+      case NcpEventType.MessageToolCallEnd:
         this.handleMessageToolCallEnd(event.payload);
         break;
-      case "message.tool-call-result":
+      case NcpEventType.MessageToolCallResult:
         this.handleMessageToolCallResult(event.payload);
         break;
-      case "run.started":
+      case NcpEventType.RunStarted:
         this.handleRunStarted(event.payload);
         break;
-      case "run.finished":
+      case NcpEventType.RunFinished:
         this.handleRunFinished(event.payload);
         break;
-      case "run.error":
+      case NcpEventType.RunError:
         this.handleRunError(event.payload);
         break;
-      case "run.metadata":
+      case NcpEventType.RunMetadata:
         this.handleRunMetadata(event.payload);
         break;
-      case "endpoint.error":
+      case NcpEventType.EndpointError:
         this.handleEndpointError(event.payload);
         break;
-      case "endpoint.ready":
-      case "typing.start":
-      case "typing.end":
-      case "presence.updated":
-      case "message.read":
-      case "message.delivered":
-      case "message.recalled":
-      case "message.reaction":
+      case NcpEventType.EndpointReady:
+      case NcpEventType.TypingStart:
+      case NcpEventType.TypingEnd:
+      case NcpEventType.PresenceUpdated:
+      case NcpEventType.MessageRead:
+      case NcpEventType.MessageDelivered:
+      case NcpEventType.MessageRecalled:
+      case NcpEventType.MessageReaction:
         break;
       default:
         break;

@@ -8,14 +8,16 @@ export type {
   NcpContextPrepareOptions,
 } from "./context-builder.js";
 export type {
-  NcpModel,
-  NcpModelChunk,
-  NcpModelContentPart,
-  NcpModelGenerateOptions,
-  NcpModelInput,
-  NcpModelMessage,
-  NcpModelUsage,
-} from "./model.js";
+  NcpLLMApi,
+  NcpLLMApiInput,
+  NcpLLMApiOptions,
+  OpenAIChatChunk,
+  OpenAIChatMessage,
+  OpenAIContentPart,
+  OpenAITool,
+  OpenAIToolCall,
+  OpenAIToolCallDelta,
+} from "./llm-api.js";
 export type {
   NcpTool,
   NcpToolCallResult,
@@ -24,7 +26,6 @@ export type {
 } from "./tool.js";
 export type {
   NcpEncodeContext,
-  NcpEncodeHooks,
   NcpStreamEncoder,
 } from "./stream-encoder.js";
-export type { NcpRoundBuffer } from "./round-buffer.js";
+export type { NcpPendingToolCall, NcpRoundBuffer } from "./round-buffer.js";

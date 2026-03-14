@@ -1,11 +1,12 @@
-import type {
-  NcpAgentClientEndpoint,
-  NcpEndpointEvent,
-  NcpEndpointManifest,
-  NcpEndpointSubscriber,
-  NcpMessageAbortPayload,
-  NcpRequestEnvelope,
-  NcpResumeRequestPayload,
+import {
+  type NcpAgentClientEndpoint,
+  type NcpEndpointEvent,
+  type NcpEndpointManifest,
+  type NcpEndpointSubscriber,
+  type NcpMessageAbortPayload,
+  type NcpRequestEnvelope,
+  type NcpResumeRequestPayload,
+  NcpEventType,
 } from "@nextclaw/ncp";
 import { consumeSseStream } from "./sse.js";
 import { parseNcpEvent, parseNcpError } from "./parsers.js";
@@ -83,7 +84,7 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
       return;
     }
     this.started = true;
-    this.publish({ type: "endpoint.ready" });
+    this.publish({ type: NcpEventType.EndpointReady });
   }
 
   async stop(): Promise<void> {
@@ -170,7 +171,7 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
         return;
       }
       const ncpError = toNcpError(error);
-      this.publish({ type: "endpoint.error", payload: ncpError });
+      this.publish({ type: NcpEventType.EndpointError, payload: ncpError });
       throw ncpErrorToError(ncpError);
     } finally {
       this.activeControllers.delete(controller);
@@ -233,7 +234,7 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
         throw error;
       }
       const ncpError = toNcpError(error);
-      this.publish({ type: "endpoint.error", payload: ncpError });
+      this.publish({ type: NcpEventType.EndpointError, payload: ncpError });
       throw ncpErrorToError(ncpError);
     } finally {
       this.activeControllers.delete(controller);
@@ -245,7 +246,7 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
       const event = parseNcpEvent(frame.data);
       if (!event) {
         this.publish({
-          type: "endpoint.error",
+          type: NcpEventType.EndpointError,
           payload: {
             code: "runtime-error",
             message: "Received malformed ncp-event frame.",
@@ -259,7 +260,7 @@ export class NcpHttpAgentClientEndpoint implements NcpAgentClientEndpoint {
 
     if (frame.event === "error") {
       const ncpError = parseNcpError(frame.data);
-      this.publish({ type: "endpoint.error", payload: ncpError });
+      this.publish({ type: NcpEventType.EndpointError, payload: ncpError });
       throw ncpErrorToError(ncpError, { alreadyPublished: true });
     }
   }

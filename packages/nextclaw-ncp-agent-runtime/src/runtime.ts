@@ -1,13 +1,14 @@
-import type {
-  NcpAgentRunInput,
-  NcpAgentRunOptions,
-  NcpAgentRuntime,
-  NcpContextBuilder,
-  NcpEncodeContext,
-  NcpEndpointEvent,
-  NcpModel,
-  NcpStreamEncoder,
-  NcpToolRegistry,
+import {
+  type NcpAgentRunInput,
+  type NcpAgentRunOptions,
+  type NcpAgentRuntime,
+  type NcpContextBuilder,
+  type NcpEncodeContext,
+  type NcpEndpointEvent,
+  type NcpLLMApi,
+  type NcpStreamEncoder,
+  type NcpToolRegistry,
+  NcpEventType,
 } from "@nextclaw/ncp";
 import { DefaultNcpStreamEncoder } from "./stream-encoder.js";
 import { DefaultNcpAgentLoop } from "./loop.js";
@@ -18,21 +19,21 @@ function genId(): string {
 
 export type DefaultNcpAgentRuntimeConfig = {
   contextBuilder: NcpContextBuilder;
-  model: NcpModel;
+  llmApi: NcpLLMApi;
   toolRegistry: NcpToolRegistry;
   streamEncoder?: NcpStreamEncoder;
 };
 
 export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
   private readonly contextBuilder: NcpContextBuilder;
-  private readonly model: NcpModel;
+  private readonly llmApi: NcpLLMApi;
   private readonly toolRegistry: NcpToolRegistry;
   private readonly streamEncoder: NcpStreamEncoder;
   private readonly loop: DefaultNcpAgentLoop;
 
   constructor(config: DefaultNcpAgentRuntimeConfig) {
     this.contextBuilder = config.contextBuilder;
-    this.model = config.model;
+    this.llmApi = config.llmApi;
     this.toolRegistry = config.toolRegistry;
     this.streamEncoder = config.streamEncoder ?? new DefaultNcpStreamEncoder();
     this.loop = new DefaultNcpAgentLoop();
@@ -50,26 +51,22 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
       correlationId: input.kind === "request" ? input.payload.correlationId : undefined,
     };
 
-    let modelInput = this.contextBuilder.prepare(input, {
+    const modelInput = this.contextBuilder.prepare(input, {
       sessionMessages: options?.sessionMessages,
     });
-    modelInput = {
-      ...modelInput,
-      tools: [...this.toolRegistry.getToolDefinitions()],
-    };
 
     yield {
-      type: "run.started",
+      type: NcpEventType.RunStarted,
       payload: { sessionId: ctx.sessionId, messageId: ctx.messageId, runId: ctx.runId },
     };
     yield {
-      type: "message.accepted",
+      type: NcpEventType.MessageAccepted,
       payload: { messageId: ctx.messageId, correlationId: ctx.correlationId },
     };
 
     for await (const event of this.loop.run(
       modelInput,
-      this.model,
+      this.llmApi,
       this.streamEncoder,
       this.toolRegistry,
       ctx,

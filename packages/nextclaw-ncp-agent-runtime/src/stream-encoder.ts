@@ -1,108 +1,115 @@
-import type {
-  NcpEncodeContext,
-  NcpEncodeHooks,
-  NcpEndpointEvent,
-  NcpMessage,
-  NcpMessagePart,
-  NcpModelChunk,
-  NcpStreamEncoder,
+import {
+  type NcpEncodeContext,
+  type NcpEndpointEvent,
+  type NcpStreamEncoder,
+  type OpenAIChatChunk,
+  NcpEventType,
 } from "@nextclaw/ncp";
+
+type ToolCallBuffer = {
+  id?: string;
+  name?: string;
+  argumentsText: string;
+  emittedStart?: boolean;
+};
 
 export class DefaultNcpStreamEncoder implements NcpStreamEncoder {
   encode = async function* (
-    stream: AsyncIterable<NcpModelChunk>,
+    stream: AsyncIterable<OpenAIChatChunk>,
     context: NcpEncodeContext,
-    hooks?: NcpEncodeHooks,
   ): AsyncGenerator<NcpEndpointEvent> {
     const { sessionId, messageId, runId } = context;
     let textStarted = false;
-    let textContent = "";
-    const parts: NcpMessagePart[] = [];
-    let currentToolName = "";
+    const toolCallBuffers = new Map<number, ToolCallBuffer>();
 
     for await (const chunk of stream) {
-      if (chunk.kind === "text-delta") {
-        if (!textStarted) {
-          textStarted = true;
-          yield { type: "message.text-start", payload: { sessionId, messageId } };
-        }
-        textContent += chunk.delta;
-        yield {
-          type: "message.text-delta",
-          payload: { sessionId, messageId, delta: chunk.delta },
-        };
+      const choice = chunk.choices?.[0];
+      if (!choice) {
+        if (chunk.usage) continue;
+        continue;
       }
 
-      if (chunk.kind === "reasoning-delta") {
-        yield {
-          type: "message.reasoning-delta",
-          payload: { sessionId, messageId, delta: chunk.delta },
-        };
-      }
-
-      if (chunk.kind === "tool-call-start") {
-        currentToolName = chunk.toolName;
-        yield {
-          type: "message.tool-call-start",
-          payload: { sessionId, toolCallId: chunk.toolCallId, toolName: chunk.toolName },
-        };
-      }
-
-      if (chunk.kind === "tool-call-args") {
-        yield {
-          type: "message.tool-call-args",
-          payload: { sessionId, toolCallId: chunk.toolCallId, args: chunk.args },
-        };
-        yield {
-          type: "message.tool-call-end",
-          payload: { sessionId, toolCallId: chunk.toolCallId },
-        };
-        if (hooks?.onToolCall) {
-          let args: unknown;
-          try {
-            args = JSON.parse(chunk.args) as unknown;
-          } catch {
-            args = chunk.args;
+      const delta = choice.delta;
+      if (delta) {
+        if (typeof delta.content === "string" && delta.content.length > 0) {
+          if (!textStarted) {
+            textStarted = true;
+            yield { type: NcpEventType.MessageTextStart, payload: { sessionId, messageId } };
           }
-          const content = await hooks.onToolCall(chunk.toolCallId, currentToolName, args);
-          parts.push({
-            type: "tool-invocation",
-            toolName: currentToolName,
-            toolCallId: chunk.toolCallId,
-            state: "result",
-            args,
-            result: content,
-          });
           yield {
-            type: "message.tool-call-result",
-            payload: { sessionId, toolCallId: chunk.toolCallId, content },
+            type: NcpEventType.MessageTextDelta,
+            payload: { sessionId, messageId, delta: delta.content },
           };
+        }
+
+        const reasoning =
+          (delta as { reasoning_content?: string }).reasoning_content ??
+          (delta as { reasoning?: string }).reasoning;
+        if (typeof reasoning === "string" && reasoning) {
+          yield {
+            type: NcpEventType.MessageReasoningDelta,
+            payload: { sessionId, messageId, delta: reasoning },
+          };
+        }
+
+        const toolDeltas = (delta as { tool_calls?: Array<Record<string, unknown>> }).tool_calls;
+        if (Array.isArray(toolDeltas)) {
+          for (const toolDelta of toolDeltas) {
+            const index =
+              typeof toolDelta.index === "number" && Number.isFinite(toolDelta.index)
+                ? toolDelta.index
+                : toolCallBuffers.size;
+            const current = toolCallBuffers.get(index) ?? { argumentsText: "" };
+            if (typeof toolDelta.id === "string" && toolDelta.id.trim()) {
+              current.id = toolDelta.id;
+            }
+            const fn = toolDelta.function as { name?: string; arguments?: string } | undefined;
+            if (fn && typeof fn === "object" && !Array.isArray(fn)) {
+              if (typeof fn.name === "string" && fn.name.trim()) {
+                current.name = fn.name.trim();
+              }
+              if (typeof fn.arguments === "string" && fn.arguments.length > 0) {
+                current.argumentsText += fn.arguments;
+              }
+            }
+            if (current.id && current.name && !current.emittedStart) {
+              current.emittedStart = true;
+              yield {
+                type: NcpEventType.MessageToolCallStart,
+                payload: { sessionId, toolCallId: current.id, toolName: current.name },
+              };
+            }
+            toolCallBuffers.set(index, current);
+          }
         }
       }
 
-      if (chunk.kind === "finish") {
-        if (textStarted) {
-          yield { type: "message.text-end", payload: { sessionId, messageId } };
+      const finishReason = choice.finish_reason;
+      if (typeof finishReason === "string" && finishReason.trim().length > 0) {
+        const ordered = Array.from(toolCallBuffers.entries()).sort(([a], [b]) => a - b);
+        for (const [, buf] of ordered) {
+          if (buf.name && buf.id) {
+            yield {
+              type: NcpEventType.MessageToolCallArgs,
+              payload: { sessionId, toolCallId: buf.id, args: buf.argumentsText },
+            };
+            yield {
+              type: NcpEventType.MessageToolCallEnd,
+              payload: { sessionId, toolCallId: buf.id },
+            };
+          }
         }
-        if (chunk.reason === "stop" || chunk.reason === "length" || chunk.reason === "error") {
-          const finalParts: NcpMessagePart[] =
-            textContent.length > 0
-              ? [{ type: "text", text: textContent }, ...parts]
-              : [...parts];
-          const message: NcpMessage = {
-            id: messageId,
-            sessionId,
-            role: "assistant",
-            status: "final",
-            parts: finalParts,
-            timestamp: new Date().toISOString(),
-          };
+        if (textStarted) {
+          yield { type: NcpEventType.MessageTextEnd, payload: { sessionId, messageId } };
+        }
+        if (
+          finishReason === "stop" ||
+          finishReason === "length" ||
+          finishReason === "tool_calls" ||
+          finishReason === "content_filter"
+        ) {
           yield {
-            type: "message.completed",
-            payload: { sessionId, message, correlationId: context.correlationId },
-          };
-          yield {
-            type: "run.finished",
+            type: NcpEventType.RunFinished,
             payload: { sessionId, messageId, runId },
           };
         }

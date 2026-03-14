@@ -1,3 +1,4 @@
+import { NcpEventType } from "@nextclaw/ncp";
 import {
   parseAbortPayload,
   parseRequestEnvelope,
@@ -26,7 +27,7 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
 
     return createForwardResponse({
       endpoint: agentClientEndpoint,
-      requestEvent: { type: "message.request", payload: envelope },
+      requestEvent: { type: NcpEventType.MessageRequest, payload: envelope },
       requestSignal: request.signal,
       timeoutMs,
       scope: {
@@ -56,7 +57,7 @@ export class NcpHttpAgentController implements NcpHttpAgentHandler {
 
     return createForwardResponse({
       endpoint: agentClientEndpoint,
-      requestEvent: { type: "message.resume-request", payload: resumePayload },
+      requestEvent: { type: NcpEventType.MessageResumeRequest, payload: resumePayload },
       requestSignal: request.signal,
       timeoutMs,
       scope: {

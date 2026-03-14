@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type {
-  NcpAgentClientEndpoint,
-  NcpEndpointEvent,
-  NcpEndpointManifest,
-  NcpEndpointSubscriber,
-  NcpMessageAbortPayload,
-  NcpRequestEnvelope,
-  NcpResumeRequestPayload,
+import {
+  type NcpAgentClientEndpoint,
+  type NcpEndpointEvent,
+  type NcpEndpointManifest,
+  type NcpEndpointSubscriber,
+  type NcpMessageAbortPayload,
+  type NcpRequestEnvelope,
+  type NcpResumeRequestPayload,
+  NcpEventType,
 } from "@nextclaw/ncp";
 import { createNcpHttpAgentRouter } from "./index.js";
 
@@ -18,20 +19,20 @@ describe("createNcpHttpAgentRouter", () => {
     const app = createNcpHttpAgentRouter({ agentClientEndpoint: endpoint });
 
     endpoint.setEmitHandler((event) => {
-      if (event.type !== "message.request") {
+      if (event.type !== NcpEventType.MessageRequest) {
         return;
       }
       const { sessionId, correlationId } = event.payload;
       endpoint.push({
-        type: "message.accepted",
+        type: NcpEventType.MessageAccepted,
         payload: { messageId: "assistant-1", correlationId },
       });
       endpoint.push({
-        type: "message.text-delta",
+        type: NcpEventType.MessageTextDelta,
         payload: { sessionId: "other-session", messageId: "assistant-1", delta: "ignored" },
       });
       endpoint.push({
-        type: "message.completed",
+        type: NcpEventType.MessageCompleted,
         payload: {
           sessionId,
           correlationId,
@@ -98,9 +99,9 @@ describe("createNcpHttpAgentRouter", () => {
     });
 
     expect(response.status).toBe(200);
-    const abortEvent = endpoint.emitted.find((event) => event.type === "message.abort");
+    const abortEvent = endpoint.emitted.find((event) => event.type === NcpEventType.MessageAbort);
     expect(abortEvent).toEqual({
-      type: "message.abort",
+      type: NcpEventType.MessageAbort,
       payload: { runId: "run-1" },
     });
   });
@@ -142,15 +143,15 @@ class FakeAgentEndpoint implements NcpAgentClientEndpoint {
   }
 
   async send(envelope: NcpRequestEnvelope): Promise<void> {
-    await this.emit({ type: "message.request", payload: envelope });
+    await this.emit({ type: NcpEventType.MessageRequest, payload: envelope });
   }
 
   async resume(payload: NcpResumeRequestPayload): Promise<void> {
-    await this.emit({ type: "message.resume-request", payload });
+    await this.emit({ type: NcpEventType.MessageResumeRequest, payload });
   }
 
   async abort(payload?: NcpMessageAbortPayload): Promise<void> {
-    await this.emit({ type: "message.abort", payload: payload ?? {} });
+    await this.emit({ type: NcpEventType.MessageAbort, payload: payload ?? {} });
   }
 
   setEmitHandler(handler: (event: NcpEndpointEvent) => void): void {

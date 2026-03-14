@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { NcpEndpointEvent, NcpRequestEnvelope } from "@nextclaw/ncp";
+import { type NcpEndpointEvent, type NcpRequestEnvelope, NcpEventType } from "@nextclaw/ncp";
 import { NcpHttpAgentClientEndpoint } from "./index.js";
 
 const now = "2026-03-12T00:00:00.000Z";
@@ -9,11 +9,11 @@ describe("createNcpHttpAgentClient stream behavior", () => {
     const calls: Array<{ input: URL | string | Request; init?: RequestInit }> = [];
     const frames = [
       sseFrame("ncp-event", {
-        type: "message.text-delta",
+        type: NcpEventType.MessageTextDelta,
         payload: { sessionId: "session-1", messageId: "assistant-1", delta: "你" },
       }),
       sseFrame("ncp-event", {
-        type: "message.completed",
+        type: NcpEventType.MessageCompleted,
         payload: {
           sessionId: "session-1",
           message: {
@@ -56,9 +56,9 @@ describe("createNcpHttpAgentClient stream behavior", () => {
     });
 
     expect(calls).toHaveLength(1);
-    const deltaEvent = received.find((event) => event.type === "message.text-delta");
-    expect(deltaEvent?.type).toBe("message.text-delta");
-    if (deltaEvent?.type === "message.text-delta") {
+    const deltaEvent = received.find((event) => event.type === NcpEventType.MessageTextDelta);
+    expect(deltaEvent?.type).toBe(NcpEventType.MessageTextDelta);
+    if (deltaEvent?.type === NcpEventType.MessageTextDelta) {
       expect(deltaEvent.payload.delta).toBe("你");
     }
   });
@@ -69,15 +69,15 @@ describe("createNcpHttpAgentClient stream behavior", () => {
       calls.push({ input, init });
       return createSseResponse([
         sseFrame("ncp-event", {
-          type: "message.accepted",
+          type: NcpEventType.MessageAccepted,
           payload: { messageId: "assistant-1", correlationId: "corr-1" },
         }),
         sseFrame("ncp-event", {
-          type: "message.text-delta",
+          type: NcpEventType.MessageTextDelta,
           payload: { sessionId: "session-1", messageId: "assistant-1", delta: "hello" },
         }),
         sseFrame("ncp-event", {
-          type: "message.completed",
+          type: NcpEventType.MessageCompleted,
           payload: {
             sessionId: "session-1",
             correlationId: "corr-1",

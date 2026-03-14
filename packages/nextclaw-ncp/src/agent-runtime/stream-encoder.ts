@@ -1,5 +1,5 @@
 import type { NcpEndpointEvent } from "../types/events.js";
-import type { NcpModelChunk } from "./model.js";
+import type { OpenAIChatChunk } from "./llm-api.js";
 
 export type NcpEncodeContext = {
   sessionId: string;
@@ -8,14 +8,9 @@ export type NcpEncodeContext = {
   correlationId?: string;
 };
 
-export type NcpEncodeHooks = {
-  onToolCall?(toolCallId: string, toolName: string, args: unknown): Promise<unknown>;
-};
-
 export interface NcpStreamEncoder {
   encode(
-    stream: AsyncIterable<NcpModelChunk>,
+    stream: AsyncIterable<OpenAIChatChunk>,
     context: NcpEncodeContext,
-    hooks?: NcpEncodeHooks,
   ): AsyncIterable<NcpEndpointEvent>;
 }
