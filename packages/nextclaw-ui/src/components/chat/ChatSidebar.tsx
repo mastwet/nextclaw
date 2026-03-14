@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { SessionEntryView } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { BrandHeader } from '@/components/common/BrandHeader';
+import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { SessionRunBadge } from '@/components/common/SessionRunBadge';
@@ -14,6 +15,7 @@ import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useDocBrowser } from '@/components/doc-browser';
+import { useUiStore } from '@/stores/ui.store';
 import { NavLink } from 'react-router-dom';
 import { AlarmClock, BookOpen, BrainCircuit, Languages, MessageSquareText, Palette, Plus, Search, Settings } from 'lucide-react';
 
@@ -72,6 +74,7 @@ export function ChatSidebar() {
   const docBrowser = useDocBrowser();
   const listSnapshot = useChatSessionListStore((state) => state.snapshot);
   const runSnapshot = useChatRunStatusStore((state) => state.snapshot);
+  const connectionStatus = useUiStore((state) => state.connectionStatus);
   const { language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
   const currentThemeLabel = t(THEME_OPTIONS.find((o) => o.value === theme)?.labelKey ?? 'themeWarm');
@@ -88,7 +91,10 @@ export function ChatSidebar() {
   return (
     <aside className="w-[280px] shrink-0 flex flex-col h-full bg-secondary border-r border-gray-200/60">
       <div className="px-5 pt-5 pb-3">
-        <BrandHeader />
+        <BrandHeader
+          className="flex items-center gap-2.5 min-w-0"
+          suffix={<StatusBadge status={connectionStatus} />}
+        />
       </div>
 
       <div className="px-4 pb-3">

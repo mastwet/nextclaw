@@ -30,6 +30,7 @@ export class ConfigWebSocket {
 
     this.ws.onclose = () => {
       console.log('WebSocket disconnected');
+      this.emit({ type: 'connection.close', payload: {} });
       if (!this.manualClose) {
         this.scheduleReconnect();
       }
@@ -37,6 +38,7 @@ export class ConfigWebSocket {
 
     this.ws.onerror = (error) => {
       console.error('WebSocket error:', error);
+      this.emit({ type: 'connection.error', payload: { message: 'websocket error' } });
     };
   }
 

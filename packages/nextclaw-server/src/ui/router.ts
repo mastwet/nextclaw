@@ -1699,7 +1699,17 @@ export function createUiRouter(options: UiRouterOptions): Hono {
 
   app.notFound((c) => c.json(err("NOT_FOUND", "endpoint not found"), 404));
 
-  app.get("/api/health", (c) => c.json(ok({ status: "ok" })));
+  app.get("/api/health", (c) =>
+    c.json(
+      ok({
+        status: "ok",
+        services: {
+          chatRuntime: options.chatRuntime ? "ready" : "unavailable",
+          cronService: options.cronService ? "ready" : "unavailable"
+        }
+      })
+    )
+  );
 
   app.get("/api/app/meta", (c) => c.json(ok(buildAppMetaView(options))));
 

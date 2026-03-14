@@ -1,5 +1,12 @@
 # nextclaw
 
+## 0.9.25
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/server@0.6.12
+
 ## 0.9.24
 
 ### Patch Changes

@@ -1,10 +1,12 @@
 import { useAppMeta } from '@/hooks/useConfig';
+import type { ReactNode } from 'react';
 
 type BrandHeaderProps = {
   className?: string;
+  suffix?: ReactNode;
 };
 
-export function BrandHeader({ className }: BrandHeaderProps) {
+export function BrandHeader({ className, suffix }: BrandHeaderProps) {
   const { data } = useAppMeta();
   const productName = data?.name ?? 'NextClaw';
   const productVersion = data?.productVersion?.trim();
@@ -17,6 +19,7 @@ export function BrandHeader({ className }: BrandHeaderProps) {
       <div className="flex items-baseline gap-2 min-w-0">
         <span className="truncate text-[15px] font-semibold tracking-[-0.01em] text-gray-800">{productName}</span>
         {productVersion ? <span className="text-[13px] font-medium text-gray-500">v{productVersion}</span> : null}
+        {suffix ? <span className="inline-flex items-center shrink-0">{suffix}</span> : null}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { t } from '@/lib/i18n';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Status = 'connected' | 'disconnected' | 'connecting';
 
@@ -11,22 +12,16 @@ interface StatusBadgeProps {
 
 const statusConfig: Record<
   Status,
-  { dotClass: string; textClass: string; bgClass: string }
+  { dotClass: string }
 > = {
   connected: {
     dotClass: 'bg-emerald-500',
-    textClass: 'text-emerald-600',
-    bgClass: 'bg-emerald-50',
   },
   disconnected: {
-    dotClass: 'bg-gray-300',
-    textClass: 'text-gray-400',
-    bgClass: 'bg-gray-100/80',
+    dotClass: 'h-2.5 w-2.5 rounded-full border border-gray-400 bg-transparent',
   },
   connecting: {
-    dotClass: 'bg-amber-400',
-    textClass: 'text-amber-600',
-    bgClass: 'bg-amber-50',
+    dotClass: 'text-amber-600',
   }
 };
 
@@ -35,16 +30,33 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   const label = status === 'connected' ? t('connected') : status === 'disconnected' ? t('disconnected') : t('connecting');
 
   return (
-    <div className={cn(
-      'flex items-center gap-1.5 px-2 py-0.5 rounded-full',
-      config.bgClass,
-      className
-    )}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', config.dotClass)} />
-      <span className={cn('text-[11px] font-medium flex items-center gap-1', config.textClass)}>
-        {label}
-        {status === 'connecting' && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
-      </span>
-    </div>
+    <TooltipProvider delayDuration={250}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            role="status"
+            aria-label={label}
+            className={cn(
+              'inline-flex h-5 w-5 items-center justify-center',
+              className
+            )}
+          >
+            {status === 'connecting' ? (
+              <Loader2 className={cn('h-3 w-3 animate-spin', config.dotClass)} />
+            ) : (
+              <span
+                className={cn(
+                  status === 'connected' ? 'h-2 w-2 rounded-full' : '',
+                  config.dotClass
+                )}
+              />
+            )}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-xs">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

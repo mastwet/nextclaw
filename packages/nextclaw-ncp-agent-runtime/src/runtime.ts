@@ -63,7 +63,6 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
         payload: { sessionId: input.sessionId, message: msg },
       };
       await this.stateManager.dispatch(messageSent);
-      yield messageSent;
     }
 
     const runStarted: NcpEndpointEvent = {
@@ -151,7 +150,6 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
         done = true;
         break;
       }
-
 
       currentInput = appendToolRoundToInput(
         currentInput,

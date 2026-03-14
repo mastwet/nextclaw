@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.6.15
+
+### Patch Changes
+
+- Improve sidebar service status UX with lightweight indicator + shadcn tooltip, and tighten initial health status judgment based on `/api/health` payload status.
+
 ## 0.6.14
 
 ### Patch Changes

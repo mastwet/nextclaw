@@ -653,7 +653,9 @@ export type WsEvent =
   | { type: 'config.reload.started'; payload?: Record<string, unknown> }
   | { type: 'config.reload.finished'; payload?: Record<string, unknown> }
   | { type: 'error'; payload: { message: string; code?: string } }
-  | { type: 'connection.open'; payload?: Record<string, unknown> };
+  | { type: 'connection.open'; payload?: Record<string, unknown> }
+  | { type: 'connection.close'; payload?: Record<string, unknown> }
+  | { type: 'connection.error'; payload?: { message?: string } };
 
 export type MarketplaceItemType = 'plugin' | 'skill';
 

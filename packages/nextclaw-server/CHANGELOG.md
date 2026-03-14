@@ -1,5 +1,11 @@
 # nextclaw-server
 
+## 0.6.12
+
+### Patch Changes
+
+- Improve sidebar service status UX with lightweight indicator + shadcn tooltip, and tighten initial health status judgment based on `/api/health` payload status.
+
 ## 0.6.11
 
 ### Patch Changes

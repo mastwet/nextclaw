@@ -37,6 +37,36 @@ export function useWebSocket(queryClient?: QueryClient) {
       }
     })();
     const client = new ConfigWebSocket(wsUrl);
+    let isSocketOpen = false;
+
+    const probeHealth = async (): Promise<boolean> => {
+      const base = API_BASE?.replace(/\/$/, '') || window.location.origin;
+      const url = `${base}/api/health`;
+      try {
+        const response = await fetch(url, { method: 'GET', cache: 'no-store' });
+        if (!response.ok) {
+          return false;
+        }
+        const payload = await response.json() as {
+          ok?: boolean;
+          data?: {
+            status?: string;
+          };
+        };
+        return payload.ok === true && payload.data?.status === 'ok';
+      } catch {
+        return false;
+      }
+    };
+
+    const syncConnectionStatusFromHealth = async () => {
+      if (isSocketOpen) {
+        setConnectionStatus('connected');
+        return;
+      }
+      const healthy = await probeHealth();
+      setConnectionStatus(healthy ? 'connected' : 'disconnected');
+    };
 
     const invalidateSessionQueries = (sessionKey?: string) => {
       if (!queryClient) {
@@ -50,8 +80,21 @@ export function useWebSocket(queryClient?: QueryClient) {
       queryClient.invalidateQueries({ queryKey: ['session-history'] });
     };
 
+    setConnectionStatus('connecting');
+
     client.on('connection.open', () => {
+      isSocketOpen = true;
       setConnectionStatus('connected');
+    });
+
+    client.on('connection.close', () => {
+      isSocketOpen = false;
+      void syncConnectionStatusFromHealth();
+    });
+
+    client.on('connection.error', () => {
+      isSocketOpen = false;
+      void syncConnectionStatusFromHealth();
     });
 
     client.on('config.updated', (event) => {
@@ -100,8 +143,17 @@ export function useWebSocket(queryClient?: QueryClient) {
 
     client.connect();
     setWs(client);
+    void syncConnectionStatusFromHealth();
+    const healthTimer = window.setInterval(() => {
+      void syncConnectionStatusFromHealth();
+    }, 10_000);
 
-    return () => client.disconnect();
+    return () => {
+      window.clearInterval(healthTimer);
+      isSocketOpen = false;
+      client.disconnect();
+      setConnectionStatus('disconnected');
+    };
   }, [setConnectionStatus, queryClient]);
 
   return ws;
