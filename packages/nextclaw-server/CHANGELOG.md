@@ -1,5 +1,11 @@
 # nextclaw-server
 
+## 0.6.13
+
+### Patch Changes
+
+- 63c7ab3: Refactor UI router into centralized route binding with modular controllers to improve maintainability and module role clarity.
+
 ## 0.6.12
 
 ### Patch Changes
