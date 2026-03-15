@@ -1,6 +1,6 @@
 import {
   type NcpAgentConversationStateManager,
-  type NcpAgentReplayProvider,
+  type NcpAgentStreamProvider,
   type NcpAgentRuntime,
   type NcpEndpointEvent,
   type NcpEndpointManifest,
@@ -61,7 +61,7 @@ const DEFAULT_SUPPORTED_PART_TYPES: NcpEndpointManifest["supportedPartTypes"] = 
 ];
 
 export class DefaultNcpInMemoryAgentBackend
-  implements NcpSessionApi, NcpAgentReplayProvider
+  implements NcpSessionApi, NcpAgentStreamProvider
 {
   readonly manifest: NcpEndpointManifest & { endpointKind: "agent" };
 

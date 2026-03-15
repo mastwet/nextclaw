@@ -28,7 +28,7 @@ export interface NcpAgentBackendController extends NcpSessionApi {
   abort(payload: NcpMessageAbortPayload): Promise<void>;
 }
 
-export type NcpAgentReplayProvider = {
+export type NcpAgentStreamProvider = {
   stream(params: {
     payload: NcpStreamRequestPayload;
     signal: AbortSignal;

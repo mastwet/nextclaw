@@ -2,5 +2,5 @@ export type {
   NcpAgentBackendController,
   NcpAgentBackendStreamOptions,
   NcpAgentBackendSendOptions,
-  NcpAgentReplayProvider,
+  NcpAgentStreamProvider,
 } from "./controller.js";
