@@ -96,7 +96,7 @@ export function useNcpAgent(sessionId: string) {
     await refreshSessions(setSessions);
   };
 
-  const replay = async () => {
+  const streamRun = async () => {
     const client = clientRef.current;
     if (!client || !lastRunId) {
       return;
@@ -115,7 +115,7 @@ export function useNcpAgent(sessionId: string) {
     sessions,
     send,
     abort,
-    replay,
+    streamRun,
     refresh,
   };
 }

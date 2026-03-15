@@ -35,7 +35,7 @@ export function App() {
         onDraftChange={setDraft}
         onSend={handleSend}
         onAbort={agent.abort}
-        onReplay={agent.replay}
+        onStreamRun={agent.streamRun}
       />
     </div>
   );

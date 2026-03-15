@@ -15,7 +15,7 @@ type ChatPanelProps = {
   onDraftChange: (value: string) => void;
   onSend: () => void;
   onAbort: () => void;
-  onReplay: () => void;
+  onStreamRun: () => void;
 };
 
 export function ChatPanel({
@@ -29,15 +29,15 @@ export function ChatPanel({
   onDraftChange,
   onSend,
   onAbort,
-  onReplay,
+  onStreamRun,
 }: ChatPanelProps) {
   return (
     <main className="panel chat-panel">
       <ChatHeader
         title="NCP Agent Demo"
-        replayDisabled={!lastRunId}
+        streamRunDisabled={!lastRunId}
         abortDisabled={!hasActiveRun}
-        onReplay={onReplay}
+        onStreamRun={onStreamRun}
         onAbort={onAbort}
       />
       <MessageList messages={visibleMessages} emptyMessage="Send a message to start." />

@@ -1,24 +1,24 @@
 type ChatHeaderProps = {
   title: string;
-  replayDisabled: boolean;
+  streamRunDisabled: boolean;
   abortDisabled: boolean;
-  onReplay: () => void;
+  onStreamRun: () => void;
   onAbort: () => void;
 };
 
 export function ChatHeader({
   title,
-  replayDisabled,
+  streamRunDisabled,
   abortDisabled,
-  onReplay,
+  onStreamRun,
   onAbort,
 }: ChatHeaderProps) {
   return (
     <header className="chat-header">
       <h1>{title}</h1>
       <div className="header-actions">
-        <button className="ghost" onClick={onReplay} disabled={replayDisabled}>
-          replay last run
+        <button className="ghost" onClick={onStreamRun} disabled={streamRunDisabled}>
+          stream last run
         </button>
         <button className="danger" onClick={onAbort} disabled={abortDisabled}>
           abort
