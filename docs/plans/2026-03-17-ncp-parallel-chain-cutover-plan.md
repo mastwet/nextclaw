@@ -55,21 +55,19 @@
 
 1. Legacy 与 NCP 各自拥有独立容器层与编排层，禁止在同一个容器文件内用大量 `if/else` 混写双链路逻辑。
 2. 链路开关只存在于入口装配层（router/page entry/provider entry），不下沉到通用展示组件。
-3. 双链路可以共享纯展示组件和 truly-generic 工具函数，但不得共享业务状态机、会话编排、请求编排。
+3. `@nextclaw/agent-chat-ui` 作为共享展示层基座，Legacy 与 NCP 默认共用这套 UI 组件、view-model 契约和 UI-owned hooks。
 4. NCP 前端链路不得反向依赖 legacy 业务模块；若存在依赖，视为未完成分离。
-5. 目录结构需能一眼识别双链路边界，保证后续可独立删除 NCP 或 Legacy 任一侧。
+5. 双链路都应先把各自运行时数据适配成统一展示契约，再进入共享 UI；禁止共享业务状态机、会话编排、请求编排。
+6. 代码组织应能一眼识别双链路边界，保证后续可独立删除 NCP 或 Legacy 任一侧；但本方案阶段不预先锁死细分目录。
 
-推荐结构（示意）：
+这里的执行原则不是“共享整个前端”，而是：
 
-```text
-packages/nextclaw-ui/src/components/chat/
-  legacy/               # 旧链路容器/编排
-  ncp/                  # 新链路容器/编排
-  shared-ui/            # 可复用纯展示组件
-  entry/                # 唯一切换点（装配入口）
-```
+- 共享展示层
+- 允许双编排层
+- 统一 view-model 契约
+- 入口统一切换
 
-如果当前目录无法直接按该结构演进，需在 Phase 0 先做最小结构重排，再开始并行链路开发。
+如果当前代码还无法清晰支撑这四条原则，需在 Phase 0 先做最小结构重排，再开始并行链路开发。
 
 ## 3.3 回滚原则
 
@@ -117,12 +115,14 @@ packages/nextclaw-ui/src/components/chat/
 ## Phase 2：并行前端链路落地（以切换点为中心）
 
 1. 在前端入口接入链路开关。
-2. 接入 NCP runtime + 容器链路，打通核心聊天主流程。
-3. 保留 legacy frontend 容器路径，不做硬切。
+2. 以 `@nextclaw/agent-chat-ui` 作为共享展示层基座，让 Legacy 与 NCP 共用 UI 组件、view-model 契约和 UI-local hooks。
+3. 接入 NCP runtime + 容器链路，打通核心聊天主流程。
+4. 保留 legacy frontend 容器路径，不做硬切。
 
 交付物：
 
 - 单一入口可切换 legacy/ncp
+- Legacy 与 NCP 共用同一套展示层
 - 核心流程在两条链路均可执行
 
 ## Phase 3：验证、切换、删旧
@@ -150,6 +150,7 @@ packages/nextclaw-ui/src/components/chat/
 2. 新链路不反向依赖旧链路业务编排代码。
 3. 旧链路可独立运行，新链路可独立删除。
 4. 前端切换逻辑仅存在于入口装配层，展示层无链路判断分支污染。
+5. `@nextclaw/agent-chat-ui` 继续保持共享展示层定位，不承载 runtime/store/presenter 级业务编排。
 
 ## 6.3 质量验收
 
@@ -171,6 +172,7 @@ packages/nextclaw-ui/src/components/chat/
 - 上位定位：[`NCP 定位与愿景`](../designs/2026-03-17-ncp-positioning-and-vision.md)
 - 后端语义基线：[`NCP Session-Centric Agent Backend Design`](./2026-03-17-ncp-session-centric-agent-backend-design.md)
 - UI 积木基线：[`@nextclaw/ncp-react-ui 设计文档`](./2026-03-17-ncp-react-ui-design.md)
+- 当前共享展示层实现：[`@nextclaw/agent-chat-ui`](../../../packages/nextclaw-agent-chat-ui/README.md)
 
 ## 9. 执行口径
 
