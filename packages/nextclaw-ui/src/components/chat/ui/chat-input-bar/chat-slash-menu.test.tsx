@@ -53,7 +53,7 @@ describe('ChatSlashMenu', () => {
     );
 
     expect(screen.getByText('Search the web')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Web Search/i }));
+    fireEvent.click(screen.getByRole('option', { name: /Web Search/i }));
     expect(onSelectItem).toHaveBeenCalledWith(item);
   });
 });

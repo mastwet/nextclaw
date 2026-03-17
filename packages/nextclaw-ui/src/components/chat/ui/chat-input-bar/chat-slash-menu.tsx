@@ -58,6 +58,8 @@ export function ChatSlashMenu(props: ChatSlashMenuProps) {
         <div className="grid min-h-[240px] grid-cols-[minmax(220px,300px)_minmax(0,1fr)]">
           <div
             ref={listRef}
+            role="listbox"
+            aria-label={texts.slashSectionLabel}
             className="custom-scrollbar max-h-[320px] overflow-y-auto border-r border-gray-200 p-2.5"
           >
             {isLoading ? (
@@ -77,6 +79,8 @@ export function ChatSlashMenu(props: ChatSlashMenuProps) {
                         <button
                           key={item.key}
                           type="button"
+                          role="option"
+                          aria-selected={isActive}
                           data-slash-index={index}
                           onMouseEnter={() => onSetActiveIndex(index)}
                           onClick={() => onSelectItem(item)}

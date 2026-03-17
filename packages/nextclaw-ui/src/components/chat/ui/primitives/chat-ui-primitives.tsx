@@ -1,3 +1,4 @@
+import { Input as DefaultInput } from '@/components/ui/input';
 import {
   Popover as DefaultPopover,
   PopoverAnchor as DefaultPopoverAnchor,
@@ -24,6 +25,7 @@ export const ChatUiPrimitives = {
   PopoverAnchor: DefaultPopoverAnchor,
   PopoverContent: DefaultPopoverContent,
   PopoverTrigger: DefaultPopoverTrigger,
+  Input: DefaultInput,
   Select: DefaultSelect,
   SelectContent: DefaultSelectContent,
   SelectItem: DefaultSelectItem,

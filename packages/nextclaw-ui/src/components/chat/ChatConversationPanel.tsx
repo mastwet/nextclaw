@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChatInputBarContainer, ChatMessageListContainer } from '@/components/chat';
+import { ChatInputBarContainer, ChatMessageListContainer } from '@/components/chat/nextclaw';
 import { useStickyBottomScroll } from '@/components/chat/hooks/use-sticky-bottom-scroll';
 import { ChatWelcome } from '@/components/chat/ChatWelcome';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
