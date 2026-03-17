@@ -1,5 +1,12 @@
 # @nextclaw/nextclaw-engine-codex-sdk
 
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies [eb9562b]
+  - @nextclaw/core@0.8.0
+
 ## 0.2.2
 
 ### Patch Changes

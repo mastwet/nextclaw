@@ -1,5 +1,17 @@
 # @nextclaw/ui
 
+## 0.7.0
+
+### Minor Changes
+
+- eb9562b: Add lightweight built-in UI authentication for NextClaw UI with a single-admin setup flow, HttpOnly cookie sessions, protected API/WebSocket access, and a runtime Security panel.
+
+### Patch Changes
+
+- cfcd97f: Split the reusable chat presentation layer into a standalone `@nextclaw/agent-chat-ui` package and wire `@nextclaw/ui` to consume it.
+- Updated dependencies [cfcd97f]
+  - @nextclaw/agent-chat-ui@0.1.1
+
 ## 0.6.15
 
 ### Patch Changes

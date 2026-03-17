@@ -1,5 +1,11 @@
 # nextclaw-core
 
+## 0.8.0
+
+### Minor Changes
+
+- eb9562b: Add lightweight built-in UI authentication for NextClaw UI with a single-admin setup flow, HttpOnly cookie sessions, protected API/WebSocket access, and a runtime Security panel.
+
 ## 0.7.7
 
 ### Patch Changes

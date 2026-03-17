@@ -1,5 +1,19 @@
 # nextclaw
 
+## 0.10.0
+
+### Minor Changes
+
+- eb9562b: Add lightweight built-in UI authentication for NextClaw UI with a single-admin setup flow, HttpOnly cookie sessions, protected API/WebSocket access, and a runtime Security panel.
+
+### Patch Changes
+
+- Updated dependencies [eb9562b]
+  - @nextclaw/core@0.8.0
+  - @nextclaw/server@0.7.0
+  - @nextclaw/openclaw-compat@0.2.7
+  - @nextclaw/runtime@0.1.7
+
 ## 0.9.28
 
 ### Patch Changes
