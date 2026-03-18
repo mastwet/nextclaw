@@ -26,6 +26,7 @@
 ## 指令/Command 机制
 
 - 新增指令统一记录在 `commands/commands.md`，并在此处索引
+- `commands/commands.md` 只收录“本项目管理/协作/治理相关”的元指令，定位上与 Rulebook 类似；禁止混入 package 命令、产品 CLI 命令、部署脚本命令或其它业务执行命令，这类内容应记录在对应产品/功能文档中
 - 约定元指令：输入 `/new-command` 触发创建新指令流程
 - 指令文件结构：每条指令包含名称、用途、输入格式、输出/期望行为
 - 后续新增或修改指令时，更新 `commands/commands.md` 并保持此处索引最新
@@ -38,9 +39,6 @@
   - `/commit`：进行提交操作（提交信息需使用英文）
   - `/validate`：运行项目验证，按改动影响范围执行最小充分验证；仅当改动触达构建/类型/运行链路时，执行 `build`、`lint`、`tsc` 的相关项，必要时补冒烟测试
   - `/release-frontend`：前端一键发布（仅 UI 变更场景）
-  - `nextclaw skills install`：从 NextClaw marketplace 安装 skill
-  - `nextclaw skills publish`：上传/创建 marketplace skill（upsert）
-  - `nextclaw skills update`：更新已有 marketplace skill
 
 ## 规则/Rule 机制
 
