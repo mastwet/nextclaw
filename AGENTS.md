@@ -270,3 +270,9 @@
   - 反例：代码改完只跑功能验证，不做任何可维护性自检；或发现超长文件继续增长却不提示风险和拆分缝。
   - 执行方式：默认在收尾阶段运行 `python3 .codex/skills/post-edit-maintainability-guard/scripts/check_maintainability.py`；如只需检查特定文件，可加 `--paths <file...>`；若出现阻塞项，优先继续拆分，否则需在结果中明确债务、原因与下一步拆分位点。
   - 维护责任人：当前助手。
+- **legacy-freeze-before-removal**：
+  - 约束/适用范围：凡涉及 `nextclaw` chat 链路演进，默认停止给 legacy 链路新增任何功能、适配或产品增强；legacy 只允许做三类改动：阻塞 NCP 迁移的必要修复、删除 legacy 前必须完成的兼容性清理、以及用户明确要求的临时回滚保障。
+  - 示例：新能力只落在 `NcpChatPage` / NCP runtime / NCP tool/context 装配链路；若 legacy 发生阻塞迁移的关键 bug，仅做最小修复并注明其过渡性质。
+  - 反例：为了省事继续把新交互、新能力、新策略同时加到 `LegacyChatPage` 和 legacy runtime；或在没有明确必要性的情况下继续扩展 legacy 组件与 legacy 后端能力。
+  - 执行方式：需求进入 chat 链路时先判断“是否属于 NCP 主链路建设”；若是，则默认只改 NCP 链路。若必须改 legacy，必须在结果中明确说明触发原因、过渡范围与后续删除条件。
+  - 维护责任人：当前助手。
