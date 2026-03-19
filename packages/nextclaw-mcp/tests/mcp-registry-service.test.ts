@@ -1,13 +1,16 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcessByStdio } from "node:child_process";
 import { resolve } from "node:path";
+import type { Readable } from "node:stream";
 import { afterEach, describe, expect, it } from "vitest";
 import { ConfigSchema } from "@nextclaw/core";
 import { McpRegistryService } from "../src/index.js";
 
 const fixturePath = resolve(import.meta.dirname, "fixtures/mock-mcp-server.mjs");
-const childProcesses: ChildProcessWithoutNullStreams[] = [];
+type FixtureProcess = ChildProcessByStdio<null, Readable, Readable>;
 
-async function waitForReady(process: ChildProcessWithoutNullStreams): Promise<string> {
+const childProcesses: FixtureProcess[] = [];
+
+async function waitForReady(process: FixtureProcess): Promise<string> {
   return await new Promise((resolveReady, reject) => {
     let buffer = "";
     const onData = (chunk: Buffer) => {
@@ -35,7 +38,7 @@ async function waitForReady(process: ChildProcessWithoutNullStreams): Promise<st
   });
 }
 
-function spawnFixture(mode: "http" | "sse"): Promise<{ url: string; process: ChildProcessWithoutNullStreams }> {
+function spawnFixture(mode: "http" | "sse"): Promise<{ url: string; process: FixtureProcess }> {
   const child = spawn(process.execPath, [fixturePath, mode, "0"], {
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -193,6 +196,58 @@ describe("McpRegistryService", () => {
         }
       ]
     });
+
+    await registry.close();
+  });
+
+  it("reconciles config changes by warming added servers and closing removed ones", async () => {
+    const prevConfig = ConfigSchema.parse({
+      mcp: {
+        servers: {}
+      }
+    });
+    const nextConfig = ConfigSchema.parse({
+      mcp: {
+        servers: {
+          demo: {
+            enabled: true,
+            transport: {
+              type: "stdio",
+              command: process.execPath,
+              args: [fixturePath, "stdio"],
+              stderr: "pipe"
+            }
+          }
+        }
+      }
+    });
+    let currentConfig = prevConfig;
+    const registry = new McpRegistryService({
+      getConfig: () => currentConfig
+    });
+
+    currentConfig = nextConfig;
+    const applyResult = await registry.reconcileConfig({
+      prevConfig,
+      nextConfig
+    });
+    expect(applyResult.added).toEqual(["demo"]);
+    expect(applyResult.warmed).toEqual([
+      {
+        name: "demo",
+        ok: true,
+        toolCount: 1
+      }
+    ]);
+    expect(registry.listAccessibleTools({ agentId: "main" })).toHaveLength(1);
+
+    currentConfig = prevConfig;
+    const removeResult = await registry.reconcileConfig({
+      prevConfig: nextConfig,
+      nextConfig: prevConfig
+    });
+    expect(removeResult.removed).toEqual(["demo"]);
+    expect(registry.listAccessibleTools({ agentId: "main" })).toHaveLength(0);
 
     await registry.close();
   });

@@ -27,6 +27,7 @@ import { UiNcpRuntimeRegistry } from "./ui-ncp-runtime-registry.js";
 
 export type UiNcpAgentHandle = UiNcpAgent & {
   applyExtensionRegistry?: (extensionRegistry?: NextclawExtensionRegistry) => void;
+  applyMcpConfig?: (config: Config) => Promise<void>;
 };
 
 type MessageToolHintsResolver = (params: {
@@ -81,11 +82,12 @@ export async function createUiNcpAgent(params: {
 }): Promise<UiNcpAgentHandle> {
   const sessionStore = new NextclawAgentSessionStore(params.sessionManager);
   const runtimeRegistry = new UiNcpRuntimeRegistry();
+  let currentMcpConfig = params.getConfig();
   const mcpLifecycleManager = new McpServerLifecycleManager({
-    getConfig: params.getConfig,
+    getConfig: () => currentMcpConfig,
   });
   const mcpRegistryService = new McpRegistryService({
-    getConfig: params.getConfig,
+    getConfig: () => currentMcpConfig,
     lifecycleManager: mcpLifecycleManager,
   });
   const mcpPrewarmResults = await mcpRegistryService.prewarmEnabledServers();
@@ -206,6 +208,20 @@ export async function createUiNcpAgent(params: {
     applyExtensionRegistry: (extensionRegistry) => {
       activeExtensionRegistry = extensionRegistry;
       syncPluginRuntimeRegistrations(extensionRegistry);
+    },
+    applyMcpConfig: async (config) => {
+      const previousConfig = currentMcpConfig;
+      currentMcpConfig = config;
+      const reconcileResult = await mcpRegistryService.reconcileConfig({
+        prevConfig: previousConfig,
+        nextConfig: config,
+      });
+
+      for (const warmResult of reconcileResult.warmed) {
+        if (!warmResult.ok) {
+          console.warn(`[mcp] Failed to warm ${warmResult.name}: ${warmResult.error}`);
+        }
+      }
     },
   };
 }

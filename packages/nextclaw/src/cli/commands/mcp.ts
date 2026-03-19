@@ -1,6 +1,6 @@
 import { loadConfig, saveConfig, type McpServerDefinition } from "@nextclaw/core";
 import { McpDoctorService, McpRegistryService, normalizeMcpServerName } from "@nextclaw/mcp";
-import type { McpAddCommandOptions, McpDoctorOptions, McpListOptions, RequestRestartParams } from "../types.js";
+import type { McpAddCommandOptions, McpDoctorOptions, McpListOptions } from "../types.js";
 
 function normalizeOptionalString(value: unknown): string | undefined {
   if (typeof value !== "string") {
@@ -127,12 +127,6 @@ function buildMcpServerDefinition(command: string[], opts: McpAddCommandOptions)
 }
 
 export class McpCommands {
-  constructor(
-    private readonly deps: {
-      requestRestart: (params: RequestRestartParams) => Promise<void>;
-    }
-  ) {}
-
   mcpList(opts: McpListOptions = {}): void {
     const registry = new McpRegistryService({
       getConfig: () => loadConfig()
@@ -168,12 +162,12 @@ export class McpCommands {
     const normalizedName = normalizeMcpServerName(name);
     const config = loadConfig();
     if (config.mcp.servers[normalizedName]) {
-      throw new Error(`MCP server already exists: ${normalizedName}`);
+      reportUserInputIssue(`MCP server already exists: ${normalizedName}. Use 'mcp list' or remove it first.`);
+      return;
     }
 
     config.mcp.servers[normalizedName] = buildMcpServerDefinition(command, opts);
     saveConfig(config);
-    await this.requestRestart(`mcp.add ${normalizedName}`);
     console.log(`Added MCP server ${normalizedName}.`);
   }
 
@@ -181,11 +175,11 @@ export class McpCommands {
     const normalizedName = normalizeMcpServerName(name);
     const config = loadConfig();
     if (!config.mcp.servers[normalizedName]) {
-      throw new Error(`Unknown MCP server: ${normalizedName}`);
+      reportUserInputIssue(`Unknown MCP server: ${normalizedName}`);
+      return;
     }
     delete config.mcp.servers[normalizedName];
     saveConfig(config);
-    await this.requestRestart(`mcp.remove ${normalizedName}`);
     console.log(`Removed MCP server ${normalizedName}.`);
   }
 
@@ -235,19 +229,16 @@ export class McpCommands {
     const config = loadConfig();
     const current = config.mcp.servers[normalizedName];
     if (!current) {
-      throw new Error(`Unknown MCP server: ${normalizedName}`);
+      reportUserInputIssue(`Unknown MCP server: ${normalizedName}`);
+      return;
     }
     current.enabled = enabled;
     saveConfig(config);
-    await this.requestRestart(`mcp.${enabled ? "enable" : "disable"} ${normalizedName}`);
     console.log(`${enabled ? "Enabled" : "Disabled"} MCP server ${normalizedName}.`);
   }
+}
 
-  private async requestRestart(reason: string): Promise<void> {
-    await this.deps.requestRestart({
-      reason,
-      manualMessage: "MCP servers changed. Restart the gateway to apply.",
-      strategy: "background-service-or-manual"
-    });
-  }
+function reportUserInputIssue(message: string): void {
+  console.error(message);
+  process.exitCode = 1;
 }

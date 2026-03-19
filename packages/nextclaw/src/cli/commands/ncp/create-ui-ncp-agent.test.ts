@@ -1,5 +1,5 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -14,6 +14,10 @@ import { loadPluginRegistry, toExtensionRegistry, type NextclawExtensionRegistry
 import { createUiNcpAgent } from "./create-ui-ncp-agent.js";
 
 const tempDirs: string[] = [];
+const mcpFixturePath = resolve(
+  import.meta.dirname,
+  "../../../../../nextclaw-mcp/tests/fixtures/mock-mcp-server.mjs",
+);
 
 function createTempWorkspace(): string {
   const dir = mkdtempSync(join(tmpdir(), "nextclaw-ncp-native-"));
@@ -248,6 +252,72 @@ describe("createUiNcpAgent", () => {
       options: [{ value: "native", label: "Native" }],
     });
   });
+
+});
+
+describe("createUiNcpAgent MCP hot reload", () => {
+  it("hot reloads MCP tools into the native runtime without restart", async () => {
+    const workspace = createTempWorkspace();
+    let config = ConfigSchema.parse({
+      agents: {
+        defaults: {
+          workspace,
+          model: "default-model",
+          contextTokens: 200000,
+          maxToolIterations: 8,
+        },
+      },
+      mcp: {
+        servers: {},
+      },
+    });
+    const providerManager = new McpAwareProviderManager();
+    const ncpAgent = await createUiNcpAgent({
+      bus: new MessageBus(),
+      providerManager: providerManager as unknown as ProviderManager,
+      sessionManager: new SessionManager(workspace),
+      getConfig: () => config,
+    });
+
+    const nextConfig = ConfigSchema.parse({
+      ...config,
+      mcp: {
+        servers: {
+          demo: {
+            enabled: true,
+            transport: {
+              type: "stdio",
+              command: process.execPath,
+              args: [mcpFixturePath, "stdio"],
+              stderr: "pipe",
+            },
+          },
+        },
+      },
+    });
+
+    config = nextConfig;
+    await ncpAgent.applyMcpConfig?.(nextConfig);
+
+    const runEvents = await sendAndCollectEvents(
+      ncpAgent.agentClientEndpoint,
+      createEnvelope({
+        sessionId: "session-mcp-hot-reload",
+        text: "use the hot reloaded MCP tool",
+      }),
+    );
+
+    expect(runEvents.map((event) => event.type)).toContain(NcpEventType.MessageToolCallStart);
+    expect(runEvents.map((event) => event.type)).toContain(NcpEventType.MessageToolCallResult);
+    expect(runEvents.at(-1)?.type).toBe(NcpEventType.RunFinished);
+    expect(providerManager.calls[0]?.toolNames).toContain("mcp_demo__echo");
+    expect(
+      providerManager.calls[1]?.messages.some(
+        (message) =>
+          message.role === "tool" && String(message.content ?? "").includes("echo:ok"),
+      ),
+    ).toBe(true);
+  });
 });
 
 type RecordedCall = {
@@ -299,6 +369,63 @@ class RecordingProviderManager {
       type: "done",
       response: {
         content: "final answer",
+        toolCalls: [],
+        finishReason: "stop",
+        usage: {},
+      },
+    };
+  }
+}
+
+class McpAwareProviderManager {
+  readonly calls: Array<{ messages: Array<Record<string, unknown>>; toolNames: string[] }> = [];
+
+  get() {
+    return {
+      getDefaultModel: () => "default-model",
+    };
+  }
+
+  async *chatStream(params: {
+    messages: Array<Record<string, unknown>>;
+    tools?: Array<Record<string, unknown>>;
+  }): AsyncGenerator<LLMStreamEvent> {
+    const toolNames = (params.tools ?? [])
+      .map((tool) => {
+        const fn = tool.function as { name?: string } | undefined;
+        return fn?.name ?? "";
+      })
+      .filter(Boolean);
+
+    this.calls.push({
+      messages: structuredClone(params.messages),
+      toolNames,
+    });
+
+    const hasToolResult = params.messages.some((message) => message.role === "tool");
+    if (!hasToolResult) {
+      yield {
+        type: "done",
+        response: {
+          content: "",
+          toolCalls: [
+            {
+              id: "call-mcp-1",
+              name: "mcp_demo__echo",
+              arguments: {},
+            },
+          ],
+          finishReason: "tool_calls",
+          usage: {},
+        },
+      };
+      return;
+    }
+
+    yield {
+      type: "done",
+      response: {
+        content: "mcp hot reload worked",
         toolCalls: [],
         finishReason: "stop",
         usage: {},

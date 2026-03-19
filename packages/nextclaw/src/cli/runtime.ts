@@ -117,9 +117,7 @@ export class CliRuntime {
     this.configCommands = new ConfigCommands({
       requestRestart: (params) => this.requestRestart(params),
     });
-    this.mcpCommands = new McpCommands({
-      requestRestart: (params) => this.requestRestart(params),
-    });
+    this.mcpCommands = new McpCommands();
     this.secretsCommands = new SecretsCommands({
       requestRestart: (params) => this.requestRestart(params),
     });

@@ -34,6 +34,15 @@ export type McpDoctorReport = {
   error?: string;
 };
 
+export type McpConfigReconcileResult = {
+  added: string[];
+  removed: string[];
+  enabled: string[];
+  disabled: string[];
+  restarted: string[];
+  warmed: McpServerWarmResult[];
+};
+
 export type McpCatalogFilter = {
   agentId?: string;
 };

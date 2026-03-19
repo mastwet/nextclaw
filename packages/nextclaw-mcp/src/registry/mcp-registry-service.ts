@@ -1,8 +1,9 @@
-import type { Config } from "@nextclaw/core";
+import type { Config, McpServerDefinition } from "@nextclaw/core";
 import { getMcpServer, listMcpServers } from "../config/mcp-config-normalizer.js";
 import { McpServerLifecycleManager } from "../lifecycle/mcp-server-lifecycle-manager.js";
 import {
   isServerAccessibleToAgent,
+  type McpConfigReconcileResult,
   type McpCatalogFilter,
   type McpServerRecord,
   type McpServerWarmResult,
@@ -79,6 +80,67 @@ export class McpRegistryService {
     }
   }
 
+  async reconcileConfig(params: {
+    prevConfig: Config;
+    nextConfig: Config;
+  }): Promise<McpConfigReconcileResult> {
+    const previousServers = new Map(listMcpServers(params.prevConfig).map((record) => [record.name, record]));
+    const nextServers = new Map(listMcpServers(params.nextConfig).map((record) => [record.name, record]));
+    const serverNames = Array.from(new Set([...previousServers.keys(), ...nextServers.keys()])).sort((left, right) =>
+      left.localeCompare(right)
+    );
+
+    const result: McpConfigReconcileResult = {
+      added: [],
+      removed: [],
+      enabled: [],
+      disabled: [],
+      restarted: [],
+      warmed: []
+    };
+
+    for (const serverName of serverNames) {
+      const previous = previousServers.get(serverName);
+      const next = nextServers.get(serverName);
+
+      if (!next) {
+        await this.lifecycleManager.closeServer(serverName);
+        result.removed.push(serverName);
+        continue;
+      }
+
+      if (!previous) {
+        result.added.push(serverName);
+        if (next.definition.enabled) {
+          result.warmed.push(await this.warmRecord(next));
+        }
+        continue;
+      }
+
+      if (previous.definition.enabled && !next.definition.enabled) {
+        await this.lifecycleManager.closeServer(serverName);
+        result.disabled.push(serverName);
+        continue;
+      }
+
+      if (!previous.definition.enabled && next.definition.enabled) {
+        result.enabled.push(serverName);
+        result.warmed.push(await this.warmRecord(next));
+        continue;
+      }
+
+      if (hasReconnectRelevantChange(previous.definition, next.definition)) {
+        await this.lifecycleManager.closeServer(serverName);
+        result.restarted.push(serverName);
+        if (next.definition.enabled) {
+          result.warmed.push(await this.warmRecord(next));
+        }
+      }
+    }
+
+    return result;
+  }
+
   listAccessibleTools(filter: McpCatalogFilter = {}): McpToolCatalogEntry[] {
     const config = this.options.getConfig();
     return this.listServers()
@@ -109,8 +171,30 @@ export class McpRegistryService {
   async close(): Promise<void> {
     await this.lifecycleManager.closeAll();
   }
+
+  private async warmRecord(record: McpServerRecord): Promise<McpServerWarmResult> {
+    try {
+      const state = await this.lifecycleManager.warmServer(record);
+      return {
+        name: record.name,
+        ok: true,
+        toolCount: state.tools.length
+      };
+    } catch (error) {
+      return {
+        name: record.name,
+        ok: false,
+        toolCount: 0,
+        error: toErrorMessage(error)
+      };
+    }
+  }
 }
 
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function hasReconnectRelevantChange(left: McpServerDefinition, right: McpServerDefinition): boolean {
+  return JSON.stringify(left.transport) !== JSON.stringify(right.transport);
 }

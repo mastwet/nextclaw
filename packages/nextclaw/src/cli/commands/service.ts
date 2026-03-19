@@ -109,14 +109,8 @@ function createSkillsLoader(workspace: string): SkillsLoaderInstance | null {
 
 export class ServiceCommands {
   private applyLiveConfigReload: (() => Promise<void>) | null = null;
-
   private liveUiNcpAgent: UiNcpAgentHandle | null = null;
-
-  constructor(
-    private deps: {
-      requestRestart: (params: RequestRestartParams) => Promise<void>;
-    }
-  ) {}
+  constructor(private deps: { requestRestart: (params: RequestRestartParams) => Promise<void> }) {}
 
   async startGateway(
     options: { uiOverrides?: Partial<Config["ui"]>; allowMissingProvider?: boolean; uiStaticDir?: string | null } = {}
@@ -252,6 +246,7 @@ export class ServiceCommands {
       }
       return { restartChannels: result.restartChannels };
     });
+    reloader.setReloadMcp(async ({ config: nextConfig }) => { await this.liveUiNcpAgent?.applyMcpConfig?.(nextConfig); });
 
     let pluginChannelBindings = getPluginChannelBindings(pluginRegistry);
     setPluginRuntimeBridge({
@@ -380,27 +375,7 @@ export class ServiceCommands {
     }
     console.log("✓ Heartbeat: every 30m");
 
-    const configPath = resolve(getConfigPath());
-    const watcher = chokidar.watch(configPath, {
-      ignoreInitial: true,
-      awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 }
-    });
-    watcher.on("all", (event, changedPath) => {
-      if (resolve(changedPath) !== configPath) {
-        return;
-      }
-      if (event === "add") {
-        reloader.scheduleReload("config add");
-        return;
-      }
-      if (event === "change") {
-        reloader.scheduleReload("config change");
-        return;
-      }
-      if (event === "unlink") {
-        reloader.scheduleReload("config unlink");
-      }
-    });
+    this.watchConfigFile(reloader);
 
     await cron.start();
     await heartbeat.start();
@@ -430,6 +405,30 @@ export class ServiceCommands {
     }
     const trimmed = value.trim();
     return trimmed || undefined;
+  }
+
+  private watchConfigFile(reloader: ConfigReloader): void {
+    const configPath = resolve(getConfigPath());
+    const watcher = chokidar.watch(configPath, {
+      ignoreInitial: true,
+      awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 }
+    });
+    watcher.on("all", (event, changedPath) => {
+      if (resolve(changedPath) !== configPath) {
+        return;
+      }
+      if (event === "add") {
+        reloader.scheduleReload("config add");
+        return;
+      }
+      if (event === "change") {
+        reloader.scheduleReload("config change");
+        return;
+      }
+      if (event === "unlink") {
+        reloader.scheduleReload("config unlink");
+      }
+    });
   }
 
   private resolveMostRecentRoutableSessionKey(sessionManager: SessionManager): string | undefined {

@@ -30,6 +30,7 @@ export class ConfigReloader {
       loadConfig: () => Config;
       getExtensionChannels?: () => ExtensionRegistry["channels"];
       applyAgentRuntimeConfig?: (config: Config) => void;
+      reloadMcp?: (params: { config: Config; changedPaths: string[] }) => Promise<void> | void;
       reloadPlugins?: (params: { config: Config; changedPaths: string[] }) => Promise<{ restartChannels?: boolean } | void> | { restartChannels?: boolean } | void;
       onRestartRequired: (paths: string[]) => void;
     }
@@ -54,6 +55,14 @@ export class ConfigReloader {
     this.options.reloadPlugins = callback;
   }
 
+  setReloadMcp(
+    callback:
+      | ((params: { config: Config; changedPaths: string[] }) => Promise<void> | void)
+      | undefined
+  ): void {
+    this.options.reloadMcp = callback;
+  }
+
   async applyReloadPlan(nextConfig: Config): Promise<void> {
     const changedPaths = diffConfigPaths(this.currentConfig, nextConfig);
     if (!changedPaths.length) {
@@ -70,6 +79,13 @@ export class ConfigReloader {
         changedPaths
       });
       console.log("Config reload: plugins reloaded.");
+    }
+    if (plan.reloadMcp) {
+      await this.reloadMcp({
+        config: nextConfig,
+        changedPaths
+      });
+      console.log("Config reload: MCP servers reloaded.");
     }
     if (plan.restartChannels || reloadPluginsResult?.restartChannels) {
       await this.reloadChannels(nextConfig);
@@ -180,5 +196,15 @@ export class ConfigReloader {
       return;
     }
     return await this.options.reloadPlugins(params);
+  }
+
+  private async reloadMcp(params: {
+    config: Config;
+    changedPaths: string[];
+  }): Promise<void> {
+    if (!this.options.reloadMcp) {
+      return;
+    }
+    await this.options.reloadMcp(params);
   }
 }

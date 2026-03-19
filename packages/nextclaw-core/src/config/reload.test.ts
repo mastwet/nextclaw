@@ -7,4 +7,10 @@ describe("buildReloadPlan", () => {
     expect(plan.reloadPlugins).toBe(true);
     expect(plan.restartChannels).toBe(false);
   });
+
+  it("reloads MCP changes without marking restart required", () => {
+    const plan = buildReloadPlan(["mcp.servers.chrome-devtools.enabled"]);
+    expect(plan.reloadMcp).toBe(true);
+    expect(plan.restartRequired).toEqual([]);
+  });
 });

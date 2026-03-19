@@ -1,5 +1,18 @@
 # nextclaw
 
+## 0.12.3
+
+### Patch Changes
+
+- Deliver live MCP hotplug updates for add, remove, enable, disable, and doctor flows without restart, and improve duplicate add feedback to avoid stack traces.
+- Updated dependencies
+  - @nextclaw/core@0.9.2
+  - @nextclaw/mcp@0.1.1
+  - @nextclaw/openclaw-compat@0.3.4
+  - @nextclaw/runtime@0.2.2
+  - @nextclaw/server@0.9.3
+  - @nextclaw/ncp-mcp@0.1.1
+
 ## 0.12.2
 
 ### Patch Changes

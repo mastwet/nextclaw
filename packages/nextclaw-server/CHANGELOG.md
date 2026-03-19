@@ -1,5 +1,14 @@
 # nextclaw-server
 
+## 0.9.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/core@0.9.2
+  - @nextclaw/openclaw-compat@0.3.4
+  - @nextclaw/runtime@0.2.2
+
 ## 0.9.2
 
 ### Patch Changes

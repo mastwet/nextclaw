@@ -59,6 +59,30 @@ export class McpServerLifecycleManager {
     this.readyConnections.clear();
   }
 
+  async closeServer(serverName: string): Promise<void> {
+    const ready = this.readyConnections.get(serverName);
+    this.readyConnections.delete(serverName);
+
+    const pending = this.pendingConnections.get(serverName);
+    this.pendingConnections.delete(serverName);
+
+    if (ready) {
+      await ready.transport.close().catch(() => {});
+    }
+
+    if (!pending) {
+      return;
+    }
+
+    const result = await Promise.allSettled([pending]);
+    const settled = result[0];
+    if (settled?.status === "fulfilled") {
+      await settled.value.transport.close().catch(() => {});
+    }
+    this.readyConnections.delete(serverName);
+    this.pendingConnections.delete(serverName);
+  }
+
   private async ensureConnection(record: McpServerRecord): Promise<ActiveConnection> {
     const ready = this.readyConnections.get(record.name);
     if (ready) {
