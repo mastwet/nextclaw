@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Config } from "@nextclaw/core";
 
 type WorkspacePluginPackage = {
@@ -25,6 +26,19 @@ const readString = (value: unknown): string | undefined => {
   }
   const trimmed = value.trim();
   return trimmed || undefined;
+};
+
+export const resolveDevFirstPartyPluginDir = (
+  explicitDir: string | undefined,
+  moduleDir = path.dirname(fileURLToPath(import.meta.url)),
+): string | undefined => {
+  const configured = explicitDir?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  const inferred = path.resolve(moduleDir, "../../../../extensions");
+  return fs.existsSync(inferred) ? inferred : undefined;
 };
 
 const hasOpenClawExtensions = (pkg: Record<string, unknown>): boolean => {
@@ -85,7 +99,7 @@ export const resolveDevFirstPartyPluginLoadPaths = (
   config: Config,
   workspaceExtensionsDir: string | undefined,
 ): string[] => {
-  const rootDir = workspaceExtensionsDir?.trim();
+  const rootDir = resolveDevFirstPartyPluginDir(workspaceExtensionsDir);
   if (!rootDir) {
     return [];
   }
@@ -118,7 +132,7 @@ export const resolveDevFirstPartyPluginInstallRoots = (
   config: Config,
   workspaceExtensionsDir: string | undefined,
 ): string[] => {
-  const rootDir = workspaceExtensionsDir?.trim();
+  const rootDir = resolveDevFirstPartyPluginDir(workspaceExtensionsDir);
   if (!rootDir) {
     return [];
   }

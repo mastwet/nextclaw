@@ -33,6 +33,115 @@ import {
   verifyPassword
 } from "../utils/platform-utils";
 
+async function ensureIpLoginRateLimit(params: {
+  c: Context<{ Bindings: Env }>;
+  clientIp: string | null;
+  now: Date;
+}): Promise<Response | null> {
+  if (!params.clientIp) {
+    return null;
+  }
+
+  const failedCountByIp = await countRecentFailedLoginsByIp(
+    params.c.env.NEXTCLAW_PLATFORM_DB,
+    params.clientIp,
+    new Date(params.now.getTime() - IP_FAILED_ATTEMPT_WINDOW_MINUTES * 60_000).toISOString(),
+  );
+  if (failedCountByIp < MAX_FAILED_LOGIN_ATTEMPTS_PER_IP_WINDOW) {
+    return null;
+  }
+
+  return apiError(
+    params.c,
+    429,
+    "TOO_MANY_ATTEMPTS",
+    "Too many failed login attempts from this IP. Please retry later.",
+  );
+}
+
+async function ensureLoginUnlocked(params: {
+  c: Context<{ Bindings: Env }>;
+  user: Awaited<ReturnType<typeof getUserByEmail>>;
+  email: string;
+  clientIp: string | null;
+  now: Date;
+  nowIso: string;
+}): Promise<Response | null> {
+  if (!params.user) {
+    return null;
+  }
+
+  const security = await ensureUserSecurityRow(params.c.env.NEXTCLAW_PLATFORM_DB, params.user.id, params.nowIso);
+  const lockedUntil = parseIsoDate(security.login_locked_until);
+  if (lockedUntil && lockedUntil.getTime() > params.now.getTime()) {
+    await appendLoginAttempt(params.c.env.NEXTCLAW_PLATFORM_DB, {
+      email: params.email,
+      ip: params.clientIp,
+      success: false,
+      reason: "locked",
+      createdAt: params.nowIso,
+    });
+    return apiError(
+      params.c,
+      423,
+      "ACCOUNT_LOCKED",
+      `Account is temporarily locked until ${lockedUntil.toISOString()}.`,
+    );
+  }
+
+  if (lockedUntil) {
+    await resetUserLoginSecurity(params.c.env.NEXTCLAW_PLATFORM_DB, params.user.id, params.nowIso);
+  }
+  return null;
+}
+
+async function handleInvalidLogin(params: {
+  c: Context<{ Bindings: Env }>;
+  user: Awaited<ReturnType<typeof getUserByEmail>>;
+  email: string;
+  clientIp: string | null;
+  nowIso: string;
+}): Promise<Response> {
+  await appendLoginAttempt(params.c.env.NEXTCLAW_PLATFORM_DB, {
+    email: params.email,
+    ip: params.clientIp,
+    success: false,
+    reason: "invalid_credentials",
+    createdAt: params.nowIso,
+  });
+
+  if (!params.user) {
+    return apiError(params.c, 401, "INVALID_CREDENTIALS", "Invalid email or password.");
+  }
+
+  const lockState = await registerUserLoginFailure(
+    params.c.env.NEXTCLAW_PLATFORM_DB,
+    params.user.id,
+    params.nowIso,
+    MAX_FAILED_LOGIN_ATTEMPTS_PER_USER,
+    ACCOUNT_LOCK_MINUTES,
+  );
+  if (lockState.lockedUntil) {
+    await appendAuditLog(params.c.env.NEXTCLAW_PLATFORM_DB, {
+      actorUserId: params.user.id,
+      action: "auth.login.locked",
+      targetType: "user",
+      targetId: params.user.id,
+      beforeJson: null,
+      afterJson: JSON.stringify({ lockedUntil: lockState.lockedUntil }),
+      metadataJson: JSON.stringify({ email: params.email, ip: params.clientIp }),
+    });
+    return apiError(
+      params.c,
+      423,
+      "ACCOUNT_LOCKED",
+      `Account is temporarily locked until ${lockState.lockedUntil}.`,
+    );
+  }
+
+  return apiError(params.c, 401, "INVALID_CREDENTIALS", "Invalid email or password.");
+}
+
 export async function registerHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
   await ensurePlatformBootstrap(c.env);
 
@@ -102,15 +211,9 @@ export async function loginHandler(c: Context<{ Bindings: Env }>): Promise<Respo
   const nowIso = now.toISOString();
   const clientIp = readClientIp(c.req.header("cf-connecting-ip"), c.req.header("x-forwarded-for"));
 
-  if (clientIp) {
-    const failedCountByIp = await countRecentFailedLoginsByIp(
-      c.env.NEXTCLAW_PLATFORM_DB,
-      clientIp,
-      new Date(now.getTime() - IP_FAILED_ATTEMPT_WINDOW_MINUTES * 60_000).toISOString()
-    );
-    if (failedCountByIp >= MAX_FAILED_LOGIN_ATTEMPTS_PER_IP_WINDOW) {
-      return apiError(c, 429, "TOO_MANY_ATTEMPTS", "Too many failed login attempts from this IP. Please retry later.");
-    }
+  const ipRateLimitError = await ensureIpLoginRateLimit({ c, clientIp, now });
+  if (ipRateLimitError) {
+    return ipRateLimitError;
   }
 
   if (!email || !password) {
@@ -118,57 +221,29 @@ export async function loginHandler(c: Context<{ Bindings: Env }>): Promise<Respo
   }
 
   const user = await getUserByEmail(c.env.NEXTCLAW_PLATFORM_DB, email);
-  if (user) {
-    const security = await ensureUserSecurityRow(c.env.NEXTCLAW_PLATFORM_DB, user.id, nowIso);
-    const lockedUntil = parseIsoDate(security.login_locked_until);
-    if (lockedUntil && lockedUntil.getTime() > now.getTime()) {
-      await appendLoginAttempt(c.env.NEXTCLAW_PLATFORM_DB, {
-        email,
-        ip: clientIp,
-        success: false,
-        reason: "locked",
-        createdAt: nowIso
-      });
-      return apiError(c, 423, "ACCOUNT_LOCKED", `Account is temporarily locked until ${lockedUntil.toISOString()}.`);
-    }
-    if (lockedUntil && lockedUntil.getTime() <= now.getTime()) {
-      await resetUserLoginSecurity(c.env.NEXTCLAW_PLATFORM_DB, user.id, nowIso);
-    }
+  const lockedError = await ensureLoginUnlocked({
+    c,
+    user,
+    email,
+    clientIp,
+    now,
+    nowIso,
+  });
+  if (lockedError) {
+    return lockedError;
   }
 
   const valid = user
     ? await verifyPassword(password, user.password_salt, user.password_hash)
     : false;
   if (!valid) {
-    await appendLoginAttempt(c.env.NEXTCLAW_PLATFORM_DB, {
+    return await handleInvalidLogin({
+      c,
+      user,
       email,
-      ip: clientIp,
-      success: false,
-      reason: "invalid_credentials",
-      createdAt: nowIso
+      clientIp,
+      nowIso,
     });
-    if (user) {
-      const lockState = await registerUserLoginFailure(
-        c.env.NEXTCLAW_PLATFORM_DB,
-        user.id,
-        nowIso,
-        MAX_FAILED_LOGIN_ATTEMPTS_PER_USER,
-        ACCOUNT_LOCK_MINUTES
-      );
-      if (lockState.lockedUntil) {
-        await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
-          actorUserId: user.id,
-          action: "auth.login.locked",
-          targetType: "user",
-          targetId: user.id,
-          beforeJson: null,
-          afterJson: JSON.stringify({ lockedUntil: lockState.lockedUntil }),
-          metadataJson: JSON.stringify({ email, ip: clientIp })
-        });
-        return apiError(c, 423, "ACCOUNT_LOCKED", `Account is temporarily locked until ${lockState.lockedUntil}.`);
-      }
-    }
-    return apiError(c, 401, "INVALID_CREDENTIALS", "Invalid email or password.");
   }
 
   await appendLoginAttempt(c.env.NEXTCLAW_PLATFORM_DB, {

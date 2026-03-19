@@ -132,28 +132,9 @@ export async function chargeFromStream(params: {
     }
 
     buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line.startsWith("data:")) {
-        continue;
-      }
-      const data = line.slice("data:".length).trim();
-      if (data.length === 0 || data === "[DONE]") {
-        continue;
-      }
-
-      try {
-        const chunk = JSON.parse(data) as Record<string, unknown>;
-        if (isRecord(chunk.usage)) {
-          usage = extractUsageCounters(chunk, usage ?? params.fallback);
-        }
-      } catch {
-        // ignore malformed chunk
-      }
-    }
+    const nextChunk = readStreamUsageChunk(buffer, usage ?? params.fallback);
+    buffer = nextChunk.buffer;
+    usage = nextChunk.usage;
   }
 
   const settledUsage = usage ?? params.fallback;
@@ -173,59 +154,23 @@ export async function chargeUsage(
   const db = env.NEXTCLAW_PLATFORM_DB;
   const existingLedger = await getLedgerByRequestId(db, userId, requestId);
   if (existingLedger) {
-    return {
-      ok: true,
-      split: {
-        totalCostUsd: roundUsd(Math.abs(existingLedger.amount_usd)),
-        freePartUsd: roundUsd(existingLedger.free_amount_usd),
-        paidPartUsd: roundUsd(existingLedger.paid_amount_usd)
-      },
-      snapshot: (await readBillingSnapshot(db, userId)) ?? buildEmptyBillingSnapshot(userId)
-    };
+    return await buildExistingLedgerChargeResult(db, userId, existingLedger);
   }
 
   const totalCostUsd = roundUsd(calculateCost(modelSpec, usage) + getRequestFlatUsdPerRequest(env));
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const snapshot = await readBillingSnapshot(db, userId);
-    if (!snapshot) {
-      return buildInsufficientQuotaResult(userId);
-    }
-
-    const split = computeChargeSplit(snapshot, totalCostUsd);
-    if (!split) {
-      return {
-        ok: false,
-        reason: "insufficient_quota",
-        snapshot
-      };
-    }
-
-    const now = new Date().toISOString();
-    const userReserved = await reserveUserQuota(db, userId, split, now);
-    if (!userReserved) {
+    const attemptResult = await tryChargeUsageAttempt({
+      db,
+      userId,
+      modelSpec,
+      usage,
+      requestId,
+      totalCostUsd,
+    });
+    if (attemptResult === "retry") {
       continue;
     }
-
-    if (split.freePartUsd > 0) {
-      const globalReserved = await reserveGlobalFreeQuota(db, split.freePartUsd, snapshot.globalFreeLimitUsd, now);
-      if (!globalReserved) {
-        await rollbackUserQuota(db, userId, split, now);
-        continue;
-      }
-    }
-
-    const ledgerWritten = await writeUsageLedger(db, userId, split, modelSpec, usage, requestId);
-    if (!ledgerWritten) {
-      await rollbackUserQuota(db, userId, split, now);
-      await rollbackGlobalFreeQuota(db, split.freePartUsd, now);
-      continue;
-    }
-
-    return {
-      ok: true,
-      split,
-      snapshot
-    };
+    return attemptResult;
   }
 
   const snapshot = await readBillingSnapshot(db, userId);
@@ -237,6 +182,127 @@ export async function chargeUsage(
     ok: false,
     reason: "insufficient_quota",
     snapshot
+  };
+}
+
+async function buildExistingLedgerChargeResult(
+  db: D1Database,
+  userId: string,
+  existingLedger: NonNullable<Awaited<ReturnType<typeof getLedgerByRequestId>>>,
+): Promise<ChargeResult> {
+  return {
+    ok: true,
+    split: {
+      totalCostUsd: roundUsd(Math.abs(existingLedger.amount_usd)),
+      freePartUsd: roundUsd(existingLedger.free_amount_usd),
+      paidPartUsd: roundUsd(existingLedger.paid_amount_usd),
+    },
+    snapshot: (await readBillingSnapshot(db, userId)) ?? buildEmptyBillingSnapshot(userId),
+  };
+}
+
+function readStreamUsageChunk(
+  buffer: string,
+  fallback: UsageCounters,
+): {
+  buffer: string;
+  usage: UsageCounters | null;
+} {
+  const lines = buffer.split("\n");
+  const rest = lines.pop() ?? "";
+  let usage: UsageCounters | null = null;
+
+  for (const rawLine of lines) {
+    const nextUsage = extractUsageFromSseLine(rawLine, usage ?? fallback);
+    if (nextUsage) {
+      usage = nextUsage;
+    }
+  }
+
+  return {
+    buffer: rest,
+    usage,
+  };
+}
+
+function extractUsageFromSseLine(line: string, fallback: UsageCounters): UsageCounters | null {
+  const trimmedLine = line.trim();
+  if (!trimmedLine.startsWith("data:")) {
+    return null;
+  }
+
+  const data = trimmedLine.slice("data:".length).trim();
+  if (data.length === 0 || data === "[DONE]") {
+    return null;
+  }
+
+  try {
+    const chunk = JSON.parse(data) as Record<string, unknown>;
+    return isRecord(chunk.usage) ? extractUsageCounters(chunk, fallback) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function tryChargeUsageAttempt(params: {
+  db: D1Database;
+  userId: string;
+  modelSpec: SupportedModelSpec;
+  usage: UsageCounters;
+  requestId: string;
+  totalCostUsd: number;
+}): Promise<ChargeResult | "retry"> {
+  const snapshot = await readBillingSnapshot(params.db, params.userId);
+  if (!snapshot) {
+    return buildInsufficientQuotaResult(params.userId);
+  }
+
+  const split = computeChargeSplit(snapshot, params.totalCostUsd);
+  if (!split) {
+    return {
+      ok: false,
+      reason: "insufficient_quota",
+      snapshot,
+    };
+  }
+
+  const now = new Date().toISOString();
+  const userReserved = await reserveUserQuota(params.db, params.userId, split, now);
+  if (!userReserved) {
+    return "retry";
+  }
+
+  if (split.freePartUsd > 0) {
+    const globalReserved = await reserveGlobalFreeQuota(
+      params.db,
+      split.freePartUsd,
+      snapshot.globalFreeLimitUsd,
+      now,
+    );
+    if (!globalReserved) {
+      await rollbackUserQuota(params.db, params.userId, split, now);
+      return "retry";
+    }
+  }
+
+  const ledgerWritten = await writeUsageLedger(
+    params.db,
+    params.userId,
+    split,
+    params.modelSpec,
+    params.usage,
+    params.requestId,
+  );
+  if (!ledgerWritten) {
+    await rollbackUserQuota(params.db, params.userId, split, now);
+    await rollbackGlobalFreeQuota(params.db, split.freePartUsd, now);
+    return "retry";
+  }
+
+  return {
+    ok: true,
+    split,
+    snapshot,
   };
 }
 

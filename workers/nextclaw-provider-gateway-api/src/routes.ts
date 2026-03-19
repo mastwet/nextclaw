@@ -6,14 +6,16 @@ import {
   adminRechargeIntentsHandler,
   adminUsersHandler,
   adminModelsHandler,
-  confirmRechargeIntentHandler,
   createAdminProviderHandler,
   patchAdminSettingsHandler,
   patchAdminProviderHandler,
   patchAdminUserHandler,
-  putAdminModelHandler,
-  rejectRechargeIntentHandler
+  putAdminModelHandler
 } from "./controllers/admin-controller";
+import {
+  confirmRechargeIntentHandler,
+  rejectRechargeIntentHandler
+} from "./controllers/admin-recharge-controller";
 import { loginHandler, meHandler, registerHandler } from "./controllers/auth-controller";
 import {
   billingLedgerHandler,

@@ -23,6 +23,235 @@ import {
   estimateUsage
 } from "../utils/platform-utils";
 
+type ChatRequestParseResult =
+  | { ok: true; body: ChatCompletionRequest }
+  | { ok: false; response: Response };
+
+type RuntimeModelResolutionResult =
+  | { ok: true; requestedModel: string; resolvedModelSpec: RuntimeModelSpec }
+  | { ok: false; response: Response };
+
+function parseChatCompletionRequest(
+  c: Context<{ Bindings: Env }>,
+  body: ChatCompletionRequest | null,
+): ChatRequestParseResult {
+  if (!body) {
+    return {
+      ok: false,
+      response: openaiError(c, 400, "Invalid JSON payload.", "invalid_request_error"),
+    };
+  }
+  if (typeof body.model !== "string" || body.model.trim().length === 0) {
+    return {
+      ok: false,
+      response: openaiError(c, 400, "model is required.", "invalid_request_error"),
+    };
+  }
+  if (!Array.isArray(body.messages) || body.messages.length === 0) {
+    return {
+      ok: false,
+      response: openaiError(c, 400, "messages must be a non-empty array.", "invalid_request_error"),
+    };
+  }
+  return { ok: true, body };
+}
+
+async function resolveRequestedRuntimeModel(params: {
+  c: Context<{ Bindings: Env }>;
+  body: ChatCompletionRequest;
+}): Promise<RuntimeModelResolutionResult> {
+  const requestedModel = params.body.model.trim();
+  const runtimeModelSpecs = await resolveRuntimeModelSpecs(params.c.env);
+  const runtimeModelMap = new Map(runtimeModelSpecs.map((model) => [model.id, model]));
+  const runtimeModelSpec = runtimeModelMap.get(requestedModel);
+  const fallbackModelSpec = MODEL_MAP.get(requestedModel);
+  if (!runtimeModelSpec && !fallbackModelSpec) {
+    return {
+      ok: false,
+      response: openaiError(
+        params.c,
+        400,
+        `Model '${requestedModel}' is not available in NextClaw catalog.`,
+        "model_not_found",
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    requestedModel,
+    resolvedModelSpec: runtimeModelSpec ?? toStaticRuntimeModelSpec(fallbackModelSpec!, params.c.env),
+  };
+}
+
+async function readChatCompletionBody(c: Context<{ Bindings: Env }>): Promise<ChatCompletionRequest | null> {
+  try {
+    return await c.req.json<ChatCompletionRequest>();
+  } catch {
+    return null;
+  }
+}
+
+async function createUpstreamChatResponse(params: {
+  body: ChatCompletionRequest;
+  modelSpec: RuntimeModelSpec;
+}): Promise<Response> {
+  const upstreamUrl = new URL("chat/completions", withTrailingSlash(params.modelSpec.apiBase)).toString();
+  const upstreamPayload: Record<string, unknown> = {
+    ...params.body,
+    model: params.modelSpec.upstreamModel,
+  };
+
+  return await fetch(upstreamUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${params.modelSpec.accessToken.trim()}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(upstreamPayload),
+  });
+}
+
+function buildRequestId(c: Context<{ Bindings: Env }>, userId: string): string {
+  const idempotencyKey = normalizeIdempotencyKey(c.req.header("x-idempotency-key"));
+  return idempotencyKey ? `chat:${userId}:${idempotencyKey}` : crypto.randomUUID();
+}
+
+async function appendChatProfitLedger(params: {
+  db: D1Database;
+  requestId: string;
+  userId: string;
+  modelSpec: RuntimeModelSpec;
+  chargeUsd: number;
+  usage: { promptTokens: number; completionTokens: number };
+}): Promise<void> {
+  const upstreamCostUsd = calculateUpstreamCostUsd(params.usage, params.modelSpec);
+  await appendProfitLedger(params.db, {
+    requestId: params.requestId,
+    userId: params.userId,
+    publicModelId: params.modelSpec.id,
+    providerAccountId: params.modelSpec.providerAccountId,
+    upstreamModel: params.modelSpec.upstreamModel,
+    chargeUsd: params.chargeUsd,
+    upstreamCostUsd,
+    grossMarginUsd: roundUsd(params.chargeUsd - upstreamCostUsd),
+  });
+}
+
+function buildEstimatedCharge(params: {
+  env: Env;
+  body: ChatCompletionRequest;
+  modelSpec: RuntimeModelSpec;
+}): {
+  usageEstimate: ReturnType<typeof estimateUsage>;
+  estimatedCost: number;
+} {
+  const usageEstimate = estimateUsage(params.body.messages, resolveMaxCompletionTokens(params.body));
+  const estimatedCost =
+    calculateUsageUsd(
+      usageEstimate,
+      params.modelSpec.sellInputUsdPer1M,
+      params.modelSpec.sellOutputUsdPer1M,
+    ) + getRequestFlatUsdPerRequest(params.env);
+
+  return {
+    usageEstimate,
+    estimatedCost,
+  };
+}
+
+async function handleStreamingChatCompletion(params: {
+  c: Context<{ Bindings: Env }>;
+  authUserId: string;
+  modelSpec: RuntimeModelSpec;
+  upstreamResponse: Response;
+  usageEstimate: ReturnType<typeof estimateUsage>;
+  requestId: string;
+  billingModelSpec: SupportedModelSpec;
+}): Promise<Response> {
+  const [clientStream, billingStream] = params.upstreamResponse.body!.tee();
+  if (params.upstreamResponse.ok) {
+    params.c.executionCtx.waitUntil(
+      chargeFromStream({
+        env: params.c.env,
+        userId: params.authUserId,
+        modelSpec: params.billingModelSpec,
+        stream: billingStream,
+        fallback: params.usageEstimate,
+        requestId: params.requestId,
+        onSettled: async ({ usage, result }) => {
+          if (!result.ok) {
+            return;
+          }
+          await appendChatProfitLedger({
+            db: params.c.env.NEXTCLAW_PLATFORM_DB,
+            requestId: params.requestId,
+            userId: params.authUserId,
+            modelSpec: params.modelSpec,
+            chargeUsd: result.split.totalCostUsd,
+            usage,
+          });
+        },
+      }),
+    );
+  }
+
+  return new Response(clientStream, {
+    status: params.upstreamResponse.status,
+    headers: sanitizeResponseHeaders(params.upstreamResponse.headers),
+  });
+}
+
+async function handleNonStreamingChatCompletion(params: {
+  c: Context<{ Bindings: Env }>;
+  authUserId: string;
+  requestedModel: string;
+  modelSpec: RuntimeModelSpec;
+  upstreamResponse: Response;
+  usageEstimate: ReturnType<typeof estimateUsage>;
+  requestId: string;
+  billingModelSpec: SupportedModelSpec;
+}): Promise<Response> {
+  const rawText = await params.upstreamResponse.text();
+  if (!params.upstreamResponse.ok) {
+    return new Response(rawText, {
+      status: params.upstreamResponse.status,
+      headers: sanitizeResponseHeaders(params.upstreamResponse.headers),
+    });
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(rawText) as Record<string, unknown>;
+  } catch {
+    return openaiError(params.c, 502, "Upstream returned invalid JSON.", "upstream_invalid_response");
+  }
+
+  const usage = extractUsageCounters(parsed, params.usageEstimate);
+  const charged = await chargeUsage(
+    params.c.env,
+    params.authUserId,
+    params.billingModelSpec,
+    usage,
+    params.requestId,
+  );
+  if (!charged.ok) {
+    return insufficientQuotaSettlementResponse(params.c);
+  }
+
+  await appendChatProfitLedger({
+    db: params.c.env.NEXTCLAW_PLATFORM_DB,
+    requestId: params.requestId,
+    userId: params.authUserId,
+    modelSpec: params.modelSpec,
+    chargeUsd: charged.split.totalCostUsd,
+    usage,
+  });
+
+  parsed.model = params.requestedModel;
+  return params.c.json(parsed);
+}
+
 export async function healthHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
   await ensurePlatformBootstrap(c.env);
   return c.json({
@@ -87,42 +316,27 @@ export async function chatCompletionsHandler(c: Context<{ Bindings: Env }>): Pro
     return auth.response;
   }
 
-  let body: ChatCompletionRequest;
-  try {
-    body = await c.req.json<ChatCompletionRequest>();
-  } catch {
-    return openaiError(c, 400, "Invalid JSON payload.", "invalid_request_error");
+  const parsedBody = parseChatCompletionRequest(c, await readChatCompletionBody(c));
+  if (!parsedBody.ok) {
+    return parsedBody.response;
   }
+  const body = parsedBody.body;
 
-  if (typeof body.model !== "string" || body.model.trim().length === 0) {
-    return openaiError(c, 400, "model is required.", "invalid_request_error");
+  const modelResolution = await resolveRequestedRuntimeModel({ c, body });
+  if (!modelResolution.ok) {
+    return modelResolution.response;
   }
-  if (!Array.isArray(body.messages) || body.messages.length === 0) {
-    return openaiError(c, 400, "messages must be a non-empty array.", "invalid_request_error");
-  }
-
-  const requestedModel = body.model.trim();
-  const runtimeModelSpecs = await resolveRuntimeModelSpecs(c.env);
-  const runtimeModelMap = new Map(runtimeModelSpecs.map((model) => [model.id, model]));
-  const runtimeModelSpec = runtimeModelMap.get(requestedModel);
-  const fallbackModelSpec = MODEL_MAP.get(requestedModel);
-  if (!runtimeModelSpec && !fallbackModelSpec) {
-    return openaiError(
-      c,
-      400,
-      `Model '${requestedModel}' is not available in NextClaw catalog.`,
-      "model_not_found"
-    );
-  }
-  const resolvedModelSpec = runtimeModelSpec ?? toStaticRuntimeModelSpec(fallbackModelSpec!, c.env);
+  const { requestedModel, resolvedModelSpec } = modelResolution;
 
   if (!resolvedModelSpec.accessToken || resolvedModelSpec.accessToken.trim().length === 0) {
     return openaiError(c, 503, "Upstream provider is not configured.", "service_unavailable");
   }
 
-  const usageEstimate = estimateUsage(body.messages, resolveMaxCompletionTokens(body));
-  const estimatedCost = calculateUsageUsd(usageEstimate, resolvedModelSpec.sellInputUsdPer1M, resolvedModelSpec.sellOutputUsdPer1M) +
-    getRequestFlatUsdPerRequest(c.env);
+  const { usageEstimate, estimatedCost } = buildEstimatedCharge({
+    env: c.env,
+    body,
+    modelSpec: resolvedModelSpec,
+  });
 
   const precheckSnapshot = await readBillingSnapshot(c.env.NEXTCLAW_PLATFORM_DB, auth.user.id);
   if (!precheckSnapshot) {
@@ -134,100 +348,36 @@ export async function chatCompletionsHandler(c: Context<{ Bindings: Env }>): Pro
     return insufficientQuotaPrecheckResponse(c, precheckSnapshot);
   }
 
-  const upstreamUrl = new URL("chat/completions", withTrailingSlash(resolvedModelSpec.apiBase)).toString();
-  const upstreamPayload: Record<string, unknown> = {
-    ...body,
-    model: resolvedModelSpec.upstreamModel
-  };
-
-  const upstreamResponse = await fetch(upstreamUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resolvedModelSpec.accessToken.trim()}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(upstreamPayload)
+  const upstreamResponse = await createUpstreamChatResponse({
+    body,
+    modelSpec: resolvedModelSpec,
   });
-
-  const idempotencyKey = normalizeIdempotencyKey(c.req.header("x-idempotency-key"));
-  const requestId = idempotencyKey
-    ? `chat:${auth.user.id}:${idempotencyKey}`
-    : crypto.randomUUID();
+  const requestId = buildRequestId(c, auth.user.id);
 
   const billingModelSpec = toBillingModelSpec(resolvedModelSpec);
 
   if (body.stream === true && upstreamResponse.body) {
-    const [clientStream, billingStream] = upstreamResponse.body.tee();
-    if (upstreamResponse.ok) {
-      c.executionCtx.waitUntil(
-        chargeFromStream({
-          env: c.env,
-          userId: auth.user.id,
-          modelSpec: billingModelSpec,
-          stream: billingStream,
-          fallback: usageEstimate,
-          requestId,
-          onSettled: async ({ usage, result }) => {
-            if (!result.ok) {
-              return;
-            }
-            await appendProfitLedger(c.env.NEXTCLAW_PLATFORM_DB, {
-              requestId,
-              userId: auth.user.id,
-              publicModelId: resolvedModelSpec.id,
-              providerAccountId: resolvedModelSpec.providerAccountId,
-              upstreamModel: resolvedModelSpec.upstreamModel,
-              chargeUsd: result.split.totalCostUsd,
-              upstreamCostUsd: calculateUpstreamCostUsd(usage, resolvedModelSpec),
-              grossMarginUsd: roundUsd(
-                result.split.totalCostUsd - calculateUpstreamCostUsd(usage, resolvedModelSpec)
-              )
-            });
-          }
-        })
-      );
-    }
-    return new Response(clientStream, {
-      status: upstreamResponse.status,
-      headers: sanitizeResponseHeaders(upstreamResponse.headers)
+    return await handleStreamingChatCompletion({
+      c,
+      authUserId: auth.user.id,
+      modelSpec: resolvedModelSpec,
+      upstreamResponse,
+      usageEstimate,
+      requestId,
+      billingModelSpec,
     });
   }
 
-  const rawText = await upstreamResponse.text();
-  if (!upstreamResponse.ok) {
-    return new Response(rawText, {
-      status: upstreamResponse.status,
-      headers: sanitizeResponseHeaders(upstreamResponse.headers)
-    });
-  }
-
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(rawText) as Record<string, unknown>;
-  } catch {
-    return openaiError(c, 502, "Upstream returned invalid JSON.", "upstream_invalid_response");
-  }
-
-  const usage = extractUsageCounters(parsed, usageEstimate);
-  const charged = await chargeUsage(c.env, auth.user.id, billingModelSpec, usage, requestId);
-  if (!charged.ok) {
-    return insufficientQuotaSettlementResponse(c);
-  }
-
-  const upstreamCostUsd = calculateUpstreamCostUsd(usage, resolvedModelSpec);
-  await appendProfitLedger(c.env.NEXTCLAW_PLATFORM_DB, {
+  return await handleNonStreamingChatCompletion({
+    c,
+    authUserId: auth.user.id,
+    requestedModel,
+    modelSpec: resolvedModelSpec,
+    upstreamResponse,
+    usageEstimate,
     requestId,
-    userId: auth.user.id,
-    publicModelId: resolvedModelSpec.id,
-    providerAccountId: resolvedModelSpec.providerAccountId,
-    upstreamModel: resolvedModelSpec.upstreamModel,
-    chargeUsd: charged.split.totalCostUsd,
-    upstreamCostUsd,
-    grossMarginUsd: roundUsd(charged.split.totalCostUsd - upstreamCostUsd)
+    billingModelSpec,
   });
-
-  parsed.model = requestedModel;
-  return c.json(parsed);
 }
 
 function calculateUsageUsd(usage: { promptTokens: number; completionTokens: number }, inputUsdPer1M: number, outputUsdPer1M: number): number {

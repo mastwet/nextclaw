@@ -11,6 +11,7 @@ import {
 } from "./plugin-command-utils.js";
 import {
   applyDevFirstPartyPluginLoadPaths,
+  resolveDevFirstPartyPluginDir,
   resolveDevFirstPartyPluginInstallRoots,
 } from "./dev-first-party-plugin-load-paths.js";
 import {
@@ -34,13 +35,10 @@ import {
   type PluginUninstallMutationResult,
   uninstallPluginMutation,
 } from "./plugin-mutation-actions.js";
-export {
-  type NextclawExtensionRegistry,
-  toExtensionRegistry,
-} from "./plugin-extension-registry.js";
+export { type NextclawExtensionRegistry, toExtensionRegistry } from "./plugin-extension-registry.js";
 
 export function loadPluginRegistry(config: Config, workspaceDir: string): PluginRegistry {
-  const workspaceExtensionsDir = process.env.NEXTCLAW_DEV_FIRST_PARTY_PLUGIN_DIR;
+  const workspaceExtensionsDir = resolveDevFirstPartyPluginDir(process.env.NEXTCLAW_DEV_FIRST_PARTY_PLUGIN_DIR);
   const configWithDevPluginPaths = applyDevFirstPartyPluginLoadPaths(
     config,
     workspaceExtensionsDir,

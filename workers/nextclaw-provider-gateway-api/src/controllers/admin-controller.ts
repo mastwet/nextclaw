@@ -2,11 +2,9 @@ import type { Context } from "hono";
 import type { Env, RechargeIntentRow, UserRow } from "../types/platform";
 import {
   appendAuditLog,
-  appendLedger,
   createProviderAccount,
   countRechargeIntentsByStatus,
   countUsers,
-  getRechargeIntentById,
   getProviderAccountById,
   getUserById,
   listModelCatalog,
@@ -21,6 +19,14 @@ import {
   upsertModelCatalog,
   writePlatformNumberSetting
 } from "../repositories/platform-repository";
+import {
+  applyUserBalanceDelta,
+  parseAdminModelUpsertInput,
+  parseAdminProviderCreateInput,
+  updateUserFreeLimit,
+  validateAdminModelUpsertInput,
+  validateAdminProviderCreateInput
+} from "./admin-controller-support";
 import { ensurePlatformBootstrap, requireAdminUser } from "../services/platform-service";
 import {
   apiError,
@@ -82,45 +88,22 @@ export async function createAdminProviderHandler(c: Context<{ Bindings: Env }>):
     return admin.response;
   }
 
-  const body = await readJson(c);
-  const providerRaw = readUnknown(body, "provider");
-  const authTypeRaw = readUnknown(body, "authType");
-  const apiBaseRaw = readUnknown(body, "apiBase");
-  const accessTokenRaw = readUnknown(body, "accessToken");
-  const displayNameRaw = readUnknown(body, "displayName");
-  const enabledRaw = readUnknown(body, "enabled");
-  const priorityRaw = readUnknown(body, "priority");
-
-  const provider = typeof providerRaw === "string" ? providerRaw.trim() : "";
-  const authType = authTypeRaw === "api_key" ? "api_key" : "oauth";
-  const apiBase = typeof apiBaseRaw === "string" ? apiBaseRaw.trim() : "";
-  const accessToken = typeof accessTokenRaw === "string" ? accessTokenRaw.trim() : "";
-  const displayName = typeof displayNameRaw === "string" ? displayNameRaw.trim() : "";
-  const enabled = typeof enabledRaw === "boolean" ? enabledRaw : true;
-  const priority = typeof priorityRaw === "number" && Number.isFinite(priorityRaw)
-    ? Math.max(0, Math.floor(priorityRaw))
-    : 100;
-
-  if (!provider) {
-    return apiError(c, 400, "INVALID_PROVIDER", "provider is required.");
-  }
-  if (!apiBase) {
-    return apiError(c, 400, "INVALID_API_BASE", "apiBase is required.");
-  }
-  if (!accessToken) {
-    return apiError(c, 400, "INVALID_ACCESS_TOKEN", "accessToken is required.");
+  const input = parseAdminProviderCreateInput(await readJson(c));
+  const validationError = validateAdminProviderCreateInput(input);
+  if (validationError) {
+    return apiError(c, 400, validationError.code, validationError.message);
   }
 
   const providerId = crypto.randomUUID();
   await createProviderAccount(c.env.NEXTCLAW_PLATFORM_DB, {
     id: providerId,
-    provider,
-    displayName: displayName.length > 0 ? displayName : null,
-    authType,
-    apiBase,
-    accessToken,
-    enabled,
-    priority
+    provider: input.provider,
+    displayName: input.displayName.length > 0 ? input.displayName : null,
+    authType: input.authType,
+    apiBase: input.apiBase,
+    accessToken: input.accessToken,
+    enabled: input.enabled,
+    priority: input.priority
   });
 
   const created = await getProviderAccountById(c.env.NEXTCLAW_PLATFORM_DB, providerId);
@@ -131,12 +114,12 @@ export async function createAdminProviderHandler(c: Context<{ Bindings: Env }>):
   await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
     actorUserId: admin.user.id,
     action: "admin.provider.create",
-    targetType: "provider_account",
-    targetId: providerId,
-    beforeJson: null,
-    afterJson: JSON.stringify(toProviderAccountView(created)),
-    metadataJson: JSON.stringify({ provider, authType })
-  });
+      targetType: "provider_account",
+      targetId: providerId,
+      beforeJson: null,
+      afterJson: JSON.stringify(toProviderAccountView(created)),
+      metadataJson: JSON.stringify({ provider: input.provider, authType: input.authType })
+    });
 
   return c.json({
     ok: true,
@@ -237,51 +220,27 @@ export async function putAdminModelHandler(c: Context<{ Bindings: Env }>): Promi
     return apiError(c, 400, "INVALID_MODEL_ID", "publicModelId is required.");
   }
 
-  const body = await readJson(c);
-  const providerAccountIdRaw = readUnknown(body, "providerAccountId");
-  const upstreamModelRaw = readUnknown(body, "upstreamModel");
-  const displayNameRaw = readUnknown(body, "displayName");
-  const enabledRaw = readUnknown(body, "enabled");
-  const sellInputRaw = readUnknown(body, "sellInputUsdPer1M");
-  const sellOutputRaw = readUnknown(body, "sellOutputUsdPer1M");
-  const upstreamInputRaw = readUnknown(body, "upstreamInputUsdPer1M");
-  const upstreamOutputRaw = readUnknown(body, "upstreamOutputUsdPer1M");
-
-  const providerAccountId = typeof providerAccountIdRaw === "string" ? providerAccountIdRaw.trim() : "";
-  const upstreamModel = typeof upstreamModelRaw === "string" ? upstreamModelRaw.trim() : "";
-  const displayName = typeof displayNameRaw === "string" ? displayNameRaw.trim() : "";
-  const enabled = typeof enabledRaw === "boolean" ? enabledRaw : true;
-  const sellInputUsdPer1M = typeof sellInputRaw === "number" && Number.isFinite(sellInputRaw) ? roundUsd(Math.max(0, sellInputRaw)) : Number.NaN;
-  const sellOutputUsdPer1M = typeof sellOutputRaw === "number" && Number.isFinite(sellOutputRaw) ? roundUsd(Math.max(0, sellOutputRaw)) : Number.NaN;
-  const upstreamInputUsdPer1M = typeof upstreamInputRaw === "number" && Number.isFinite(upstreamInputRaw) ? roundUsd(Math.max(0, upstreamInputRaw)) : Number.NaN;
-  const upstreamOutputUsdPer1M = typeof upstreamOutputRaw === "number" && Number.isFinite(upstreamOutputRaw) ? roundUsd(Math.max(0, upstreamOutputRaw)) : Number.NaN;
-
-  if (!providerAccountId) {
-    return apiError(c, 400, "INVALID_PROVIDER_ACCOUNT", "providerAccountId is required.");
-  }
-  if (!upstreamModel) {
-    return apiError(c, 400, "INVALID_UPSTREAM_MODEL", "upstreamModel is required.");
-  }
-  if (!Number.isFinite(sellInputUsdPer1M) || !Number.isFinite(sellOutputUsdPer1M) ||
-    !Number.isFinite(upstreamInputUsdPer1M) || !Number.isFinite(upstreamOutputUsdPer1M)) {
-    return apiError(c, 400, "INVALID_PRICING", "sell/upstream input and output prices must be non-negative numbers.");
+  const input = parseAdminModelUpsertInput(await readJson(c));
+  const validationError = validateAdminModelUpsertInput(input);
+  if (validationError) {
+    return apiError(c, 400, validationError.code, validationError.message);
   }
 
-  const provider = await getProviderAccountById(c.env.NEXTCLAW_PLATFORM_DB, providerAccountId);
+  const provider = await getProviderAccountById(c.env.NEXTCLAW_PLATFORM_DB, input.providerAccountId);
   if (!provider) {
     return apiError(c, 404, "PROVIDER_NOT_FOUND", "providerAccountId does not exist.");
   }
 
   await upsertModelCatalog(c.env.NEXTCLAW_PLATFORM_DB, {
     publicModelId,
-    providerAccountId,
-    upstreamModel,
-    displayName: displayName.length > 0 ? displayName : null,
-    enabled,
-    sellInputUsdPer1M,
-    sellOutputUsdPer1M,
-    upstreamInputUsdPer1M,
-    upstreamOutputUsdPer1M
+    providerAccountId: input.providerAccountId,
+    upstreamModel: input.upstreamModel,
+    displayName: input.displayName.length > 0 ? input.displayName : null,
+    enabled: input.enabled,
+    sellInputUsdPer1M: input.sellInputUsdPer1M,
+    sellOutputUsdPer1M: input.sellOutputUsdPer1M,
+    upstreamInputUsdPer1M: input.upstreamInputUsdPer1M,
+    upstreamOutputUsdPer1M: input.upstreamOutputUsdPer1M
   });
 
   const current = await listModelCatalog(c.env.NEXTCLAW_PLATFORM_DB);
@@ -293,12 +252,15 @@ export async function putAdminModelHandler(c: Context<{ Bindings: Env }>): Promi
   await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
     actorUserId: admin.user.id,
     action: "admin.model.upsert",
-    targetType: "model_catalog",
-    targetId: publicModelId,
-    beforeJson: null,
-    afterJson: JSON.stringify(toModelCatalogView(model)),
-    metadataJson: JSON.stringify({ providerAccountId, upstreamModel })
-  });
+      targetType: "model_catalog",
+      targetId: publicModelId,
+      beforeJson: null,
+      afterJson: JSON.stringify(toModelCatalogView(model)),
+      metadataJson: JSON.stringify({
+        providerAccountId: input.providerAccountId,
+        upstreamModel: input.upstreamModel,
+      })
+    });
 
   return c.json({
     ok: true,
@@ -403,67 +365,23 @@ export async function patchAdminUserHandler(c: Context<{ Bindings: Env }>): Prom
   const now = new Date().toISOString();
 
   if (typeof freeLimitUsdRaw === "number" && Number.isFinite(freeLimitUsdRaw) && freeLimitUsdRaw >= 0) {
-    const nextFreeLimitUsd = roundUsd(freeLimitUsdRaw);
-    const changedFree = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-      "UPDATE users SET free_limit_usd = ?, updated_at = ? WHERE id = ?"
-    )
-      .bind(nextFreeLimitUsd, now, userId)
-      .run();
-    if (changedFree.success && (changedFree.meta.changes ?? 0) > 0) {
-      changed = true;
-    }
+    changed =
+      (await updateUserFreeLimit({
+        db: c.env.NEXTCLAW_PLATFORM_DB,
+        userId,
+        nextFreeLimitUsd: roundUsd(freeLimitUsdRaw),
+        now,
+      })) || changed;
   }
 
   if (typeof paidBalanceDeltaUsdRaw === "number" && Number.isFinite(paidBalanceDeltaUsdRaw) && paidBalanceDeltaUsdRaw !== 0) {
-    const delta = roundUsd(paidBalanceDeltaUsdRaw);
-    if (delta > 0) {
-      const changedBalance = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-        "UPDATE users SET paid_balance_usd = paid_balance_usd + ?, updated_at = ? WHERE id = ?"
-      )
-        .bind(delta, now, userId)
-        .run();
-      if (changedBalance.success && (changedBalance.meta.changes ?? 0) > 0) {
-        changed = true;
-        await appendLedger(c.env.NEXTCLAW_PLATFORM_DB, {
-          id: crypto.randomUUID(),
-          userId,
-          kind: "admin_adjust",
-          amountUsd: roundUsd(delta),
-          freeAmountUsd: 0,
-          paidAmountUsd: roundUsd(delta),
-          model: null,
-          promptTokens: 0,
-          completionTokens: 0,
-          requestId: `admin-adjust:${crypto.randomUUID()}`,
-          note: `Admin recharge +${delta.toFixed(6)} USD`
-        });
-      }
-    }
-
-    if (delta < 0) {
-      const abs = Math.abs(delta);
-      const changedBalance = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-        "UPDATE users SET paid_balance_usd = paid_balance_usd - ?, updated_at = ? WHERE id = ? AND paid_balance_usd >= ?"
-      )
-        .bind(abs, now, userId, abs)
-        .run();
-      if (changedBalance.success && (changedBalance.meta.changes ?? 0) > 0) {
-        changed = true;
-        await appendLedger(c.env.NEXTCLAW_PLATFORM_DB, {
-          id: crypto.randomUUID(),
-          userId,
-          kind: "admin_adjust",
-          amountUsd: -roundUsd(abs),
-          freeAmountUsd: 0,
-          paidAmountUsd: -roundUsd(abs),
-          model: null,
-          promptTokens: 0,
-          completionTokens: 0,
-          requestId: `admin-adjust:${crypto.randomUUID()}`,
-          note: `Admin deduction -${abs.toFixed(6)} USD`
-        });
-      }
-    }
+    changed =
+      (await applyUserBalanceDelta({
+        db: c.env.NEXTCLAW_PLATFORM_DB,
+        userId,
+        deltaUsd: roundUsd(paidBalanceDeltaUsdRaw),
+        now,
+      })) || changed;
   }
 
   const userAfter = await getUserById(c.env.NEXTCLAW_PLATFORM_DB, userId);
@@ -533,165 +451,6 @@ export async function adminRechargeIntentsHandler(c: Context<{ Bindings: Env }>)
       items: pagination.items.map(toRechargeIntentView),
       nextCursor: pagination.nextCursor,
       hasMore: pagination.hasMore
-    }
-  });
-}
-
-export async function confirmRechargeIntentHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
-  await ensurePlatformBootstrap(c.env);
-  const admin = await requireAdminUser(c);
-  if (!admin.ok) {
-    return admin.response;
-  }
-
-  const intentId = c.req.param("intentId");
-  const intent = await getRechargeIntentById(c.env.NEXTCLAW_PLATFORM_DB, intentId);
-  if (!intent) {
-    return apiError(c, 404, "RECHARGE_INTENT_NOT_FOUND", "Recharge intent not found.");
-  }
-  if (intent.status !== "pending") {
-    return apiError(c, 409, "RECHARGE_INTENT_NOT_PENDING", "Recharge intent is not pending.");
-  }
-
-  const now = new Date().toISOString();
-  const markConfirmed = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-    `UPDATE recharge_intents
-        SET status = 'confirmed',
-            confirmed_at = ?,
-            confirmed_by_user_id = ?,
-            updated_at = ?
-      WHERE id = ?`
-  )
-    .bind(now, admin.user.id, now, intentId)
-    .run();
-  if (!markConfirmed.success || (markConfirmed.meta.changes ?? 0) !== 1) {
-    return apiError(c, 500, "RECHARGE_INTENT_CONFIRM_FAILED", "Failed to confirm recharge intent.");
-  }
-
-  const creditUser = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-    `UPDATE users
-        SET paid_balance_usd = paid_balance_usd + ?,
-            updated_at = ?
-      WHERE id = ?`
-  )
-    .bind(intent.amount_usd, now, intent.user_id)
-    .run();
-  if (!creditUser.success || (creditUser.meta.changes ?? 0) !== 1) {
-    await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-      `UPDATE recharge_intents
-          SET status = 'pending',
-              confirmed_at = NULL,
-              confirmed_by_user_id = NULL,
-              updated_at = ?
-        WHERE id = ?`
-    )
-      .bind(now, intentId)
-      .run();
-    return apiError(c, 500, "RECHARGE_APPLY_FAILED", "Recharge intent confirmed but user balance update failed.");
-  }
-
-  try {
-    await appendLedger(c.env.NEXTCLAW_PLATFORM_DB, {
-      id: crypto.randomUUID(),
-      userId: intent.user_id,
-      kind: "recharge",
-      amountUsd: roundUsd(intent.amount_usd),
-      freeAmountUsd: 0,
-      paidAmountUsd: roundUsd(intent.amount_usd),
-      model: null,
-      promptTokens: 0,
-      completionTokens: 0,
-      requestId: `recharge:${intent.id}`,
-      note: `Recharge confirmed by ${admin.user.email}`
-    });
-  } catch {
-    await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-      `UPDATE users
-          SET paid_balance_usd = MAX(0, paid_balance_usd - ?),
-              updated_at = ?
-        WHERE id = ?`
-    )
-      .bind(intent.amount_usd, now, intent.user_id)
-      .run();
-    await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-      `UPDATE recharge_intents
-          SET status = 'pending',
-              confirmed_at = NULL,
-              confirmed_by_user_id = NULL,
-              updated_at = ?
-        WHERE id = ?`
-    )
-      .bind(now, intentId)
-      .run();
-    return apiError(c, 500, "RECHARGE_LEDGER_FAILED", "Recharge applied but ledger write failed, rolled back.");
-  }
-
-  await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
-    actorUserId: admin.user.id,
-    action: "admin.recharge.confirm",
-    targetType: "recharge_intent",
-    targetId: intent.id,
-    beforeJson: JSON.stringify({ status: intent.status }),
-    afterJson: JSON.stringify({ status: "confirmed", confirmedByUserId: admin.user.id, confirmedAt: now }),
-    metadataJson: JSON.stringify({ amountUsd: intent.amount_usd, userId: intent.user_id })
-  });
-
-  return c.json({
-    ok: true,
-    data: {
-      intentId: intent.id,
-      status: "confirmed"
-    }
-  });
-}
-
-export async function rejectRechargeIntentHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
-  await ensurePlatformBootstrap(c.env);
-  const admin = await requireAdminUser(c);
-  if (!admin.ok) {
-    return admin.response;
-  }
-
-  const intentId = c.req.param("intentId");
-  const intent = await getRechargeIntentById(c.env.NEXTCLAW_PLATFORM_DB, intentId);
-  if (!intent) {
-    return apiError(c, 404, "RECHARGE_INTENT_NOT_FOUND", "Recharge intent not found.");
-  }
-  if (intent.status !== "pending") {
-    return apiError(c, 409, "RECHARGE_INTENT_NOT_PENDING", "Recharge intent is not pending.");
-  }
-
-  const now = new Date().toISOString();
-  const markRejected = await c.env.NEXTCLAW_PLATFORM_DB.prepare(
-    `UPDATE recharge_intents
-        SET status = 'rejected',
-            rejected_at = ?,
-            rejected_by_user_id = ?,
-            updated_at = ?
-      WHERE id = ?`
-  )
-    .bind(now, admin.user.id, now, intentId)
-    .run();
-
-  if (!markRejected.success || (markRejected.meta.changes ?? 0) !== 1) {
-    return apiError(c, 500, "RECHARGE_INTENT_REJECT_FAILED", "Failed to reject recharge intent.");
-  }
-
-  await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
-    actorUserId: admin.user.id,
-    action: "admin.recharge.reject",
-    targetType: "recharge_intent",
-    targetId: intent.id,
-    beforeJson: JSON.stringify({ status: intent.status }),
-    afterJson: JSON.stringify({ status: "rejected", rejectedByUserId: admin.user.id, rejectedAt: now }),
-    metadataJson: JSON.stringify({ amountUsd: intent.amount_usd, userId: intent.user_id })
-  });
-
-  return c.json({
-    ok: true,
-    data: {
-      intentId: intent.id,
-      status: "rejected"
     }
   });
 }

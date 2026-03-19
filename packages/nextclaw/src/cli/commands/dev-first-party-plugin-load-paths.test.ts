@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ConfigSchema } from "@nextclaw/core";
 import {
   applyDevFirstPartyPluginLoadPaths,
+  resolveDevFirstPartyPluginDir,
   resolveDevFirstPartyPluginInstallRoots,
   resolveDevFirstPartyPluginLoadPaths,
 } from "./dev-first-party-plugin-load-paths.js";
@@ -42,6 +43,14 @@ afterEach(() => {
 });
 
 describe("resolveDevFirstPartyPluginLoadPaths", () => {
+  it("falls back to repo-local packages/extensions when running from source without env override", () => {
+    const fakeModuleDir = path.join(createTempDir(), "packages", "nextclaw", "src", "cli", "commands");
+    const inferredExtensionsDir = path.resolve(fakeModuleDir, "../../../../extensions");
+    mkdirSync(inferredExtensionsDir, { recursive: true });
+
+    expect(resolveDevFirstPartyPluginDir(undefined, fakeModuleDir)).toBe(inferredExtensionsDir);
+  });
+
   it("maps installed first-party npm plugins to local workspace package dirs", () => {
     const workspaceExtensionsDir = createTempDir();
     writeWorkspacePluginPackage(

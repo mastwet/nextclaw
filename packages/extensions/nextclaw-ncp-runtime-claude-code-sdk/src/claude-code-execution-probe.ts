@@ -106,7 +106,6 @@ export async function probeClaudeCodeSdkExecution(params: {
       includePartialMessages: false,
       maxTurns: 1,
       persistSession: false,
-      maxBudgetUsd: 0.001,
       ...(params.config.baseQueryOptions ?? {}),
     },
   });

@@ -1,5 +1,13 @@
 # nextclaw-server
 
+## 0.10.8
+
+### Patch Changes
+
+- Fix Claude readiness probing so working Anthropic-compatible routes are not marked unavailable by a probe-only USD budget cap, and improve local first-party plugin loading when running NextClaw from source.
+- Updated dependencies
+  - @nextclaw/mcp@0.1.8
+
 ## 0.10.7
 
 ### Patch Changes

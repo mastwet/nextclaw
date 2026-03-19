@@ -1,5 +1,13 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk
 
+## 0.1.6
+
+### Patch Changes
+
+- Fix Claude readiness probing so working Anthropic-compatible routes are not marked unavailable by a probe-only USD budget cap, and improve local first-party plugin loading when running NextClaw from source.
+- Updated dependencies
+  - @nextclaw/nextclaw-ncp-runtime-claude-code-sdk@0.1.2
+
 ## 0.1.5
 
 ### Patch Changes
