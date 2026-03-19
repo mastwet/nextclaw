@@ -5,6 +5,8 @@ import {
   fetchRemoteDoctor,
   loginRemote,
   logoutRemote,
+  pollRemoteBrowserAuth,
+  startRemoteBrowserAuth,
   updateRemoteSettings
 } from '@/api/remote';
 import { t } from '@/lib/i18n';
@@ -30,6 +32,32 @@ export function useRemoteLogin() {
     },
     onError: (error: Error) => {
       toast.error(`${t('remoteLoginFailed')}: ${error.message}`);
+    }
+  });
+}
+
+export function useRemoteBrowserAuthStart() {
+  return useMutation({
+    mutationFn: startRemoteBrowserAuth,
+    onError: (error: Error) => {
+      toast.error(`${t('remoteBrowserAuthStartFailed')}: ${error.message}`);
+    }
+  });
+}
+
+export function useRemoteBrowserAuthPoll() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: pollRemoteBrowserAuth,
+    onSuccess: (result) => {
+      if (result.status === 'authorized') {
+        queryClient.invalidateQueries({ queryKey: ['remote-status'] });
+        toast.success(t('remoteLoginSuccess'));
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`${t('remoteBrowserAuthPollFailed')}: ${error.message}`);
     }
   });
 }

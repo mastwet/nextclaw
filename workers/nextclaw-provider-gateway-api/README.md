@@ -39,8 +39,13 @@ pnpm -C workers/nextclaw-provider-gateway-api dev
 ## 4. 主要接口
 
 ### 用户认证
+- `POST /platform/auth/register`
 - `POST /platform/auth/login`
 - `GET /platform/auth/me`
+- `POST /platform/auth/browser/start`
+- `POST /platform/auth/browser/poll`
+- `GET /platform/auth/browser`
+- `POST /platform/auth/browser/authorize`
 
 ### 用户账单
 - `GET /platform/billing/overview`
@@ -63,7 +68,7 @@ pnpm -C workers/nextclaw-provider-gateway-api dev
 - `POST /v1/chat/completions`
 
 > 注意：
-> - `platform/auth` 不开放自助注册入口，账号需通过管理员/数据库预先创建。
+> - `platform/auth/browser/*` 为本地 NextClaw Remote Access 提供浏览器授权页，支持网页登录或网页注册后再把 token 回传给本地设备。
 > - `/v1/*` 的 `Authorization: Bearer <token>` 必须是登录 token，不再支持匿名体验 key。
 > - 登录接口具备基础防暴力破解能力：IP 失败限流 + 账号失败锁定。
 

@@ -1,5 +1,11 @@
 import type { Hono } from "hono";
 import {
+  authorizeBrowserAuthHandler,
+  browserAuthPageHandler,
+  pollBrowserAuthHandler,
+  startBrowserAuthHandler
+} from "./controllers/auth-browser-controller";
+import {
   adminOverviewHandler,
   adminProfitOverviewHandler,
   adminProvidersHandler,
@@ -33,6 +39,24 @@ import {
 } from "./controllers/remote-controller";
 import type { Env } from "./types/platform";
 
+function registerPlatformAuthRoutes(app: Hono<{ Bindings: Env }>): void {
+  app.post("/platform/auth/register", registerHandler);
+  app.post("/platform/auth/login", loginHandler);
+  app.get("/platform/auth/me", meHandler);
+  app.post("/platform/auth/browser/start", startBrowserAuthHandler);
+  app.post("/platform/auth/browser/poll", pollBrowserAuthHandler);
+  app.get("/platform/auth/browser", browserAuthPageHandler);
+  app.post("/platform/auth/browser/authorize", authorizeBrowserAuthHandler);
+}
+
+function registerRemoteAccessRoutes(app: Hono<{ Bindings: Env }>): void {
+  app.get("/platform/remote/devices", listRemoteDevicesHandler);
+  app.post("/platform/remote/devices/register", registerRemoteDeviceHandler);
+  app.post("/platform/remote/devices/:deviceId/open", openRemoteDeviceHandler);
+  app.get("/platform/remote/open", openRemoteSessionRedirectHandler);
+  app.get("/platform/remote/connect", remoteConnectorWebSocketHandler);
+}
+
 export function registerRoutes(app: Hono<{ Bindings: Env }>): void {
   app.get("/health", healthHandler);
 
@@ -40,15 +64,8 @@ export function registerRoutes(app: Hono<{ Bindings: Env }>): void {
   app.get("/v1/usage", usageHandler);
   app.post("/v1/chat/completions", chatCompletionsHandler);
 
-  app.post("/platform/auth/register", registerHandler);
-  app.post("/platform/auth/login", loginHandler);
-  app.get("/platform/auth/me", meHandler);
-
-  app.get("/platform/remote/devices", listRemoteDevicesHandler);
-  app.post("/platform/remote/devices/register", registerRemoteDeviceHandler);
-  app.post("/platform/remote/devices/:deviceId/open", openRemoteDeviceHandler);
-  app.get("/platform/remote/open", openRemoteSessionRedirectHandler);
-  app.get("/platform/remote/connect", remoteConnectorWebSocketHandler);
+  registerPlatformAuthRoutes(app);
+  registerRemoteAccessRoutes(app);
 
   app.get("/platform/billing/overview", billingOverviewHandler);
   app.get("/platform/billing/ledger", billingLedgerHandler);

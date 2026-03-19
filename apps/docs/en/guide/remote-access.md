@@ -6,7 +6,7 @@ Remote Access turns the local NextClaw UI into a personal console you can open f
 
 The `Settings -> Remote Access` page now combines:
 
-- platform account login or registration
+- browser-based platform authorization
 - device-level remote settings
 - managed service control
 - remote diagnostics
@@ -17,6 +17,19 @@ That gives you one continuous browser workflow:
 2. Enable remote access and name the device.
 3. Start or restart the managed service.
 4. Run diagnostics and confirm the connector is healthy.
+
+## Browser Authorization Flow
+
+The `Platform Account` card no longer depends on typing email and password into the local NextClaw UI.
+
+Instead, it now uses a portal-style browser authorization flow:
+
+1. Click `Continue in Browser`.
+2. A NextClaw platform page opens in your browser.
+3. Sign in there, or create an account there if needed.
+4. Return to the local UI and let it finish polling automatically.
+
+This matters for the logout case too: after you click `Logout`, you use the same browser authorization entry again. There is no hidden CLI-only recovery path.
 
 ## Why Service Control Is Included
 

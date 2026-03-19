@@ -43,6 +43,10 @@ function normalizeOptionalString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function isPlatformSessionToken(value: string | undefined): boolean {
+  return typeof value === "string" && value.startsWith("nca.");
+}
+
 function resolveConfiguredLocalOrigin(config: Config): string {
   const state = readServiceState();
   if (state && isProcessRunning(state.pid) && Number.isFinite(state.uiPort)) {
@@ -178,8 +182,10 @@ export class RemoteCommands {
       },
       {
         name: "platform-token",
-        ok: Boolean(token),
-        detail: token ? "token configured" : 'run "nextclaw login" first'
+        ok: isPlatformSessionToken(token),
+        detail: isPlatformSessionToken(token)
+          ? "platform session token configured"
+          : 'run remote browser login or "nextclaw login" first'
       },
       {
         name: "platform-api-base",

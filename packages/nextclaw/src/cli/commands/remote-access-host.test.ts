@@ -1,6 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { ConfigSchema, saveConfig } from "@nextclaw/core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as utils from "../utils.js";
 import { RemoteAccessHost } from "./remote-access-host.js";
+
+const originalNextclawHome = process.env.NEXTCLAW_HOME;
 
 function createHost() {
   const serviceCommands = {
@@ -8,25 +14,69 @@ function createHost() {
     stopService: vi.fn().mockResolvedValue(undefined),
     requestManagedServiceRestart: vi.fn().mockResolvedValue(undefined)
   };
+  const remoteCommands = {
+    getStatusView: vi.fn(),
+    updateConfig: vi.fn(),
+    getDoctorView: vi.fn()
+  };
   const host = new RemoteAccessHost({
     serviceCommands: serviceCommands as never,
     requestManagedServiceRestart: serviceCommands.requestManagedServiceRestart,
-    remoteCommands: {
-      getStatusView: vi.fn(),
-      updateConfig: vi.fn(),
-      getDoctorView: vi.fn()
-    } as never,
+    remoteCommands: remoteCommands as never,
     platformAuthCommands: {
       loginResult: vi.fn(),
+      startBrowserAuth: vi.fn(),
+      pollBrowserAuth: vi.fn(),
       logout: vi.fn()
     } as never
   });
-  return { host, serviceCommands };
+  return { host, serviceCommands, remoteCommands };
 }
 
 describe("RemoteAccessHost service control", () => {
+  let tempHome = "";
+
+  beforeEach(() => {
+    tempHome = mkdtempSync(join(tmpdir(), "nextclaw-remote-access-host-test-"));
+    process.env.NEXTCLAW_HOME = tempHome;
+  });
+
   afterEach(() => {
+    if (originalNextclawHome) {
+      process.env.NEXTCLAW_HOME = originalNextclawHome;
+    } else {
+      delete process.env.NEXTCLAW_HOME;
+    }
+    if (tempHome) {
+      rmSync(tempHome, { recursive: true, force: true });
+      tempHome = "";
+    }
     vi.restoreAllMocks();
+  });
+
+  it("does not treat the builtin free key as a logged-in platform session", () => {
+    saveConfig(ConfigSchema.parse({
+      providers: {
+        nextclaw: {
+          apiKey: "nc_free_test_builtin",
+          apiBase: "https://ai-gateway-api.nextclaw.io/v1"
+        }
+      }
+    }));
+    const { host, remoteCommands } = createHost();
+    remoteCommands.getStatusView.mockReturnValue({
+      configuredEnabled: false,
+      runtime: null,
+      localOrigin: "http://127.0.0.1:18791",
+      deviceName: "test-device",
+      platformBase: "https://ai-gateway-api.nextclaw.io/v1"
+    });
+    vi.spyOn(utils, "readServiceState").mockReturnValue(null);
+
+    const status = host.getStatus();
+
+    expect(status.account.loggedIn).toBe(false);
+    expect(status.account.email).toBeUndefined();
   });
 
   it("routes current-process restart through the managed service restart coordinator", async () => {

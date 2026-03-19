@@ -1,5 +1,16 @@
 # nextclaw
 
+## 0.13.10
+
+### Patch Changes
+
+- Add browser-based remote access platform authorization so users can log out and re-authorize from the UI without falling back to CLI password entry.
+- Updated dependencies
+  - @nextclaw/mcp@0.1.10
+  - @nextclaw/server@0.10.10
+  - @nextclaw/ncp-mcp@0.1.10
+  - @nextclaw/remote@0.1.6
+
 ## 0.13.9
 
 ### Patch Changes

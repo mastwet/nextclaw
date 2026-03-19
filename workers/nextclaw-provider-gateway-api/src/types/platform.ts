@@ -155,6 +155,17 @@ export type RemoteSessionView = {
   openUrl: string;
 };
 
+export type PlatformAuthSessionStatus = "pending" | "authorized" | "expired";
+
+export type PlatformAuthSessionRow = {
+  id: string;
+  user_id: string | null;
+  status: PlatformAuthSessionStatus;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ProviderAccountRow = {
   id: string;
   provider: string;
@@ -270,6 +281,8 @@ export const DEFAULT_USER_FREE_USD_LIMIT = 2;
 export const DEFAULT_REQUEST_FLAT_USD_PER_REQUEST = 0.0002;
 export const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
 export const DEFAULT_REMOTE_SESSION_TTL_SECONDS = 60 * 60 * 8;
+export const DEFAULT_PLATFORM_AUTH_SESSION_TTL_SECONDS = 60 * 15;
+export const DEFAULT_PLATFORM_AUTH_POLL_INTERVAL_MS = 1500;
 // Cloudflare workerd currently rejects PBKDF2 iteration counts above 100_000.
 export const PASSWORD_HASH_ITERATIONS = 100_000;
 export const MIN_AUTH_SECRET_LENGTH = 32;

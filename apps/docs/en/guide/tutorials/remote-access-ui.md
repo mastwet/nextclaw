@@ -19,15 +19,17 @@ In the UI, go to:
 
 You will see account, device, service, and diagnostics sections on one page.
 
-## Step 2: Log Into the Platform
+## Step 2: Authorize in Browser
 
 In `Platform Account`:
 
-1. Enter your email
-2. Enter your password
-3. Keep the default API base unless you need a custom one
-4. Enable `Register If Needed` if the account does not exist yet
-5. Click `Login to Platform` or `Create Account & Login`
+1. Keep the current platform API base, or change it in `Device Settings` first if needed
+2. Click `Continue in Browser`
+3. Finish sign-in on the platform page that opens
+4. If the account does not exist yet, switch to account creation on that page
+5. Return to the local UI and wait for automatic completion
+
+If you already logged out before, use the same button again. Re-login is not hidden behind CLI commands anymore.
 
 ## Step 3: Save Device Settings
 

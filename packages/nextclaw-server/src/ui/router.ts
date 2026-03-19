@@ -104,6 +104,8 @@ function registerRemoteRoutes(app: Hono, remoteController: RemoteRoutesControlle
   app.get("/api/remote/status", remoteController.getStatus);
   app.get("/api/remote/doctor", remoteController.getDoctor);
   app.post("/api/remote/login", remoteController.login);
+  app.post("/api/remote/auth/start", remoteController.startBrowserAuth);
+  app.post("/api/remote/auth/poll", remoteController.pollBrowserAuth);
   app.post("/api/remote/logout", remoteController.logout);
   app.put("/api/remote/settings", remoteController.updateSettings);
   app.post("/api/remote/service/:action", remoteController.controlService);

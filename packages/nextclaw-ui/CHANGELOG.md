@@ -1,5 +1,11 @@
 # @nextclaw/ui
 
+## 0.9.4
+
+### Patch Changes
+
+- Add browser-based remote access platform authorization so users can log out and re-authorize from the UI without falling back to CLI password entry.
+
 ## 0.9.3
 
 ### Patch Changes

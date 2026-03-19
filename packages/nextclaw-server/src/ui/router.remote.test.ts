@@ -69,6 +69,17 @@ function createRemoteHost(): UiRemoteAccessHost {
       configuredEnabled: true,
       runtime: null
     })),
+    startBrowserAuth: vi.fn(async () => ({
+      sessionId: "session-123",
+      verificationUri: "https://ai-gateway-api.nextclaw.io/platform/auth/browser?sessionId=session-123",
+      expiresAt: "2026-03-20T01:00:00.000Z",
+      intervalMs: 1500
+    })),
+    pollBrowserAuth: vi.fn(async () => ({
+      status: "authorized" as const,
+      email: "demo@example.com",
+      role: "user"
+    })),
     logout: vi.fn(() => ({
       account: {
         loggedIn: false
@@ -188,6 +199,36 @@ describe("remote access routes", () => {
       password: "password123",
       apiBase: undefined,
       register: true
+    });
+
+    const authStartResponse = await app.request("http://localhost/api/remote/auth/start", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        apiBase: "https://ai-gateway-api.nextclaw.io/v1"
+      })
+    });
+    expect(authStartResponse.status).toBe(200);
+    expect(remoteAccess.startBrowserAuth).toHaveBeenCalledWith({
+      apiBase: "https://ai-gateway-api.nextclaw.io/v1"
+    });
+
+    const authPollResponse = await app.request("http://localhost/api/remote/auth/poll", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        sessionId: "session-123",
+        apiBase: "https://ai-gateway-api.nextclaw.io/v1"
+      })
+    });
+    expect(authPollResponse.status).toBe(200);
+    expect(remoteAccess.pollBrowserAuth).toHaveBeenCalledWith({
+      sessionId: "session-123",
+      apiBase: "https://ai-gateway-api.nextclaw.io/v1"
     });
 
     const settingsResponse = await app.request("http://localhost/api/remote/settings", {

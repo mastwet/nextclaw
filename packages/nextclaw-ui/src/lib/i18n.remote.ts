@@ -49,12 +49,39 @@ export const REMOTE_LABELS: Record<string, { zh: string; en: string }> = {
   },
   remoteAccountTitle: { zh: '平台账号', en: 'Platform Account' },
   remoteAccountDescription: {
-    zh: '在界面内登录或注册 NextClaw 平台账号。',
-    en: 'Log in or register your NextClaw platform account inside the UI.'
+    zh: '通过浏览器授权把当前设备安全连接到 NextClaw 平台。',
+    en: 'Authorize this device in your browser and connect it to the NextClaw platform.'
   },
   remoteAccountEmail: { zh: '邮箱', en: 'Email' },
   remoteAccountRole: { zh: '角色', en: 'Role' },
   remoteApiBase: { zh: 'API Base', en: 'API Base' },
+  remoteBrowserAuthTitle: { zh: '浏览器授权登录', en: 'Browser Authorization' },
+  remoteBrowserAuthDescription: {
+    zh: '点击后会打开平台授权页，在浏览器内登录或注册并授权当前设备。',
+    en: 'Open the platform authorization page in your browser, then sign in or create an account there.'
+  },
+  remoteBrowserAuthAction: { zh: '前往浏览器授权', en: 'Continue in Browser' },
+  remoteBrowserAuthResume: { zh: '重新打开授权页', en: 'Reopen Authorization Page' },
+  remoteBrowserAuthStarting: { zh: '正在创建授权会话...', en: 'Starting authorization...' },
+  remoteBrowserAuthAuthorizing: { zh: '等待浏览器完成授权...', en: 'Waiting for browser authorization...' },
+  remoteBrowserAuthWaiting: {
+    zh: '浏览器授权页已打开。请在网页中完成登录或注册，然后此页面会自动接入。',
+    en: 'The authorization page is open. Complete sign in or registration there and this page will connect automatically.'
+  },
+  remoteBrowserAuthCompleted: { zh: '浏览器授权完成，正在刷新登录状态。', en: 'Authorization completed. Refreshing account status.' },
+  remoteBrowserAuthExpired: { zh: '授权会话已过期，请重新发起。', en: 'Authorization session expired. Start again.' },
+  remoteBrowserAuthPopupBlocked: {
+    zh: '浏览器没有自动打开，请点击“重新打开授权页”。',
+    en: 'Your browser did not open automatically. Use "Reopen Authorization Page".'
+  },
+  remoteBrowserAuthSession: { zh: '授权会话', en: 'Auth Session' },
+  remoteBrowserAuthExpiresAt: { zh: '授权过期时间', en: 'Auth Expires At' },
+  remoteBrowserAuthHint: {
+    zh: '如果你刚修改了上方 Platform API Base，建议先保存设置；未保存时当前页面也会沿用你输入的新地址发起授权。',
+    en: 'If you just changed the Platform API Base above, saving settings is recommended. This page will still use the current value for browser authorization.'
+  },
+  remoteBrowserAuthStartFailed: { zh: '启动浏览器授权失败', en: 'Failed to start browser authorization' },
+  remoteBrowserAuthPollFailed: { zh: '浏览器授权状态检查失败', en: 'Failed to check browser authorization status' },
   remoteEmail: { zh: '邮箱', en: 'Email' },
   remotePassword: { zh: '密码', en: 'Password' },
   remotePasswordPlaceholder: { zh: '请输入你的平台密码', en: 'Enter your platform password' },

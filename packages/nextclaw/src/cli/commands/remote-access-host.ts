@@ -2,6 +2,10 @@ import { getConfigPath, loadConfig } from "@nextclaw/core";
 import type {
   RemoteAccessView,
   RemoteAccountView,
+  RemoteBrowserAuthPollRequest,
+  RemoteBrowserAuthPollResult,
+  RemoteBrowserAuthStartRequest,
+  RemoteBrowserAuthStartResult,
   RemoteDoctorView,
   RemoteRuntimeView,
   RemoteServiceAction,
@@ -42,6 +46,10 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+function isPlatformSessionToken(token: string | null): token is string {
+  return typeof token === "string" && token.startsWith("nca.");
 }
 
 function toRemoteRuntimeView(runtime: ReturnType<RemoteCommands["getStatusView"]>["runtime"]): RemoteRuntimeView | null {
@@ -112,6 +120,37 @@ export class RemoteAccessHost implements UiRemoteAccessHost {
   }): Promise<RemoteAccessView> {
     await this.deps.platformAuthCommands.loginResult(input);
     return this.getStatus();
+  }
+
+  async startBrowserAuth(input: RemoteBrowserAuthStartRequest): Promise<RemoteBrowserAuthStartResult> {
+    const result = await this.deps.platformAuthCommands.startBrowserAuth({
+      apiBase: input.apiBase
+    });
+    return {
+      sessionId: result.sessionId,
+      verificationUri: result.verificationUri,
+      expiresAt: result.expiresAt,
+      intervalMs: result.intervalMs
+    };
+  }
+
+  async pollBrowserAuth(input: RemoteBrowserAuthPollRequest): Promise<RemoteBrowserAuthPollResult> {
+    const config = loadConfig(getConfigPath());
+    const result = await this.deps.platformAuthCommands.pollBrowserAuth({
+      apiBase: normalizeOptionalString(input.apiBase)
+        ?? normalizeOptionalString(config.remote.platformApiBase)
+        ?? normalizeOptionalString(config.providers.nextclaw?.apiBase)
+        ?? undefined,
+      sessionId: input.sessionId
+    });
+    if (result.status !== "authorized") {
+      return result;
+    }
+    return {
+      status: "authorized",
+      email: result.email,
+      role: result.role
+    };
   }
 
   logout(): RemoteAccessView {
@@ -245,7 +284,7 @@ export class RemoteAccessHost implements UiRemoteAccessHost {
     apiBase: string | null;
     platformBase: string | null;
   }): RemoteAccountView {
-    if (!params.token) {
+    if (!isPlatformSessionToken(params.token)) {
       return {
         loggedIn: false,
         apiBase: params.apiBase,

@@ -1,6 +1,10 @@
 import { api } from './client';
 import type {
   RemoteAccessView,
+  RemoteBrowserAuthPollRequest,
+  RemoteBrowserAuthPollResult,
+  RemoteBrowserAuthStartRequest,
+  RemoteBrowserAuthStartResult,
   RemoteDoctorView,
   RemoteLoginRequest,
   RemoteServiceAction,
@@ -26,6 +30,22 @@ export async function fetchRemoteDoctor(): Promise<RemoteDoctorView> {
 
 export async function loginRemote(data: RemoteLoginRequest): Promise<RemoteAccessView> {
   const response = await api.post<RemoteAccessView>('/api/remote/login', data);
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+export async function startRemoteBrowserAuth(data: RemoteBrowserAuthStartRequest): Promise<RemoteBrowserAuthStartResult> {
+  const response = await api.post<RemoteBrowserAuthStartResult>('/api/remote/auth/start', data);
+  if (!response.ok) {
+    throw new Error(response.error.message);
+  }
+  return response.data;
+}
+
+export async function pollRemoteBrowserAuth(data: RemoteBrowserAuthPollRequest): Promise<RemoteBrowserAuthPollResult> {
+  const response = await api.post<RemoteBrowserAuthPollResult>('/api/remote/auth/poll', data);
   if (!response.ok) {
     throw new Error(response.error.message);
   }

@@ -65,6 +65,30 @@ export type RemoteLoginRequest = {
   register?: boolean;
 };
 
+export type RemoteBrowserAuthStartRequest = {
+  apiBase?: string;
+};
+
+export type RemoteBrowserAuthStartResult = {
+  sessionId: string;
+  verificationUri: string;
+  expiresAt: string;
+  intervalMs: number;
+};
+
+export type RemoteBrowserAuthPollRequest = {
+  sessionId: string;
+  apiBase?: string;
+};
+
+export type RemoteBrowserAuthPollResult = {
+  status: "pending" | "authorized" | "expired";
+  message?: string;
+  nextPollMs?: number;
+  email?: string;
+  role?: string;
+};
+
 export type RemoteSettingsUpdateRequest = {
   enabled?: boolean;
   deviceName?: string;

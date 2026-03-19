@@ -21,6 +21,33 @@ export type PlatformLoginResult = {
   v1Base: string;
 };
 
+export type PlatformBrowserAuthStartResult = {
+  sessionId: string;
+  verificationUri: string;
+  expiresAt: string;
+  intervalMs: number;
+  platformBase: string;
+  v1Base: string;
+};
+
+export type PlatformBrowserAuthPollResult =
+  | {
+    status: "pending";
+    nextPollMs: number;
+  }
+  | {
+    status: "authorized";
+    token: string;
+    role: string;
+    email: string;
+    platformBase: string;
+    v1Base: string;
+  }
+  | {
+    status: "expired";
+    message: string;
+  };
+
 function resolveProviderConfig(opts: LoginCommandOptions): {
   configPath: string;
   config: ReturnType<typeof loadConfig>;
@@ -119,6 +146,112 @@ function readLoginPayload(raw: string): { token: string; role: string } {
   return { token, role };
 }
 
+function persistPlatformToken(params: {
+  configPath: string;
+  config: ReturnType<typeof loadConfig>;
+  providers: Record<string, NextclawProviderConfig>;
+  nextclawProvider: NextclawProviderConfig;
+  v1Base: string;
+  token: string;
+}): void {
+  params.nextclawProvider.apiBase = params.v1Base;
+  params.nextclawProvider.apiKey = params.token;
+  params.providers.nextclaw = params.nextclawProvider;
+  saveConfig(params.config, params.configPath);
+}
+
+function parseJsonText(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function readPlatformErrorMessage(raw: string, fallbackStatus: number): string {
+  const parsed = parseJsonText(raw);
+  return typeof parsed === "object" &&
+    parsed &&
+    "error" in parsed &&
+    typeof (parsed as { error?: { message?: unknown } }).error?.message === "string"
+    ? (parsed as { error: { message: string } }).error.message
+    : raw || `Request failed (${fallbackStatus})`;
+}
+
+function readBrowserAuthStartPayload(raw: string): {
+  sessionId: string;
+  verificationUri: string;
+  expiresAt: string;
+  intervalMs: number;
+} {
+  const parsed = parseJsonText(raw);
+  const data = typeof parsed === "object" && parsed && "data" in parsed
+    ? (parsed as { data?: Record<string, unknown> }).data
+    : null;
+  const sessionId = typeof data?.sessionId === "string" ? data.sessionId.trim() : "";
+  const verificationUri = typeof data?.verificationUri === "string" ? data.verificationUri.trim() : "";
+  const expiresAt = typeof data?.expiresAt === "string" ? data.expiresAt.trim() : "";
+  const intervalMs = typeof data?.intervalMs === "number" && Number.isFinite(data.intervalMs)
+    ? Math.max(1000, Math.trunc(data.intervalMs))
+    : 1500;
+  if (!sessionId || !verificationUri || !expiresAt) {
+    throw new Error("Browser authorization session payload is incomplete.");
+  }
+  return {
+    sessionId,
+    verificationUri,
+    expiresAt,
+    intervalMs
+  };
+}
+
+function readBrowserAuthPollPayload(raw: string): {
+  status: "pending" | "authorized" | "expired";
+  nextPollMs?: number;
+  token?: string;
+  role?: string;
+  email?: string;
+  message?: string;
+} {
+  const parsed = parseJsonText(raw);
+  const data = typeof parsed === "object" && parsed && "data" in parsed
+    ? (parsed as { data?: Record<string, unknown> }).data
+    : null;
+  const status = typeof data?.status === "string" ? data.status.trim() : "";
+  if (status === "pending") {
+    return {
+      status,
+      nextPollMs: typeof data?.nextPollMs === "number" && Number.isFinite(data.nextPollMs)
+        ? Math.max(1000, Math.trunc(data.nextPollMs))
+        : 1500
+    };
+  }
+  if (status === "expired") {
+    return {
+      status,
+      message: typeof data?.message === "string" && data.message.trim()
+        ? data.message.trim()
+        : "Authorization session expired."
+    };
+  }
+  if (status !== "authorized") {
+    throw new Error("Unexpected browser authorization status.");
+  }
+  const token = typeof data?.token === "string" ? data.token.trim() : "";
+  const user = typeof data?.user === "object" && data.user ? data.user as Record<string, unknown> : null;
+  const role = typeof user?.role === "string" ? user.role.trim() : "user";
+  const email = typeof user?.email === "string" ? user.email.trim() : "";
+  if (!token || !email) {
+    throw new Error("Authorized browser login payload is incomplete.");
+  }
+  return {
+    status,
+    token,
+    role,
+    email
+  };
+}
+
 export class PlatformAuthCommands {
   async loginResult(opts: LoginCommandOptions = {}): Promise<PlatformLoginResult> {
     const { configPath, config, providers, nextclawProvider, platformBase, v1Base, inputApiBase } = resolveProviderConfig(opts);
@@ -136,32 +269,96 @@ export class PlatformAuthCommands {
     const raw = await response.text();
 
     if (!response.ok) {
-      let parsed: unknown = null;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        parsed = null;
-      }
-      const maybeMessage =
-        typeof parsed === "object" &&
-        parsed &&
-        "error" in parsed &&
-        typeof (parsed as { error?: { message?: unknown } }).error?.message === "string"
-          ? (parsed as { error: { message: string } }).error.message
-          : raw || `Request failed (${response.status})`;
-      throw new Error(buildPlatformApiBaseErrorMessage(inputApiBase, maybeMessage));
+      throw new Error(buildPlatformApiBaseErrorMessage(inputApiBase, readPlatformErrorMessage(raw, response.status)));
     }
 
     const { token, role } = readLoginPayload(raw);
-    nextclawProvider.apiBase = v1Base;
-    nextclawProvider.apiKey = token;
-    providers.nextclaw = nextclawProvider;
-    saveConfig(config, configPath);
+    persistPlatformToken({
+      configPath,
+      config,
+      providers,
+      nextclawProvider,
+      v1Base,
+      token
+    });
 
     return {
       token,
       role,
       email,
+      platformBase,
+      v1Base
+    };
+  }
+
+  async startBrowserAuth(opts: Pick<LoginCommandOptions, "apiBase"> = {}): Promise<PlatformBrowserAuthStartResult> {
+    const { platformBase, v1Base, inputApiBase } = resolveProviderConfig(opts);
+    const response = await fetch(`${platformBase}/platform/auth/browser/start`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+    const raw = await response.text();
+    if (!response.ok) {
+      throw new Error(buildPlatformApiBaseErrorMessage(inputApiBase, readPlatformErrorMessage(raw, response.status)));
+    }
+    const result = readBrowserAuthStartPayload(raw);
+    return {
+      ...result,
+      platformBase,
+      v1Base
+    };
+  }
+
+  async pollBrowserAuth(params: {
+    apiBase?: string;
+    sessionId: string;
+  }): Promise<PlatformBrowserAuthPollResult> {
+    const { configPath, config, providers, nextclawProvider, platformBase, v1Base, inputApiBase } = resolveProviderConfig({
+      apiBase: params.apiBase
+    });
+    const response = await fetch(`${platformBase}/platform/auth/browser/poll`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        sessionId: params.sessionId
+      })
+    });
+    const raw = await response.text();
+    if (!response.ok) {
+      throw new Error(buildPlatformApiBaseErrorMessage(inputApiBase, readPlatformErrorMessage(raw, response.status)));
+    }
+    const result = readBrowserAuthPollPayload(raw);
+    if (result.status === "pending") {
+      return {
+        status: "pending",
+        nextPollMs: result.nextPollMs ?? 1500
+      };
+    }
+    if (result.status === "expired") {
+      return {
+        status: "expired",
+        message: result.message ?? "Authorization session expired."
+      };
+    }
+
+    persistPlatformToken({
+      configPath,
+      config,
+      providers,
+      nextclawProvider,
+      v1Base,
+      token: result.token ?? ""
+    });
+    return {
+      status: "authorized",
+      token: result.token ?? "",
+      role: result.role ?? "user",
+      email: result.email ?? "",
       platformBase,
       v1Base
     };

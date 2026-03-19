@@ -2,6 +2,10 @@ import type * as NextclawCore from "@nextclaw/core";
 import type { UiAuthService } from "../auth.service.js";
 import type {
   MarketplaceApiConfig,
+  RemoteBrowserAuthPollRequest,
+  RemoteBrowserAuthPollResult,
+  RemoteBrowserAuthStartRequest,
+  RemoteBrowserAuthStartResult,
   RemoteAccessView,
   RemoteDoctorView,
   RemoteLoginRequest,
@@ -28,6 +32,8 @@ export type UiRouterOptions = {
 export type UiRemoteAccessHost = {
   getStatus: () => Promise<RemoteAccessView> | RemoteAccessView;
   login: (input: RemoteLoginRequest) => Promise<RemoteAccessView>;
+  startBrowserAuth: (input: RemoteBrowserAuthStartRequest) => Promise<RemoteBrowserAuthStartResult>;
+  pollBrowserAuth: (input: RemoteBrowserAuthPollRequest) => Promise<RemoteBrowserAuthPollResult>;
   logout: () => Promise<RemoteAccessView> | RemoteAccessView;
   updateSettings: (input: RemoteSettingsUpdateRequest) => Promise<RemoteAccessView> | RemoteAccessView;
   runDoctor: () => Promise<RemoteDoctorView>;

@@ -1,5 +1,7 @@
 import type { Context } from "hono";
 import type {
+  RemoteBrowserAuthPollRequest,
+  RemoteBrowserAuthStartRequest,
   RemoteLoginRequest,
   RemoteServiceAction,
   RemoteSettingsUpdateRequest
@@ -57,6 +59,42 @@ export class RemoteRoutesController {
       })));
     } catch (error) {
       return c.json(err("REMOTE_LOGIN_FAILED", formatUserFacingError(error)), 400);
+    }
+  };
+
+  readonly startBrowserAuth = async (c: Context) => {
+    const body = await readJson<RemoteBrowserAuthStartRequest>(c.req.raw);
+    if (!body.ok) {
+      return c.json(err("INVALID_BODY", "invalid json body"), 400);
+    }
+
+    try {
+      return c.json(ok(await this.host.startBrowserAuth({
+        apiBase: readTrimmedString(body.data.apiBase)
+      })));
+    } catch (error) {
+      return c.json(err("REMOTE_BROWSER_AUTH_START_FAILED", formatUserFacingError(error)), 400);
+    }
+  };
+
+  readonly pollBrowserAuth = async (c: Context) => {
+    const body = await readJson<RemoteBrowserAuthPollRequest>(c.req.raw);
+    if (!body.ok) {
+      return c.json(err("INVALID_BODY", "invalid json body"), 400);
+    }
+
+    const sessionId = readNonEmptyString(body.data.sessionId);
+    if (!sessionId) {
+      return c.json(err("INVALID_BODY", "sessionId is required"), 400);
+    }
+
+    try {
+      return c.json(ok(await this.host.pollBrowserAuth({
+        sessionId,
+        apiBase: readTrimmedString(body.data.apiBase)
+      })));
+    } catch (error) {
+      return c.json(err("REMOTE_BROWSER_AUTH_POLL_FAILED", formatUserFacingError(error)), 400);
     }
   };
 
