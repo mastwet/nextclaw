@@ -26,6 +26,7 @@ const SecurityConfigPage = lazy(async () => ({ default: (await import('@/compone
 const SessionsConfigPage = lazy(async () => ({ default: (await import('@/components/config/SessionsConfig')).SessionsConfig }));
 const SecretsConfigPage = lazy(async () => ({ default: (await import('@/components/config/SecretsConfig')).SecretsConfig }));
 const MarketplacePage = lazy(async () => ({ default: (await import('@/components/marketplace/MarketplacePage')).MarketplacePage }));
+const McpMarketplacePage = lazy(async () => ({ default: (await import('@/components/marketplace/mcp/McpMarketplacePage')).McpMarketplacePage }));
 
 function RouteFallback() {
   return <div className="h-full w-full animate-pulse rounded-2xl border border-border/40 bg-card/40" />;
@@ -58,6 +59,7 @@ function ProtectedApp() {
           <Route path="/settings" element={<Navigate to="/model" replace />} />
           <Route path="/marketplace/skills" element={<Navigate to="/skills" replace />} />
           <Route path="/marketplace" element={<Navigate to="/marketplace/plugins" replace />} />
+          <Route path="/marketplace/mcp" element={<LazyRoute><McpMarketplacePage /></LazyRoute>} />
           <Route path="/marketplace/:type" element={<LazyRoute><MarketplacePage /></LazyRoute>} />
           <Route path="/" element={<Navigate to="/chat" replace />} />
           <Route path="*" element={<Navigate to="/chat" replace />} />

@@ -415,11 +415,24 @@ export const McpTransportSchema = z.discriminatedUnion("type", [
   McpTransportSseSchema
 ]);
 
+export const McpServerMetadataSchema = z.object({
+  source: z.enum(["manual", "marketplace"]).optional(),
+  catalogSlug: z.string().optional(),
+  catalogVersion: z.string().optional(),
+  displayName: z.string().optional(),
+  vendor: z.string().optional(),
+  docsUrl: z.string().url().optional(),
+  homepage: z.string().url().optional(),
+  trustLevel: z.enum(["official", "verified", "community"]).optional(),
+  installedAt: z.string().optional()
+});
+
 export const McpServerDefinitionSchema = z.object({
   enabled: z.boolean().default(true),
   transport: McpTransportSchema,
   scope: McpServerScopeSchema.default({}),
-  policy: McpServerPolicySchema.default({})
+  policy: McpServerPolicySchema.default({}),
+  metadata: McpServerMetadataSchema.optional()
 });
 
 export const McpConfigSchema = z.object({
@@ -558,6 +571,7 @@ export type SearchConfig = z.infer<typeof SearchConfigSchema>;
 export type SearchProviderName = z.infer<typeof SearchProviderNameSchema>;
 export type McpConfig = z.infer<typeof McpConfigSchema>;
 export type McpServerDefinition = z.infer<typeof McpServerDefinitionSchema>;
+export type McpServerMetadata = z.infer<typeof McpServerMetadataSchema>;
 export type McpServerScope = z.infer<typeof McpServerScopeSchema>;
 export type McpServerPolicy = z.infer<typeof McpServerPolicySchema>;
 export type McpTransport = z.infer<typeof McpTransportSchema>;

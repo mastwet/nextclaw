@@ -156,6 +156,10 @@ export class McpRegistryService {
       .sort((left, right) => left.qualifiedName.localeCompare(right.qualifiedName));
   }
 
+  getCachedState(serverName: string) {
+    return this.lifecycleManager.getCachedState(serverName);
+  }
+
   async callTool(params: {
     serverName: string;
     toolName: string;

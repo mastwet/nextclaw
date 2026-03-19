@@ -1,5 +1,10 @@
 import { loadConfig, saveConfig, type McpServerDefinition } from "@nextclaw/core";
-import { McpDoctorService, McpRegistryService, normalizeMcpServerName } from "@nextclaw/mcp";
+import {
+  McpDoctorFacade,
+  McpMutationService,
+  McpRegistryService,
+  normalizeMcpServerName
+} from "@nextclaw/mcp";
 import type { McpAddCommandOptions, McpDoctorOptions, McpListOptions } from "../types.js";
 
 function normalizeOptionalString(value: unknown): string | undefined {
@@ -41,7 +46,6 @@ function parseTimeoutMs(value: unknown): number | undefined {
 function buildMcpServerDefinition(command: string[], opts: McpAddCommandOptions): McpServerDefinition {
   const transport = (normalizeOptionalString(opts.transport) ?? "stdio").toLowerCase();
   const disabled = Boolean(opts.disabled);
-  const allAgents = Boolean(opts.allAgents);
   const explicitAgents = Array.from(
     new Set(
       (opts.agent ?? [])
@@ -49,6 +53,7 @@ function buildMcpServerDefinition(command: string[], opts: McpAddCommandOptions)
         .filter((agentId): agentId is string => Boolean(agentId))
     )
   );
+  const allAgents = explicitAgents.length === 0 ? true : Boolean(opts.allAgents);
 
   if (transport === "stdio") {
     if (command.length === 0) {
@@ -66,11 +71,15 @@ function buildMcpServerDefinition(command: string[], opts: McpAddCommandOptions)
       },
       scope: {
         allAgents,
-        agents: explicitAgents
+        agents: allAgents ? [] : explicitAgents
       },
       policy: {
         trust: "explicit",
         start: "eager"
+      },
+      metadata: {
+        source: "manual",
+        installedAt: new Date().toISOString()
       }
     };
   }
@@ -84,11 +93,15 @@ function buildMcpServerDefinition(command: string[], opts: McpAddCommandOptions)
     enabled: !disabled,
     scope: {
       allAgents,
-      agents: explicitAgents
+      agents: allAgents ? [] : explicitAgents
     },
     policy: {
       trust: "explicit" as const,
       start: "eager" as const
+    },
+    metadata: {
+      source: "manual" as const,
+      installedAt: new Date().toISOString()
     }
   };
 
@@ -159,28 +172,29 @@ export class McpCommands {
   }
 
   async mcpAdd(name: string, command: string[], opts: McpAddCommandOptions): Promise<void> {
-    const normalizedName = normalizeMcpServerName(name);
-    const config = loadConfig();
-    if (config.mcp.servers[normalizedName]) {
-      reportUserInputIssue(`MCP server already exists: ${normalizedName}. Use 'mcp list' or remove it first.`);
+    const mutation = new McpMutationService({
+      getConfig: () => loadConfig(),
+      saveConfig: (config) => saveConfig(config)
+    });
+    const result = mutation.addServer(name, buildMcpServerDefinition(command, opts));
+    if (!result.changed) {
+      reportUserInputIssue(result.message);
       return;
     }
-
-    config.mcp.servers[normalizedName] = buildMcpServerDefinition(command, opts);
-    saveConfig(config);
-    console.log(`Added MCP server ${normalizedName}.`);
+    console.log(result.message);
   }
 
   async mcpRemove(name: string): Promise<void> {
-    const normalizedName = normalizeMcpServerName(name);
-    const config = loadConfig();
-    if (!config.mcp.servers[normalizedName]) {
-      reportUserInputIssue(`Unknown MCP server: ${normalizedName}`);
+    const mutation = new McpMutationService({
+      getConfig: () => loadConfig(),
+      saveConfig: (config) => saveConfig(config)
+    });
+    const result = mutation.removeServer(name);
+    if (!result.changed) {
+      reportUserInputIssue(result.message);
       return;
     }
-    delete config.mcp.servers[normalizedName];
-    saveConfig(config);
-    console.log(`Removed MCP server ${normalizedName}.`);
+    console.log(result.message);
   }
 
   async mcpEnable(name: string): Promise<void> {
@@ -195,7 +209,7 @@ export class McpCommands {
     const registry = new McpRegistryService({
       getConfig: () => loadConfig()
     });
-    const doctor = new McpDoctorService({
+    const doctor = new McpDoctorFacade({
       getConfig: () => loadConfig(),
       registryService: registry
     });
@@ -225,16 +239,16 @@ export class McpCommands {
   }
 
   private async toggleEnabled(name: string, enabled: boolean): Promise<void> {
-    const normalizedName = normalizeMcpServerName(name);
-    const config = loadConfig();
-    const current = config.mcp.servers[normalizedName];
-    if (!current) {
-      reportUserInputIssue(`Unknown MCP server: ${normalizedName}`);
+    const mutation = new McpMutationService({
+      getConfig: () => loadConfig(),
+      saveConfig: (config) => saveConfig(config)
+    });
+    const result = mutation.toggleEnabled(name, enabled);
+    if (!result.changed) {
+      reportUserInputIssue(result.message);
       return;
     }
-    current.enabled = enabled;
-    saveConfig(config);
-    console.log(`${enabled ? "Enabled" : "Disabled"} MCP server ${normalizedName}.`);
+    console.log(result.message);
   }
 }
 

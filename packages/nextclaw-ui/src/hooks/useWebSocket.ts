@@ -4,6 +4,30 @@ import { API_BASE } from '@/api/client';
 import { useUiStore } from '@/stores/ui.store';
 import type { QueryClient } from '@tanstack/react-query';
 
+function shouldInvalidateConfigQuery(configPath: string) {
+  const normalized = configPath.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  if (normalized.startsWith('plugins') || normalized.startsWith('skills')) {
+    return false;
+  }
+  return true;
+}
+
+function invalidateMarketplaceQueries(queryClient: QueryClient | undefined, configPath: string): void {
+  if (configPath.startsWith('plugins')) {
+    queryClient?.invalidateQueries({ queryKey: ['ncp-session-types'] });
+    queryClient?.invalidateQueries({ queryKey: ['marketplace-installed', 'plugin'] });
+    queryClient?.invalidateQueries({ queryKey: ['marketplace-items'] });
+  }
+  if (configPath.startsWith('mcp')) {
+    queryClient?.invalidateQueries({ queryKey: ['marketplace-mcp-installed'] });
+    queryClient?.invalidateQueries({ queryKey: ['marketplace-mcp-items'] });
+    queryClient?.invalidateQueries({ queryKey: ['marketplace-mcp-doctor'] });
+  }
+}
+
 export function useWebSocket(queryClient?: QueryClient) {
   const [ws, setWs] = useState<ConfigWebSocket | null>(null);
   const { setConnectionStatus } = useUiStore();
@@ -83,17 +107,6 @@ export function useWebSocket(queryClient?: QueryClient) {
       queryClient.invalidateQueries({ queryKey: ['ncp-session-messages'] });
     };
 
-    const shouldInvalidateConfigQuery = (configPath: string) => {
-      const normalized = configPath.trim().toLowerCase();
-      if (!normalized) {
-        return true;
-      }
-      if (normalized.startsWith('plugins') || normalized.startsWith('skills')) {
-        return false;
-      }
-      return true;
-    };
-
     setConnectionStatus('connecting');
 
     client.on('connection.open', () => {
@@ -121,11 +134,7 @@ export function useWebSocket(queryClient?: QueryClient) {
       if (configPath.startsWith('session')) {
         invalidateSessionQueries();
       }
-      if (configPath.startsWith('plugins')) {
-        queryClient?.invalidateQueries({ queryKey: ['ncp-session-types'] });
-        queryClient?.invalidateQueries({ queryKey: ['marketplace-installed', 'plugin'] });
-        queryClient?.invalidateQueries({ queryKey: ['marketplace-items'] });
-      }
+      invalidateMarketplaceQueries(queryClient, configPath);
     });
 
     client.on('run.updated', (event) => {

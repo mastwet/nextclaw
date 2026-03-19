@@ -23,8 +23,14 @@ export type MarketplaceListParams = {
   pageSize?: number;
 };
 
-function toMarketplaceTypeSegment(type: MarketplaceItemType): 'plugins' | 'skills' {
-  return type === 'plugin' ? 'plugins' : 'skills';
+function toMarketplaceTypeSegment(type: MarketplaceItemType): 'plugins' | 'skills' | 'mcp' {
+  if (type === 'plugin') {
+    return 'plugins';
+  }
+  if (type === 'skill') {
+    return 'skills';
+  }
+  return 'mcp';
 }
 
 export async function fetchMarketplaceItems(params: MarketplaceListParams): Promise<MarketplaceListView> {

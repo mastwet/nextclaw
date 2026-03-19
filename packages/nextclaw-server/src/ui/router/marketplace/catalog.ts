@@ -279,6 +279,20 @@ export async function fetchAllSkillMarketplaceItems(params: {
   });
 }
 
+export async function fetchAllMcpMarketplaceItems(params: {
+  baseUrl: string;
+  query?: Record<string, string | undefined>;
+}): Promise<
+  | { ok: true; data: { sort: MarketplaceListView["sort"]; query?: string; items: MarketplaceListView["items"] } }
+  | { ok: false; status: number; message: string }
+> {
+  return fetchAllMarketplaceItems({
+    baseUrl: params.baseUrl,
+    path: "/api/v1/mcp/items",
+    query: params.query
+  });
+}
+
 export function sanitizeMarketplaceListItems(items: MarketplaceListView["items"]): MarketplaceListView["items"] {
   return items.map((item) => sanitizeMarketplaceItem(item));
 }

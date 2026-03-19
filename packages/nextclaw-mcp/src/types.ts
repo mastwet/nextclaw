@@ -1,6 +1,7 @@
 import type {
   Config,
   McpServerDefinition,
+  McpServerMetadata,
   McpServerScope,
   McpTransport
 } from "@nextclaw/core";
@@ -53,6 +54,62 @@ export type McpLifecycleState = {
   clientReady: boolean;
   lastReadyAt?: string;
   lastError?: string;
+};
+
+export type McpMarketplaceTransportType = McpTransport["type"];
+
+export type McpMarketplaceInputField = {
+  id: string;
+  label: string;
+  description?: string;
+  required?: boolean;
+  secret?: boolean;
+  defaultValue?: string;
+};
+
+export type McpMarketplaceInstallTemplate = {
+  kind: "template";
+  spec: string;
+  command: string;
+  defaultName: string;
+  transportTypes: McpMarketplaceTransportType[];
+  template: McpServerDefinition;
+  inputs: McpMarketplaceInputField[];
+};
+
+export type McpInstalledRecord = {
+  name: string;
+  enabled: boolean;
+  transport: McpTransport["type"];
+  scope: McpServerScope;
+  source: "manual" | "marketplace";
+  catalogSlug?: string;
+  displayName?: string;
+  vendor?: string;
+  docsUrl?: string;
+  homepage?: string;
+  trustLevel?: "official" | "verified" | "community";
+  installedAt?: string;
+  toolCount?: number;
+  accessible?: boolean;
+  lastReadyAt?: string;
+  lastError?: string;
+};
+
+export type McpMutationResult = {
+  changed: boolean;
+  name: string;
+  message: string;
+  definition?: McpServerDefinition;
+};
+
+export type McpMaterializeInstallParams = {
+  template: McpMarketplaceInstallTemplate;
+  name?: string;
+  enabled?: boolean;
+  scope?: Partial<McpServerScope>;
+  inputs?: Record<string, string | undefined>;
+  metadata?: Partial<McpServerMetadata>;
 };
 
 export function normalizeMcpServerName(name: string): string {

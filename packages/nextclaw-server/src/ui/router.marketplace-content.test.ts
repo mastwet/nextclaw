@@ -485,4 +485,94 @@ describe("marketplace content routes", () => {
     expect(payload.data.items[0]?.slug).toBe("ncp-runtime-plugin-codex-sdk");
     expect(payload.data.items[0]?.install.spec).toBe("@nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk");
   });
+
+  it("exposes claude runtime plugins in marketplace plugin list", async () => {
+    const workspaceDir = createTempDir("nextclaw-ui-plugin-list-claude-runtime-");
+    const configPath = join(workspaceDir, "config.json");
+
+    saveConfig(
+      ConfigSchema.parse({
+        agents: {
+          defaults: {
+            workspace: workspaceDir
+          }
+        }
+      }),
+      configPath
+    );
+
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            total: 1,
+            page: 1,
+            pageSize: 50,
+            totalPages: 1,
+            sort: "relevance",
+            items: [
+              {
+                id: "plugin-ncp-runtime-claude-code-sdk",
+                slug: "ncp-runtime-plugin-claude-code-sdk",
+                type: "plugin",
+                name: "Claude NCP Runtime Plugin",
+                summary: "Optional NextClaw plugin that adds a Claude-powered NCP session type.",
+                summaryI18n: {
+                  en: "Optional NextClaw plugin that adds a Claude-powered NCP session type.",
+                  zh: "为 NextClaw 提供 Claude 驱动 NCP 会话类型的可选插件。"
+                },
+                description: "Registers a pluggable Claude runtime for NCP.",
+                tags: ["plugin", "agent-runtime", "ncp", "claude", "anthropic"],
+                author: "NextClaw",
+                install: {
+                  kind: "npm",
+                  spec: "@nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk",
+                  command: "nextclaw plugins install @nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk"
+                },
+                updatedAt: "2026-03-19T00:00:00.000Z",
+                publishedAt: "2026-03-19T00:00:00.000Z"
+              }
+            ]
+          }
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json"
+          }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const app = createUiRouter({
+      configPath,
+      publish: () => {},
+      marketplace: {
+        apiBaseUrl: "http://marketplace.example"
+      }
+    });
+
+    const response = await app.request("http://localhost/api/marketplace/plugins/items?page=1&pageSize=10");
+    expect(response.status).toBe(200);
+
+    const payload = await response.json() as {
+      ok: boolean;
+      data: {
+        total: number;
+        items: Array<{
+          slug: string;
+          install: {
+            spec: string;
+          };
+        }>;
+      };
+    };
+
+    expect(payload.ok).toBe(true);
+    expect(payload.data.total).toBe(1);
+    expect(payload.data.items[0]?.slug).toBe("ncp-runtime-plugin-claude-code-sdk");
+    expect(payload.data.items[0]?.install.spec).toBe("@nextclaw/nextclaw-ncp-runtime-plugin-claude-code-sdk");
+  });
 });

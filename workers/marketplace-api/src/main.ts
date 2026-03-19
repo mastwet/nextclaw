@@ -1,4 +1,7 @@
 import { Hono, type Context } from "hono";
+import { GetMcpItemUseCase } from "./application/mcp/get-mcp-item.usecase";
+import { ListMcpItemsUseCase } from "./application/mcp/list-mcp-items.usecase";
+import { ListMcpRecommendationsUseCase } from "./application/mcp/list-mcp-recommendations.usecase";
 import { GetPluginItemUseCase } from "./application/plugins/get-plugin-item.usecase";
 import { ListPluginItemsUseCase } from "./application/plugins/list-plugin-items.usecase";
 import { ListPluginRecommendationsUseCase } from "./application/plugins/list-plugin-recommendations.usecase";
@@ -6,8 +9,10 @@ import { GetSkillItemUseCase } from "./application/skills/get-skill-item.usecase
 import { ListSkillItemsUseCase } from "./application/skills/list-skill-items.usecase";
 import { ListSkillRecommendationsUseCase } from "./application/skills/list-skill-recommendations.usecase";
 import { DomainValidationError, ResourceNotFoundError } from "./domain/errors";
-import type { MarketplaceItem } from "./domain/model";
+import type { MarketplaceItem, MarketplaceMcpItem } from "./domain/model";
 import { D1MarketplacePluginDataSource, D1MarketplaceSkillDataSource } from "./infrastructure/d1-data-source";
+import { D1MarketplaceMcpDataSource } from "./infrastructure/d1-mcp-data-source";
+import { InMemoryMcpRepository } from "./infrastructure/in-memory-mcp-repository";
 import { InMemoryPluginRepository } from "./infrastructure/in-memory-plugin-repository";
 import { InMemorySkillRepository } from "./infrastructure/in-memory-skill-repository";
 import { MarketplaceQueryParser } from "./presentation/http/query-parser";
@@ -32,6 +37,7 @@ class MarketplaceRuntime {
   readonly parser = new MarketplaceQueryParser();
   readonly pluginDataSource: D1MarketplacePluginDataSource;
   readonly skillDataSource: D1MarketplaceSkillDataSource;
+  readonly mcpDataSource: D1MarketplaceMcpDataSource;
 
   readonly pluginRepository: InMemoryPluginRepository;
   readonly listPluginItems: ListPluginItemsUseCase;
@@ -43,9 +49,15 @@ class MarketplaceRuntime {
   readonly getSkillItem: GetSkillItemUseCase;
   readonly listSkillRecommendations: ListSkillRecommendationsUseCase;
 
+  readonly mcpRepository: InMemoryMcpRepository;
+  readonly listMcpItems: ListMcpItemsUseCase;
+  readonly getMcpItem: GetMcpItemUseCase;
+  readonly listMcpRecommendations: ListMcpRecommendationsUseCase;
+
   constructor(bindings: MarketplaceBindings) {
     this.pluginDataSource = new D1MarketplacePluginDataSource(bindings.MARKETPLACE_PLUGINS_DB);
     this.skillDataSource = new D1MarketplaceSkillDataSource(bindings.MARKETPLACE_SKILLS_DB, bindings.MARKETPLACE_SKILLS_FILES);
+    this.mcpDataSource = new D1MarketplaceMcpDataSource(bindings.MARKETPLACE_PLUGINS_DB);
     const ttlSeconds = this.parseCacheTtlSeconds(bindings.MARKETPLACE_CACHE_TTL_SECONDS);
 
     this.pluginRepository = new InMemoryPluginRepository(this.pluginDataSource, {
@@ -61,11 +73,19 @@ class MarketplaceRuntime {
     this.listSkillItems = new ListSkillItemsUseCase(this.skillRepository);
     this.getSkillItem = new GetSkillItemUseCase(this.skillRepository);
     this.listSkillRecommendations = new ListSkillRecommendationsUseCase(this.skillRepository);
+
+    this.mcpRepository = new InMemoryMcpRepository(this.mcpDataSource, {
+      cacheTtlMs: ttlSeconds * 1000
+    });
+    this.listMcpItems = new ListMcpItemsUseCase(this.mcpRepository);
+    this.getMcpItem = new GetMcpItemUseCase(this.mcpRepository);
+    this.listMcpRecommendations = new ListMcpRecommendationsUseCase(this.mcpRepository);
   }
 
   invalidateCache(): void {
     this.pluginRepository.invalidateCache();
     this.skillRepository.invalidateCache();
+    this.mcpRepository.invalidateCache();
   }
 
   private parseCacheTtlSeconds(raw: string | undefined): number {
@@ -141,6 +161,12 @@ function decodeUtf8(bytes: Uint8Array): string {
 function ensureSkillItem(item: MarketplaceItem): void {
   if (item.type !== "skill") {
     throw new ResourceNotFoundError(`skill item not found: ${item.slug}`);
+  }
+}
+
+function ensureMcpItem(item: MarketplaceItem): asserts item is MarketplaceMcpItem {
+  if (item.type !== "mcp") {
+    throw new ResourceNotFoundError(`mcp item not found: ${item.slug}`);
   }
 }
 
@@ -297,6 +323,45 @@ app.get("/api/v1/skills/recommendations", async (c) => {
   const sceneId = runtime.parser.parseRecommendationScene(c);
   const limit = runtime.parser.parseRecommendationLimit(c);
   const data = await runtime.listSkillRecommendations.execute(sceneId, limit);
+  return runtime.responses.ok(c, data);
+});
+
+app.get("/api/v1/mcp/items", async (c) => {
+  const runtime = getRuntime(c.env);
+  const query = runtime.parser.parseListQuery(c);
+  const data = await runtime.listMcpItems.execute(query);
+  return runtime.responses.ok(c, data);
+});
+
+app.get("/api/v1/mcp/items/:slug", async (c) => {
+  const runtime = getRuntime(c.env);
+  const data = await runtime.getMcpItem.execute(c.req.param("slug"));
+  return runtime.responses.ok(c, data);
+});
+
+app.get("/api/v1/mcp/items/:slug/content", async (c) => {
+  const runtime = getRuntime(c.env);
+  const item = await runtime.getMcpItem.execute(c.req.param("slug"));
+  ensureMcpItem(item);
+  const split = splitMarkdownFrontmatter(item.contentMarkdown);
+  return runtime.responses.ok(c, {
+    type: "mcp",
+    slug: item.slug,
+    name: item.name,
+    install: item.install,
+    source: "marketplace",
+    raw: item.contentMarkdown,
+    metadataRaw: split.metadataRaw,
+    bodyRaw: split.bodyRaw,
+    sourceUrl: item.contentSourceUrl
+  });
+});
+
+app.get("/api/v1/mcp/recommendations", async (c) => {
+  const runtime = getRuntime(c.env);
+  const sceneId = runtime.parser.parseRecommendationScene(c);
+  const limit = runtime.parser.parseRecommendationLimit(c);
+  const data = await runtime.listMcpRecommendations.execute(sceneId, limit);
   return runtime.responses.ok(c, data);
 });
 

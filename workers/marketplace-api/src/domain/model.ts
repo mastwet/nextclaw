@@ -1,4 +1,4 @@
-export const MARKETPLACE_ITEM_TYPES = ["plugin", "skill"] as const;
+export const MARKETPLACE_ITEM_TYPES = ["plugin", "skill", "mcp"] as const;
 
 export type MarketplaceItemType = (typeof MARKETPLACE_ITEM_TYPES)[number];
 
@@ -6,7 +6,8 @@ export type MarketplaceSort = "relevance" | "updated";
 
 export type MarketplacePluginInstallKind = "npm";
 export type MarketplaceSkillInstallKind = "builtin" | "marketplace";
-export type MarketplaceInstallKind = MarketplacePluginInstallKind | MarketplaceSkillInstallKind;
+export type MarketplaceMcpInstallKind = "template";
+export type MarketplaceInstallKind = MarketplacePluginInstallKind | MarketplaceSkillInstallKind | MarketplaceMcpInstallKind;
 
 export type MarketplacePluginInstallSpec = {
   kind: MarketplacePluginInstallKind;
@@ -20,7 +21,29 @@ export type MarketplaceSkillInstallSpec = {
   command: string;
 };
 
-export type MarketplaceInstallSpec = MarketplacePluginInstallSpec | MarketplaceSkillInstallSpec;
+export type MarketplaceMcpInputField = {
+  id: string;
+  label: string;
+  description?: string;
+  required?: boolean;
+  secret?: boolean;
+  defaultValue?: string;
+};
+
+export type MarketplaceMcpInstallSpec = {
+  kind: MarketplaceMcpInstallKind;
+  spec: string;
+  command: string;
+  defaultName: string;
+  transportTypes: Array<"stdio" | "http" | "sse">;
+  template: Record<string, unknown>;
+  inputs: MarketplaceMcpInputField[];
+};
+
+export type MarketplaceInstallSpec =
+  | MarketplacePluginInstallSpec
+  | MarketplaceSkillInstallSpec
+  | MarketplaceMcpInstallSpec;
 
 export type LocalizedTextMap = Record<string, string>;
 
@@ -50,7 +73,22 @@ export type MarketplaceSkillItem = MarketplaceItemBase & {
   install: MarketplaceSkillInstallSpec;
 };
 
-export type MarketplaceItem = MarketplacePluginItem | MarketplaceSkillItem;
+export type MarketplaceMcpItem = MarketplaceItemBase & {
+  type: "mcp";
+  vendor?: string;
+  docsUrl?: string;
+  iconUrl?: string;
+  transportTypes: Array<"stdio" | "http" | "sse">;
+  trust: {
+    level: "official" | "verified" | "community";
+    notes?: string;
+  };
+  install: MarketplaceMcpInstallSpec;
+  contentMarkdown: string;
+  contentSourceUrl?: string;
+};
+
+export type MarketplaceItem = MarketplacePluginItem | MarketplaceSkillItem | MarketplaceMcpItem;
 
 export type MarketplaceRecommendationScene = {
   id: string;
@@ -93,7 +131,23 @@ export type MarketplaceSkillItemSummary = MarketplaceItemSummaryBase & {
   install: MarketplaceSkillInstallSpec;
 };
 
-export type MarketplaceItemSummary = MarketplacePluginItemSummary | MarketplaceSkillItemSummary;
+export type MarketplaceMcpItemSummary = MarketplaceItemSummaryBase & {
+  type: "mcp";
+  install: MarketplaceMcpInstallSpec;
+  vendor?: string;
+  docsUrl?: string;
+  iconUrl?: string;
+  transportTypes: Array<"stdio" | "http" | "sse">;
+  trust: {
+    level: "official" | "verified" | "community";
+    notes?: string;
+  };
+};
+
+export type MarketplaceItemSummary =
+  | MarketplacePluginItemSummary
+  | MarketplaceSkillItemSummary
+  | MarketplaceMcpItemSummary;
 
 export type MarketplaceListResult = {
   total: number;

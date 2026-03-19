@@ -703,18 +703,36 @@ export type WsEvent =
   | { type: 'connection.close'; payload?: Record<string, unknown> }
   | { type: 'connection.error'; payload?: { message?: string } };
 
-export type MarketplaceItemType = 'plugin' | 'skill';
+export type MarketplaceItemType = 'plugin' | 'skill' | 'mcp';
 
 export type MarketplaceSort = 'relevance' | 'updated';
 
 export type MarketplacePluginInstallKind = 'npm';
 export type MarketplaceSkillInstallKind = 'builtin' | 'marketplace';
-export type MarketplaceInstallKind = MarketplacePluginInstallKind | MarketplaceSkillInstallKind;
+export type MarketplaceMcpInstallKind = 'template';
+export type MarketplaceInstallKind = MarketplacePluginInstallKind | MarketplaceSkillInstallKind | MarketplaceMcpInstallKind;
 
 export type MarketplaceInstallSpec = {
   kind: MarketplaceInstallKind;
   spec: string;
   command: string;
+};
+
+export type MarketplaceMcpTemplateInput = {
+  id: string;
+  label: string;
+  description?: string;
+  required?: boolean;
+  secret?: boolean;
+  defaultValue?: string;
+};
+
+export type MarketplaceMcpInstallSpec = MarketplaceInstallSpec & {
+  kind: 'template';
+  defaultName: string;
+  transportTypes: Array<'stdio' | 'http' | 'sse'>;
+  template: Record<string, unknown>;
+  inputs: MarketplaceMcpTemplateInput[];
 };
 
 export type MarketplaceLocalizedTextMap = Record<string, string>;
@@ -764,6 +782,18 @@ export type MarketplacePluginContentView = {
   sourceUrl?: string;
 };
 
+export type MarketplaceMcpContentView = {
+  type: 'mcp';
+  slug: string;
+  name: string;
+  install: MarketplaceMcpInstallSpec;
+  source: 'marketplace' | 'remote';
+  raw: string;
+  metadataRaw?: string;
+  bodyRaw: string;
+  sourceUrl?: string;
+};
+
 export type MarketplaceListView = {
   total: number;
   page: number;
@@ -796,6 +826,21 @@ export type MarketplaceInstalledRecord = {
   runtimeStatus?: string;
   origin?: string;
   installPath?: string;
+  transport?: 'stdio' | 'http' | 'sse';
+  scope?: {
+    allAgents: boolean;
+    agents: string[];
+  };
+  catalogSlug?: string;
+  vendor?: string;
+  docsUrl?: string;
+  homepage?: string;
+  trustLevel?: 'official' | 'verified' | 'community';
+  toolCount?: number;
+  accessible?: boolean;
+  lastReadyAt?: string;
+  lastDoctorAt?: string;
+  lastError?: string;
 };
 
 export type MarketplaceInstalledView = {
@@ -812,6 +857,11 @@ export type MarketplaceInstallRequest = {
   skill?: string;
   installPath?: string;
   force?: boolean;
+  name?: string;
+  enabled?: boolean;
+  allAgents?: boolean;
+  agents?: string[];
+  inputs?: Record<string, string>;
 };
 
 export type MarketplaceInstallResult = {
@@ -819,9 +869,10 @@ export type MarketplaceInstallResult = {
   spec: string;
   message: string;
   output?: string;
+  name?: string;
 };
 
-export type MarketplaceManageAction = 'enable' | 'disable' | 'uninstall';
+export type MarketplaceManageAction = 'enable' | 'disable' | 'uninstall' | 'remove';
 
 export type MarketplaceManageRequest = {
   type: MarketplaceItemType;
@@ -836,4 +887,13 @@ export type MarketplaceManageResult = {
   id: string;
   message: string;
   output?: string;
+};
+
+export type MarketplaceMcpDoctorResult = {
+  name: string;
+  enabled: boolean;
+  transport: 'stdio' | 'http' | 'sse';
+  accessible: boolean;
+  toolCount: number;
+  error?: string;
 };

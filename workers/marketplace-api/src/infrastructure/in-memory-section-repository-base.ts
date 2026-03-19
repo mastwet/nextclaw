@@ -34,7 +34,7 @@ export abstract class InMemorySectionRepositoryBase {
     this.cacheTtlMs = options.cacheTtlMs ?? 120_000;
   }
 
-  protected abstract getResultType(): "plugin" | "skill";
+  protected abstract getResultType(): "plugin" | "skill" | "mcp";
 
   async listItems(query: MarketplaceListQuery): Promise<MarketplaceListResult> {
     const section = await this.loadSection();
@@ -246,6 +246,19 @@ export abstract class InMemorySectionRepositoryBase {
         ...base,
         type: "plugin",
         install: item.install
+      };
+    }
+
+    if (item.type === "mcp") {
+      return {
+        ...base,
+        type: "mcp",
+        install: item.install,
+        vendor: item.vendor,
+        docsUrl: item.docsUrl,
+        iconUrl: item.iconUrl,
+        transportTypes: item.transportTypes,
+        trust: item.trust
       };
     }
 

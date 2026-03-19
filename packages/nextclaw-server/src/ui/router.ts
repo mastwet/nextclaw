@@ -8,6 +8,8 @@ import { ConfigRoutesController } from "./router/config.controller.js";
 import { CronRoutesController } from "./router/cron.controller.js";
 import { NcpSessionRoutesController } from "./router/ncp-session.controller.js";
 import {
+  McpMarketplaceController,
+  mountMarketplaceRoutes,
   normalizeMarketplaceBaseUrl,
   PluginMarketplaceController,
   SkillMarketplaceController
@@ -30,6 +32,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   const ncpSessionController = new NcpSessionRoutesController(options);
   const pluginMarketplaceController = new PluginMarketplaceController(options, marketplaceBaseUrl);
   const skillMarketplaceController = new SkillMarketplaceController(options, marketplaceBaseUrl);
+  const mcpMarketplaceController = new McpMarketplaceController(options, marketplaceBaseUrl);
 
   app.notFound((c) => c.json(err("NOT_FOUND", "endpoint not found"), 404));
 
@@ -107,21 +110,11 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   app.put("/api/cron/:id/enable", cronController.enableJob);
   app.post("/api/cron/:id/run", cronController.runJob);
 
-  app.get("/api/marketplace/plugins/installed", pluginMarketplaceController.getInstalled);
-  app.get("/api/marketplace/plugins/items", pluginMarketplaceController.listItems);
-  app.get("/api/marketplace/plugins/items/:slug", pluginMarketplaceController.getItem);
-  app.get("/api/marketplace/plugins/items/:slug/content", pluginMarketplaceController.getItemContent);
-  app.post("/api/marketplace/plugins/install", pluginMarketplaceController.install);
-  app.post("/api/marketplace/plugins/manage", pluginMarketplaceController.manage);
-  app.get("/api/marketplace/plugins/recommendations", pluginMarketplaceController.getRecommendations);
-
-  app.get("/api/marketplace/skills/installed", skillMarketplaceController.getInstalled);
-  app.get("/api/marketplace/skills/items", skillMarketplaceController.listItems);
-  app.get("/api/marketplace/skills/items/:slug", skillMarketplaceController.getItem);
-  app.get("/api/marketplace/skills/items/:slug/content", skillMarketplaceController.getItemContent);
-  app.post("/api/marketplace/skills/install", skillMarketplaceController.install);
-  app.post("/api/marketplace/skills/manage", skillMarketplaceController.manage);
-  app.get("/api/marketplace/skills/recommendations", skillMarketplaceController.getRecommendations);
+  mountMarketplaceRoutes(app, {
+    plugin: pluginMarketplaceController,
+    skill: skillMarketplaceController,
+    mcp: mcpMarketplaceController
+  });
 
   return app;
 }

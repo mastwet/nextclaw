@@ -4,3 +4,7 @@ export * from "./client/mcp-client-factory.js";
 export * from "./lifecycle/mcp-server-lifecycle-manager.js";
 export * from "./registry/mcp-registry-service.js";
 export * from "./doctor/mcp-doctor-service.js";
+export * from "./doctor/mcp-doctor-facade.js";
+export * from "./install/mcp-install-template-materializer.js";
+export * from "./manage/mcp-mutation-service.js";
+export * from "./view/mcp-installed-view-service.js";

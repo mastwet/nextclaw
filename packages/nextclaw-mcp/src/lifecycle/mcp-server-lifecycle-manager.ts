@@ -36,6 +36,14 @@ export class McpServerLifecycleManager {
     return this.readyConnections.get(serverName)?.tools ?? [];
   }
 
+  getCachedState(serverName: string): McpLifecycleState | undefined {
+    const ready = this.readyConnections.get(serverName);
+    if (!ready) {
+      return undefined;
+    }
+    return this.stripConnection(ready);
+  }
+
   async callTool(record: McpServerRecord, toolName: string, args: Record<string, unknown>): Promise<unknown> {
     const connection = await this.ensureConnection(record);
     const result = await connection.client.callTool({

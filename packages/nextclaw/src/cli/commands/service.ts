@@ -7,7 +7,7 @@ import {
   stopPluginChannelGateways
 } from "@nextclaw/openclaw-compat";
 import { startUiServer, type UiServerEvent } from "@nextclaw/server";
-import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, openSync, rmSync } from "node:fs";
+import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, openSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { request as httpRequest } from "node:http";
@@ -43,25 +43,17 @@ import {
   toExtensionRegistry,
   toPluginConfigView
 } from "./plugins.js";
-import {
-  disablePluginMutation,
-  enablePluginMutation,
-  installPluginMutation,
-  uninstallPluginMutation,
-} from "./plugin-mutation-actions.js";
+import { ServiceMarketplaceInstaller } from "./service-marketplace-installer.js";
 import { reloadServicePlugins } from "./service-plugin-reload.js";
 import type { RequestRestartParams } from "../types.js";
 import { consumeRestartSentinel, formatRestartSentinelMessage, parseSessionKey } from "../restart-sentinel.js";
 import { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
 import { resolveCliSubcommandEntry } from "./cli-subcommand-launch.js";
 import { createUiNcpAgent, type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
-import {
-  buildMarketplaceSkillInstallArgs,
-  pickUserFacingCommandSummary,
-} from "./service-marketplace-helpers.js";
 import { UiChatRunCoordinator } from "./ui-chat-run-coordinator.js";
 
-export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary, resolveCliSubcommandEntry };
+export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service-marketplace-helpers.js";
+export { resolveCliSubcommandEntry };
 
 const {
   APP_NAME,
@@ -1257,6 +1249,12 @@ export class ServiceCommands {
     });
     this.liveUiNcpAgent = ncpAgent;
 
+    const marketplaceInstaller = new ServiceMarketplaceInstaller({
+      applyLiveConfigReload: this.applyLiveConfigReload ?? undefined,
+      runCliSubcommand: (args) => this.runCliSubcommand(args),
+      installBuiltinSkill: (slug, force) => this.installBuiltinMarketplaceSkill(slug, force)
+    }).createInstaller();
+
     const uiServer = startUiServer({
       host: uiConfig.host,
       port: uiConfig.port,
@@ -1266,14 +1264,7 @@ export class ServiceCommands {
       cronService,
       marketplace: {
         apiBaseUrl: process.env.NEXTCLAW_MARKETPLACE_API_BASE,
-        installer: {
-          installPlugin: (spec) => this.installMarketplacePlugin(spec),
-          installSkill: (params) => this.installMarketplaceSkill(params),
-          enablePlugin: (id) => this.enableMarketplacePlugin(id),
-          disablePlugin: (id) => this.disableMarketplacePlugin(id),
-          uninstallPlugin: (id) => this.uninstallMarketplacePlugin(id),
-          uninstallSkill: (slug) => this.uninstallMarketplaceSkill(slug)
-        }
+        installer: marketplaceInstaller
       },
       ncpAgent,
       chatRuntime: {
@@ -1358,86 +1349,6 @@ export class ServiceCommands {
     if (uiConfig.open) {
       openBrowser(uiUrl);
     }
-  }
-
-  private async installMarketplacePlugin(spec: string): Promise<{ message: string; output?: string }> {
-    const result = await installPluginMutation(spec);
-    await this.applyLiveConfigReload?.();
-    return { message: result.message };
-  }
-
-  private async installMarketplaceSkill(params: {
-    slug: string;
-    kind?: "marketplace" | "builtin";
-    skill?: string;
-    installPath?: string;
-    force?: boolean;
-  }): Promise<{ message: string; output?: string }> {
-    if (params.kind === "builtin") {
-      const result = this.installBuiltinMarketplaceSkill(params.slug, params.force);
-      if (!result) {
-        throw new Error(`Builtin skill not found: ${params.slug}`);
-      }
-      return result;
-    }
-
-    if (params.kind && params.kind !== "marketplace") {
-      throw new Error(`Unsupported marketplace skill kind: ${params.kind}`);
-    }
-
-    const workspace = getWorkspacePath(loadConfig().agents.defaults.workspace);
-    const args = buildMarketplaceSkillInstallArgs({
-      slug: params.slug,
-      workspace,
-      force: params.force
-    });
-
-    try {
-      const output = await this.runCliSubcommand(args);
-      const summary = pickUserFacingCommandSummary(output, `Installed skill: ${params.slug}`);
-      return { message: summary };
-    } catch (error) {
-      const fallback = this.installBuiltinMarketplaceSkill(params.slug, params.force);
-      if (!fallback) {
-        throw error;
-      }
-      return fallback;
-    }
-  }
-
-  private async enableMarketplacePlugin(id: string): Promise<{ message: string; output?: string }> {
-    const result = await enablePluginMutation(id);
-    await this.applyLiveConfigReload?.();
-    return { message: result.message };
-  }
-
-  private async disableMarketplacePlugin(id: string): Promise<{ message: string; output?: string }> {
-    const result = await disablePluginMutation(id);
-    await this.applyLiveConfigReload?.();
-    return { message: result.message };
-  }
-
-  private async uninstallMarketplacePlugin(id: string): Promise<{ message: string; output?: string }> {
-    await disablePluginMutation(id);
-    await this.applyLiveConfigReload?.();
-    const result = await uninstallPluginMutation(id, { force: true });
-    await this.applyLiveConfigReload?.();
-    return { message: result.message };
-  }
-
-  private async uninstallMarketplaceSkill(slug: string): Promise<{ message: string; output?: string }> {
-    const workspace = getWorkspacePath(loadConfig().agents.defaults.workspace);
-    const targetDir = join(workspace, "skills", slug);
-
-    if (!existsSync(targetDir)) {
-      throw new Error(`Skill not installed in workspace: ${slug}`);
-    }
-
-    rmSync(targetDir, { recursive: true, force: true });
-
-    return {
-      message: `Uninstalled skill: ${slug}`
-    };
   }
 
   private installBuiltinMarketplaceSkill(
