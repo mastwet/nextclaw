@@ -1,5 +1,6 @@
 import { getConfigPath, loadConfig, saveConfig } from "@nextclaw/core";
 import { createInterface } from "node:readline";
+import { buildPlatformApiBaseErrorMessage, resolvePlatformApiBase } from "./platform-api-base.js";
 import type { LoginCommandOptions } from "../types.js";
 import { prompt } from "../utils.js";
 
@@ -19,6 +20,7 @@ function resolveProviderConfig(opts: LoginCommandOptions): {
   nextclawProvider: NextclawProviderConfig;
   platformBase: string;
   v1Base: string;
+  inputApiBase: string;
 } {
   const configPath = getConfigPath();
   const config = loadConfig(configPath);
@@ -39,14 +41,18 @@ function resolveProviderConfig(opts: LoginCommandOptions): {
     typeof opts.apiBase === "string" && opts.apiBase.trim().length > 0
       ? opts.apiBase.trim()
       : configuredApiBase;
-  const platformBase = requestedApiBase.replace(/\/v1\/?$/i, "");
+  const { platformBase, v1Base, inputApiBase } = resolvePlatformApiBase({
+    explicitApiBase: requestedApiBase,
+    fallbackApiBase: "https://ai-gateway-api.nextclaw.io/v1"
+  });
   return {
     configPath,
     config,
     providers,
     nextclawProvider,
     platformBase,
-    v1Base: `${platformBase}/v1`
+    v1Base,
+    inputApiBase
   };
 }
 
@@ -107,7 +113,7 @@ function readLoginPayload(raw: string): { token: string; role: string } {
 
 export class PlatformAuthCommands {
   async login(opts: LoginCommandOptions = {}): Promise<void> {
-    const { configPath, config, providers, nextclawProvider, platformBase, v1Base } = resolveProviderConfig(opts);
+    const { configPath, config, providers, nextclawProvider, platformBase, v1Base, inputApiBase } = resolveProviderConfig(opts);
     const { email, password } = await resolveCredentials(opts);
     const endpoint = opts.register
       ? `${platformBase}/platform/auth/register`
@@ -135,7 +141,7 @@ export class PlatformAuthCommands {
         typeof (parsed as { error?: { message?: unknown } }).error?.message === "string"
           ? (parsed as { error: { message: string } }).error.message
           : raw || `Request failed (${response.status})`;
-      throw new Error(maybeMessage);
+      throw new Error(buildPlatformApiBaseErrorMessage(inputApiBase, maybeMessage));
     }
 
     const { token, role } = readLoginPayload(raw);

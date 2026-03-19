@@ -3,6 +3,7 @@ import { ensureUiBridgeSecret } from "@nextclaw/server";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { hostname, platform as readPlatform } from "node:os";
+import { resolvePlatformApiBase } from "./platform-api-base.js";
 import type { RemoteConnectCommandOptions } from "../types.js";
 import { getPackageVersion, isProcessRunning, readServiceState } from "../utils.js";
 
@@ -97,7 +98,10 @@ export class RemoteCommands {
     if (!rawApiBase) {
       throw new Error("Platform API base is missing. Pass --api-base or run nextclaw login.");
     }
-    const platformBase = rawApiBase.replace(/\/v1\/?$/i, "");
+    const { platformBase } = resolvePlatformApiBase({
+      explicitApiBase: rawApiBase,
+      requireConfigured: true
+    });
     return { platformBase, token, config };
   }
 
