@@ -1,4 +1,6 @@
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, isAbsolute, join } from "node:path";
 import {
   type NcpAgentRunInput,
   type NcpAgentRunOptions,
@@ -27,12 +29,32 @@ import {
 const require = createRequire(import.meta.url);
 const claudeCodeLoader = require("../claude-code-loader.cjs") as ClaudeCodeLoader;
 
+function resolveBundledClaudeAgentSdkCliPath(): string | undefined {
+  try {
+    const packageJsonPath = require.resolve("@anthropic-ai/claude-agent-sdk/package.json");
+    const cliPath = join(dirname(packageJsonPath), "cli.js");
+    return existsSync(cliPath) ? cliPath : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveCurrentProcessExecutable(): string | undefined {
+  const execPath = process.execPath?.trim();
+  if (!execPath || !isAbsolute(execPath)) {
+    return undefined;
+  }
+  return existsSync(execPath) ? execPath : undefined;
+}
+
 export type { ClaudeCodeSdkNcpAgentRuntimeConfig } from "./claude-code-sdk-types.js";
 
 export class ClaudeCodeSdkNcpAgentRuntime implements NcpAgentRuntime {
   private sdkModulePromise: Promise<ClaudeCodeSdkModule> | null = null;
   private sessionRuntimeId: string | null;
   private readonly sessionMetadata: Record<string, unknown>;
+  private readonly bundledCliPath = resolveBundledClaudeAgentSdkCliPath();
+  private readonly currentProcessExecutable = resolveCurrentProcessExecutable();
 
   constructor(private readonly config: ClaudeCodeSdkNcpAgentRuntimeConfig) {
     this.sessionRuntimeId = config.sessionRuntimeId?.trim() || null;
@@ -112,12 +134,24 @@ export class ClaudeCodeSdkNcpAgentRuntime implements NcpAgentRuntime {
   }
 
   private buildQueryOptions(abortController: AbortController): ClaudeCodeQueryOptions {
+    const baseQueryOptions = this.config.baseQueryOptions ?? {};
+    const resolvedCliPath =
+      typeof baseQueryOptions.pathToClaudeCodeExecutable === "string"
+        ? baseQueryOptions.pathToClaudeCodeExecutable
+        : this.bundledCliPath;
+    const resolvedExecutable =
+      typeof baseQueryOptions.executable === "string"
+        ? baseQueryOptions.executable
+        : this.currentProcessExecutable;
+
     return {
-      ...(this.config.baseQueryOptions ?? {}),
+      ...baseQueryOptions,
       abortController,
       cwd: this.config.workingDirectory,
       model: this.config.model,
       env: buildQueryEnv(this.config),
+      ...(resolvedCliPath ? { pathToClaudeCodeExecutable: resolvedCliPath } : {}),
+      ...(resolvedExecutable ? { executable: resolvedExecutable } : {}),
       ...(this.sessionRuntimeId ? { resume: this.sessionRuntimeId } : {}),
     };
   }

@@ -239,61 +239,12 @@ describe("createUiNcpAgent session types", () => {
 describe("createUiNcpAgent Claude runtime", () => {
   it("runs claude session messages through the configured Claude CLI entrypoint", async () => {
     const workspace = createTempWorkspace();
-    const mockClaudePath = join(workspace, "mock-claude-code.mjs");
-    writeFileSync(
-      mockClaudePath,
-      [
-        "const sessionId = 'claude-session-test';",
-        "const text = 'hello from fake claude';",
-        "console.log(JSON.stringify({",
-        "  type: 'assistant',",
-        "  session_id: sessionId,",
-        "  message: {",
-        "    content: [{ type: 'text', text }],",
-        "  },",
-        "}));",
-        "console.log(JSON.stringify({",
-        "  type: 'result',",
-        "  subtype: 'success',",
-        "  session_id: sessionId,",
-        "  result: text,",
-        "}));",
-      ].join("\n"),
-    );
-
-    const config = ConfigSchema.parse({
-      agents: {
-        defaults: {
-          workspace,
-          model: "anthropic/claude-sonnet-4-5",
-          contextTokens: 200000,
-          maxToolIterations: 8,
-        },
+    const mockClaudePath = createMockClaudeScript(workspace);
+    const { ncpAgent, sessionManager } = await createClaudeRuntimeFixture({
+      workspace,
+      pluginConfig: {
+        pathToClaudeCodeExecutable: mockClaudePath,
       },
-      plugins: {
-        load: {
-          paths: ["../extensions/nextclaw-ncp-runtime-plugin-claude-code-sdk"],
-        },
-        entries: {
-          "nextclaw-ncp-runtime-plugin-claude-code-sdk": {
-            enabled: true,
-            config: {
-              apiKey: "test-claude-api-key",
-              pathToClaudeCodeExecutable: mockClaudePath,
-            },
-          },
-        },
-      },
-    });
-    const extensionRegistry = toExtensionRegistry(loadPluginRegistry(config, workspace));
-    const sessionManager = new SessionManager(workspace);
-
-    const ncpAgent = await createUiNcpAgent({
-      bus: new MessageBus(),
-      providerManager: new RecordingProviderManager() as unknown as ProviderManager,
-      sessionManager,
-      getConfig: () => config,
-      getExtensionRegistry: () => extensionRegistry,
     });
 
     const runEvents = await sendAndCollectEvents(
@@ -328,6 +279,44 @@ describe("createUiNcpAgent Claude runtime", () => {
         (message) => message.role === "assistant" && String(message.content ?? "").includes("hello from fake claude"),
       ),
     ).toBe(true);
+  });
+
+  it("runs claude session messages even when PATH does not include a node executable", async () => {
+    const workspace = createTempWorkspace();
+    const mockClaudePath = createMockClaudeScript(workspace);
+    const { ncpAgent, sessionManager } = await createClaudeRuntimeFixture({
+      workspace,
+      pluginConfig: {
+        pathToClaudeCodeExecutable: mockClaudePath,
+        env: {
+          PATH: "",
+        },
+      },
+    });
+
+    const runEvents = await sendAndCollectEvents(
+      ncpAgent.agentClientEndpoint,
+      createEnvelope({
+        sessionId: "session-claude-empty-path",
+        text: "say hello from claude",
+        metadata: {
+          session_type: "claude",
+        },
+      }),
+    );
+
+    expect(runEvents.at(-1)?.type).toBe(NcpEventType.RunFinished);
+    expect(
+      runEvents.some(
+        (event) =>
+          event.type === NcpEventType.MessageTextDelta &&
+          "payload" in event &&
+          String((event.payload as { delta?: unknown }).delta ?? "").includes("hello from fake claude"),
+      ),
+    ).toBe(true);
+
+    const persistedSession = sessionManager.getIfExists("session-claude-empty-path");
+    expect(persistedSession?.metadata.claude_session_id).toBe("claude-session-test");
   });
 });
 
@@ -441,6 +430,78 @@ async function createDemoSkillAgentFixture(): Promise<{
     providerManager,
     sessionManager,
     ncpAgent,
+  };
+}
+
+function createMockClaudeScript(workspace: string): string {
+  const mockClaudePath = join(workspace, "mock-claude-code.mjs");
+  writeFileSync(
+    mockClaudePath,
+    [
+      "const sessionId = 'claude-session-test';",
+      "const text = 'hello from fake claude';",
+      "console.log(JSON.stringify({",
+      "  type: 'assistant',",
+      "  session_id: sessionId,",
+      "  message: {",
+      "    content: [{ type: 'text', text }],",
+      "  },",
+      "}));",
+      "console.log(JSON.stringify({",
+      "  type: 'result',",
+      "  subtype: 'success',",
+      "  session_id: sessionId,",
+      "  result: text,",
+      "}));",
+    ].join("\n"),
+  );
+  return mockClaudePath;
+}
+
+async function createClaudeRuntimeFixture(params: {
+  workspace: string;
+  pluginConfig?: Record<string, unknown>;
+}): Promise<{
+  ncpAgent: Awaited<ReturnType<typeof createUiNcpAgent>>;
+  sessionManager: SessionManager;
+}> {
+  const config = ConfigSchema.parse({
+    agents: {
+      defaults: {
+        workspace: params.workspace,
+        model: "anthropic/claude-sonnet-4-5",
+        contextTokens: 200000,
+        maxToolIterations: 8,
+      },
+    },
+    plugins: {
+      load: {
+        paths: ["../extensions/nextclaw-ncp-runtime-plugin-claude-code-sdk"],
+      },
+      entries: {
+        "nextclaw-ncp-runtime-plugin-claude-code-sdk": {
+          enabled: true,
+          config: {
+            apiKey: "test-claude-api-key",
+            ...(params.pluginConfig ?? {}),
+          },
+        },
+      },
+    },
+  });
+  const extensionRegistry = toExtensionRegistry(loadPluginRegistry(config, params.workspace));
+  const sessionManager = new SessionManager(params.workspace);
+  const ncpAgent = await createUiNcpAgent({
+    bus: new MessageBus(),
+    providerManager: new RecordingProviderManager() as unknown as ProviderManager,
+    sessionManager,
+    getConfig: () => config,
+    getExtensionRegistry: () => extensionRegistry,
+  });
+
+  return {
+    ncpAgent,
+    sessionManager,
   };
 }
 
