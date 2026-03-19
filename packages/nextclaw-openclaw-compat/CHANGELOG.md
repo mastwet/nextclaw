@@ -1,5 +1,35 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.3
+
+### Patch Changes
+
+- Republish the NCP-linked package set so published consumers resolve the
+  latest NCP protocol/runtime exports used by the current NextClaw CLI build.
+- Updated dependencies
+  - @nextclaw/ncp@0.3.1
+  - @nextclaw/ncp-toolkit@0.4.1
+
+## 0.3.2
+
+### Patch Changes
+
+- Republish the core-linked package set so published consumers resolve the
+  DisposableStore export from the updated @nextclaw/core release.
+- Updated dependencies
+  - @nextclaw/core@0.9.1
+  - @nextclaw/channel-runtime@0.2.1
+  - @nextclaw/channel-plugin-dingtalk@0.2.1
+  - @nextclaw/channel-plugin-discord@0.2.1
+  - @nextclaw/channel-plugin-email@0.2.1
+  - @nextclaw/channel-plugin-feishu@0.2.1
+  - @nextclaw/channel-plugin-mochat@0.2.1
+  - @nextclaw/channel-plugin-qq@0.2.1
+  - @nextclaw/channel-plugin-slack@0.2.1
+  - @nextclaw/channel-plugin-telegram@0.2.1
+  - @nextclaw/channel-plugin-wecom@0.2.1
+  - @nextclaw/channel-plugin-whatsapp@0.2.1
+
 ## 0.3.1
 
 ### Patch Changes

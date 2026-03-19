@@ -1,5 +1,14 @@
 # @nextclaw/nextclaw-engine-claude-agent-sdk
 
+## 0.3.1
+
+### Patch Changes
+
+- Republish the core-linked package set so published consumers resolve the
+  DisposableStore export from the updated @nextclaw/core release.
+- Updated dependencies
+  - @nextclaw/core@0.9.1
+
 ## 0.3.0
 
 ### Minor Changes

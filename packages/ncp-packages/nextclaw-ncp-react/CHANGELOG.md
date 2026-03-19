@@ -1,5 +1,15 @@
 # @nextclaw/ncp-react
 
+## 0.3.2
+
+### Patch Changes
+
+- Republish the NCP-linked package set so published consumers resolve the
+  latest NCP protocol/runtime exports used by the current NextClaw CLI build.
+- Updated dependencies
+  - @nextclaw/ncp@0.3.1
+  - @nextclaw/ncp-toolkit@0.4.1
+
 ## 0.3.1
 
 ### Patch Changes

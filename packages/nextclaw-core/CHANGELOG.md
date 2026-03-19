@@ -1,5 +1,12 @@
 # nextclaw-core
 
+## 0.9.1
+
+### Patch Changes
+
+- Republish the core-linked package set so published consumers resolve the
+  DisposableStore export from the updated @nextclaw/core release.
+
 ## 0.9.0
 
 ### Minor Changes

@@ -1,5 +1,27 @@
 # nextclaw-server
 
+## 0.9.2
+
+### Patch Changes
+
+- Republish the NCP-linked package set so published consumers resolve the
+  latest NCP protocol/runtime exports used by the current NextClaw CLI build.
+- Updated dependencies
+  - @nextclaw/ncp@0.3.1
+  - @nextclaw/ncp-http-agent-server@0.3.1
+  - @nextclaw/openclaw-compat@0.3.3
+
+## 0.9.1
+
+### Patch Changes
+
+- Republish the core-linked package set so published consumers resolve the
+  DisposableStore export from the updated @nextclaw/core release.
+- Updated dependencies
+  - @nextclaw/core@0.9.1
+  - @nextclaw/openclaw-compat@0.3.2
+  - @nextclaw/runtime@0.2.1
+
 ## 0.9.0
 
 ### Minor Changes

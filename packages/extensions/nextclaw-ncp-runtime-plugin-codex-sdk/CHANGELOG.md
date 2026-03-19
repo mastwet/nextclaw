@@ -1,5 +1,25 @@
 # @nextclaw/nextclaw-ncp-runtime-plugin-codex-sdk
 
+## 0.1.3
+
+### Patch Changes
+
+- Republish the NCP-linked package set so published consumers resolve the
+  latest NCP protocol/runtime exports used by the current NextClaw CLI build.
+- Updated dependencies
+  - @nextclaw/ncp@0.3.1
+  - @nextclaw/ncp-toolkit@0.4.1
+  - @nextclaw/nextclaw-ncp-runtime-codex-sdk@0.1.1
+
+## 0.1.2
+
+### Patch Changes
+
+- Republish the core-linked package set so published consumers resolve the
+  DisposableStore export from the updated @nextclaw/core release.
+- Updated dependencies
+  - @nextclaw/core@0.9.1
+
 ## 0.1.1
 
 ### Patch Changes

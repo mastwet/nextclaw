@@ -1,5 +1,12 @@
 # @nextclaw/channel-plugin-wecom
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/channel-runtime@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes

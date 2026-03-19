@@ -1,5 +1,14 @@
 # @nextclaw/ncp-http-agent-client
 
+## 0.3.1
+
+### Patch Changes
+
+- Republish the NCP-linked package set so published consumers resolve the
+  latest NCP protocol/runtime exports used by the current NextClaw CLI build.
+- Updated dependencies
+  - @nextclaw/ncp@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes
