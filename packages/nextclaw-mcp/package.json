@@ -1,0 +1,36 @@
+{
+  "name": "@nextclaw/mcp",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Platform-level MCP registry, lifecycle, and diagnostics for NextClaw.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+    "lint": "cd ../.. && pnpm exec eslint packages/nextclaw-mcp --config eslint.config.mjs",
+    "tsc": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@nextclaw/core": "workspace:*",
+    "undici": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "prettier": "^3.3.3",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2",
+    "zod": "^4.3.6"
+  }
+}

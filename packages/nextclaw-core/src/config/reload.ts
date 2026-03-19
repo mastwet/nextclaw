@@ -27,6 +27,7 @@ type ReloadRule = {
 const RELOAD_RULES: ReloadRule[] = [
   { prefix: "channels", kind: "restart-channels" },
   { prefix: "providers", kind: "reload-providers" },
+  { prefix: "mcp", kind: "restart-required" },
   { prefix: "agents.defaults.workspace", kind: "reload-agent" },
   { prefix: "agents.defaults.model", kind: "reload-agent" },
   { prefix: "agents.defaults.engine", kind: "reload-agent" },

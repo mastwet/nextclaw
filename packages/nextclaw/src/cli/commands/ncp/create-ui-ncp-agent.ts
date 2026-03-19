@@ -7,7 +7,9 @@ import {
   type ProviderManager,
   type SessionManager,
 } from "@nextclaw/core";
+import { McpRegistryService, McpServerLifecycleManager } from "@nextclaw/mcp";
 import { DefaultNcpAgentRuntime } from "@nextclaw/ncp-agent-runtime";
+import { McpNcpToolRegistryAdapter } from "@nextclaw/ncp-mcp";
 import {
   readAssistantReasoningNormalizationMode,
   readAssistantReasoningNormalizationModeFromMetadata,
@@ -79,6 +81,21 @@ export async function createUiNcpAgent(params: {
 }): Promise<UiNcpAgentHandle> {
   const sessionStore = new NextclawAgentSessionStore(params.sessionManager);
   const runtimeRegistry = new UiNcpRuntimeRegistry();
+  const mcpLifecycleManager = new McpServerLifecycleManager({
+    getConfig: params.getConfig,
+  });
+  const mcpRegistryService = new McpRegistryService({
+    getConfig: params.getConfig,
+    lifecycleManager: mcpLifecycleManager,
+  });
+  const mcpPrewarmResults = await mcpRegistryService.prewarmEnabledServers();
+  for (const result of mcpPrewarmResults) {
+    if (!result.ok) {
+      console.warn(`[mcp] Failed to warm ${result.name}: ${result.error}`);
+    }
+  }
+  const mcpToolRegistryAdapter = new McpNcpToolRegistryAdapter(mcpRegistryService);
+
   runtimeRegistry.register({
     kind: "native",
     label: "Native",
@@ -107,6 +124,10 @@ export async function createUiNcpAgent(params: {
         gatewayController: params.gatewayController,
         getConfig: params.getConfig,
         getExtensionRegistry: params.getExtensionRegistry,
+        getAdditionalTools: (context) =>
+          mcpToolRegistryAdapter.listToolsForRun({
+            agentId: context.agentId,
+          }),
       });
       return new DefaultNcpAgentRuntime({
         contextBuilder: new NextclawNcpContextBuilder({

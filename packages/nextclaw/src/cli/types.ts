@@ -73,6 +73,28 @@ export type ConfigSetOptions = {
   json?: boolean;
 };
 
+export type McpListOptions = {
+  json?: boolean;
+};
+
+export type McpAddCommandOptions = {
+  transport?: string;
+  url?: string;
+  header?: string[];
+  env?: string[];
+  cwd?: string;
+  timeoutMs?: string | number;
+  disabled?: boolean;
+  allAgents?: boolean;
+  agent?: string[];
+  stderr?: string;
+  insecure?: boolean;
+};
+
+export type McpDoctorOptions = {
+  json?: boolean;
+};
+
 export type SecretsAuditOptions = {
   json?: boolean;
   strict?: boolean;

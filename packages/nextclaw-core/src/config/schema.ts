@@ -365,6 +365,67 @@ export const UiConfigSchema = z.object({
   ncp: UiNcpConfigSchema.default({})
 });
 
+const mcpNamedStringSchema = z.string().trim().min(1);
+
+export const McpServerScopeSchema = z.object({
+  allAgents: z.boolean().default(false),
+  agents: z.array(mcpNamedStringSchema).default([])
+});
+
+export const McpServerPolicySchema = z.object({
+  trust: z.enum(["explicit"]).default("explicit"),
+  start: z.enum(["eager"]).default("eager")
+});
+
+export const McpTransportStdioSchema = z.object({
+  type: z.literal("stdio"),
+  command: mcpNamedStringSchema,
+  args: z.array(z.string()).default([]),
+  cwd: z.string().optional(),
+  env: z.record(z.string()).default({}),
+  stderr: z.enum(["inherit", "pipe", "ignore"]).default("pipe")
+});
+
+export const McpTransportHttpSchema = z.object({
+  type: z.literal("http"),
+  url: z.string().url(),
+  headers: z.record(z.string()).default({}),
+  timeoutMs: z.number().int().min(1).max(120000).default(15000),
+  verifyTls: z.boolean().default(true)
+});
+
+export const McpTransportSseReconnectSchema = z.object({
+  enabled: z.boolean().default(true),
+  initialDelayMs: z.number().int().min(100).max(120000).default(1000),
+  maxDelayMs: z.number().int().min(100).max(300000).default(30000)
+});
+
+export const McpTransportSseSchema = z.object({
+  type: z.literal("sse"),
+  url: z.string().url(),
+  headers: z.record(z.string()).default({}),
+  timeoutMs: z.number().int().min(1).max(120000).default(15000),
+  verifyTls: z.boolean().default(true),
+  reconnect: McpTransportSseReconnectSchema.default({})
+});
+
+export const McpTransportSchema = z.discriminatedUnion("type", [
+  McpTransportStdioSchema,
+  McpTransportHttpSchema,
+  McpTransportSseSchema
+]);
+
+export const McpServerDefinitionSchema = z.object({
+  enabled: z.boolean().default(true),
+  transport: McpTransportSchema,
+  scope: McpServerScopeSchema.default({}),
+  policy: McpServerPolicySchema.default({})
+});
+
+export const McpConfigSchema = z.object({
+  servers: z.record(McpServerDefinitionSchema).default({})
+});
+
 export const WebSearchConfigSchema = z.object({
   apiKey: z.string().default(""),
   maxResults: z.number().int().default(5)
@@ -467,6 +528,7 @@ export const ConfigSchema = z.object({
   channels: ChannelsConfigSchema.default({}),
   providers: ProvidersConfigSchema.default({}),
   search: SearchConfigSchema.default({}),
+  mcp: McpConfigSchema.default({}),
   plugins: PluginsConfigSchema.default({}),
   bindings: z.array(AgentBindingSchema).default([]),
   session: SessionConfigSchema.default({}),
@@ -494,6 +556,14 @@ export type SecretProviderConfig = z.infer<typeof SecretProviderSchema>;
 export type SecretsConfig = z.infer<typeof SecretsConfigSchema>;
 export type SearchConfig = z.infer<typeof SearchConfigSchema>;
 export type SearchProviderName = z.infer<typeof SearchProviderNameSchema>;
+export type McpConfig = z.infer<typeof McpConfigSchema>;
+export type McpServerDefinition = z.infer<typeof McpServerDefinitionSchema>;
+export type McpServerScope = z.infer<typeof McpServerScopeSchema>;
+export type McpServerPolicy = z.infer<typeof McpServerPolicySchema>;
+export type McpTransport = z.infer<typeof McpTransportSchema>;
+export type McpTransportStdio = z.infer<typeof McpTransportStdioSchema>;
+export type McpTransportHttp = z.infer<typeof McpTransportHttpSchema>;
+export type McpTransportSse = z.infer<typeof McpTransportSseSchema>;
 
 export function getWorkspacePathFromConfig(config: Config): string {
   return expandHome(config.agents.defaults.workspace);

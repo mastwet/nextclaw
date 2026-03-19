@@ -10,6 +10,9 @@
       "@nextclaw/core": [
         "../nextclaw-core/src/index.ts"
       ],
+      "@nextclaw/mcp": [
+        "../nextclaw-mcp/src/index.ts"
+      ],
       "@nextclaw/runtime": [
         "../nextclaw-runtime/src/index.ts"
       ],
@@ -24,6 +27,9 @@
       ],
       "@nextclaw/ncp-agent-runtime": [
         "../ncp-packages/nextclaw-ncp-agent-runtime/src/index.ts"
+      ],
+      "@nextclaw/ncp-mcp": [
+        "../ncp-packages/nextclaw-ncp-mcp/src/index.ts"
       ],
       "@nextclaw/openclaw-compat": [
         "../nextclaw-openclaw-compat/src/index.ts"

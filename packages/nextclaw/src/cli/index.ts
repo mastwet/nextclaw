@@ -204,6 +204,52 @@ config
   .description("Remove a config value by dot path")
   .action((path) => runtime.configUnset(path));
 
+const mcp = program.command("mcp").description("Manage MCP servers");
+
+mcp
+  .command("list")
+  .description("List configured MCP servers")
+  .option("--json", "Output JSON", false)
+  .action((opts) => runtime.mcpList(opts));
+
+mcp
+  .command("add <name> [command...]")
+  .description("Add an MCP server (stdio by default, or use --transport http|sse)")
+  .allowUnknownOption(true)
+  .option("--transport <type>", "Transport type: stdio|http|sse", "stdio")
+  .option("--url <url>", "HTTP/SSE endpoint URL")
+  .option("--header <key=value>", "Transport header (repeatable)", withRepeatableTag, [])
+  .option("--env <key=value>", "stdio env var (repeatable)", withRepeatableTag, [])
+  .option("--cwd <dir>", "stdio working directory")
+  .option("--timeout-ms <ms>", "HTTP/SSE timeout in milliseconds")
+  .option("--stderr <mode>", "stdio stderr handling: inherit|pipe|ignore", "pipe")
+  .option("--disabled", "Create the server in disabled state", false)
+  .option("--all-agents", "Expose this server to all agents", false)
+  .option("--agent <id>", "Expose to an agent id (repeatable)", withRepeatableTag, [])
+  .option("--insecure", "Disable TLS verification for HTTP/SSE", false)
+  .action(async (name, command, opts) => runtime.mcpAdd(name, command ?? [], opts));
+
+mcp
+  .command("remove <name>")
+  .description("Remove an MCP server")
+  .action(async (name) => runtime.mcpRemove(name));
+
+mcp
+  .command("enable <name>")
+  .description("Enable an MCP server")
+  .action(async (name) => runtime.mcpEnable(name));
+
+mcp
+  .command("disable <name>")
+  .description("Disable an MCP server")
+  .action(async (name) => runtime.mcpDisable(name));
+
+mcp
+  .command("doctor [name]")
+  .description("Check MCP server connectivity and tool discovery")
+  .option("--json", "Output JSON", false)
+  .action(async (name, opts) => runtime.mcpDoctor(name, opts));
+
 const secrets = program.command("secrets").description("Manage secrets refs/providers");
 
 secrets

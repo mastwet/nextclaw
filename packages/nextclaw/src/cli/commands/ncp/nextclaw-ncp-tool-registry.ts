@@ -40,6 +40,7 @@ type NextclawNcpToolRegistryOptions = {
   gatewayController?: GatewayController;
   getConfig: () => Config;
   getExtensionRegistry?: () => ExtensionRegistry | undefined;
+  getAdditionalTools?: (context: PreparedRunContext) => ReadonlyArray<NcpTool>;
 };
 
 type PreparedRunContext = {
@@ -168,6 +169,7 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
 
     this.registerDefaultTools(context);
     this.registerExtensionTools(context);
+    this.registerAdditionalTools(context);
   }
 
   listTools(): ReadonlyArray<NcpTool> {
@@ -187,7 +189,10 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
   }
 
   async execute(toolCallId: string, toolName: string, args: unknown): Promise<unknown> {
-    return this.registry.execute(toolName, toToolParams(args), toolCallId);
+    if (this.registry.has(toolName)) {
+      return this.registry.execute(toolName, toToolParams(args), toolCallId);
+    }
+    return this.tools.get(toolName)?.execute(args);
   }
 
   private registerDefaultTools(context: PreparedRunContext): void {
@@ -287,6 +292,16 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
       tool.name,
       new CoreToolNcpAdapter(tool, async (toolName, args) => this.registry.execute(toolName, toToolParams(args))),
     );
+  }
+
+  private registerAdditionalTools(context: PreparedRunContext): void {
+    const tools = this.options.getAdditionalTools?.(context) ?? [];
+    for (const tool of tools) {
+      if (this.tools.has(tool.name)) {
+        continue;
+      }
+      this.tools.set(tool.name, tool);
+    }
   }
 }
 

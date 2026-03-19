@@ -32,14 +32,7 @@ import {
 import { writeRestartSentinel } from "./restart-sentinel.js";
 import { installMarketplaceSkill, publishMarketplaceSkill } from "./skills/marketplace.js";
 import { runSelfUpdate } from "./update/runner.js";
-import {
-  clearServiceState,
-  getPackageVersion,
-  isProcessRunning,
-  printAgentResponse,
-  prompt,
-  readServiceState,
-} from "./utils.js";
+import { clearServiceState, getPackageVersion, isProcessRunning, printAgentResponse, prompt, readServiceState } from "./utils.js";
 import {
   loadPluginRegistry,
   logPluginDiagnostics,
@@ -49,6 +42,7 @@ import {
   PluginCommands,
 } from "./commands/plugins.js";
 import { ConfigCommands } from "./commands/config.js";
+import { McpCommands } from "./commands/mcp.js";
 import { SecretsCommands } from "./commands/secrets.js";
 import { ChannelCommands } from "./commands/channels.js";
 import { CronCommands } from "./commands/cron.js";
@@ -59,19 +53,22 @@ import type {
   AgentCommandOptions,
   ChannelsAddOptions,
   ConfigGetOptions,
-  SecretsApplyOptions,
-  SecretsAuditOptions,
-  SecretsConfigureOptions,
-  SecretsReloadOptions,
   ConfigSetOptions,
   CronAddOptions,
   DoctorCommandOptions,
   GatewayCommandOptions,
   LoginCommandOptions,
+  McpAddCommandOptions,
+  McpDoctorOptions,
+  McpListOptions,
   PluginsInfoOptions,
   PluginsInstallOptions,
   PluginsListOptions,
   PluginsUninstallOptions,
+  SecretsApplyOptions,
+  SecretsAuditOptions,
+  SecretsConfigureOptions,
+  SecretsReloadOptions,
   RequestRestartParams,
   StartCommandOptions,
   StatusCommandOptions,
@@ -103,6 +100,7 @@ export class CliRuntime {
   private workspaceManager: WorkspaceManager;
   private serviceCommands: ServiceCommands;
   private configCommands: ConfigCommands;
+  private mcpCommands: McpCommands;
   private secretsCommands: SecretsCommands;
   private pluginCommands: PluginCommands;
   private channelCommands: ChannelCommands;
@@ -117,6 +115,9 @@ export class CliRuntime {
       requestRestart: (params) => this.requestRestart(params),
     });
     this.configCommands = new ConfigCommands({
+      requestRestart: (params) => this.requestRestart(params),
+    });
+    this.mcpCommands = new McpCommands({
       requestRestart: (params) => this.requestRestart(params),
     });
     this.secretsCommands = new SecretsCommands({
@@ -853,10 +854,7 @@ export class CliRuntime {
     await this.pluginCommands.pluginsUninstall(id, opts);
   }
 
-  async pluginsInstall(
-    pathOrSpec: string,
-    opts: PluginsInstallOptions = {},
-  ): Promise<void> {
+  async pluginsInstall(pathOrSpec: string, opts: PluginsInstallOptions = {}): Promise<void> {
     await this.pluginCommands.pluginsInstall(pathOrSpec, opts);
   }
 
@@ -868,45 +866,24 @@ export class CliRuntime {
     this.configCommands.configGet(pathExpr, opts);
   }
 
-  async configSet(
-    pathExpr: string,
-    value: string,
-    opts: ConfigSetOptions = {},
-  ): Promise<void> {
+  async configSet(pathExpr: string, value: string, opts: ConfigSetOptions = {}): Promise<void> {
     await this.configCommands.configSet(pathExpr, value, opts);
   }
 
-  async configUnset(pathExpr: string): Promise<void> {
-    await this.configCommands.configUnset(pathExpr);
-  }
-
-  secretsAudit(opts: SecretsAuditOptions = {}): void {
-    this.secretsCommands.secretsAudit(opts);
-  }
-
-  async secretsConfigure(opts: SecretsConfigureOptions): Promise<void> {
-    await this.secretsCommands.secretsConfigure(opts);
-  }
-
-  async secretsApply(opts: SecretsApplyOptions): Promise<void> {
-    await this.secretsCommands.secretsApply(opts);
-  }
-
-  async secretsReload(opts: SecretsReloadOptions = {}): Promise<void> {
-    await this.secretsCommands.secretsReload(opts);
-  }
-
-  channelsStatus(): void {
-    this.channelCommands.channelsStatus();
-  }
-
-  channelsLogin(): void {
-    this.channelCommands.channelsLogin();
-  }
-
-  async channelsAdd(opts: ChannelsAddOptions): Promise<void> {
-    await this.channelCommands.channelsAdd(opts);
-  }
+  async configUnset(pathExpr: string): Promise<void> { await this.configCommands.configUnset(pathExpr); }
+  mcpList(opts: McpListOptions = {}): void { this.mcpCommands.mcpList(opts); }
+  async mcpAdd(name: string, command: string[], opts: McpAddCommandOptions = {}): Promise<void> { await this.mcpCommands.mcpAdd(name, command, opts); }
+  async mcpRemove(name: string): Promise<void> { await this.mcpCommands.mcpRemove(name); }
+  async mcpEnable(name: string): Promise<void> { await this.mcpCommands.mcpEnable(name); }
+  async mcpDisable(name: string): Promise<void> { await this.mcpCommands.mcpDisable(name); }
+  async mcpDoctor(name?: string, opts: McpDoctorOptions = {}): Promise<void> { await this.mcpCommands.mcpDoctor(name, opts); }
+  secretsAudit(opts: SecretsAuditOptions = {}): void { this.secretsCommands.secretsAudit(opts); }
+  async secretsConfigure(opts: SecretsConfigureOptions): Promise<void> { await this.secretsCommands.secretsConfigure(opts); }
+  async secretsApply(opts: SecretsApplyOptions): Promise<void> { await this.secretsCommands.secretsApply(opts); }
+  async secretsReload(opts: SecretsReloadOptions = {}): Promise<void> { await this.secretsCommands.secretsReload(opts); }
+  channelsStatus(): void { this.channelCommands.channelsStatus(); }
+  channelsLogin(): void { this.channelCommands.channelsLogin(); }
+  async channelsAdd(opts: ChannelsAddOptions): Promise<void> { await this.channelCommands.channelsAdd(opts); }
 
   cronList(opts: { all?: boolean }): void {
     this.cronCommands.cronList(opts);
