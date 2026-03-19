@@ -28,6 +28,12 @@ import type {
   MarketplaceSort
 } from '@/api/types';
 import { useDocBrowser } from '@/components/doc-browser';
+import { useI18n } from '@/components/providers/I18nProvider';
+import {
+  buildLocaleFallbacks,
+  pickInstalledRecordDescription,
+  pickLocalizedText
+} from '@/components/marketplace/marketplace-localization';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +41,7 @@ type ScopeType = 'catalog' | 'installed';
 
 const PAGE_SIZE = 12;
 
-function buildDocDataUrl(title: string, metadata: string, content: string, sourceUrl?: string): string {
+function buildDocDataUrl(title: string, metadata: string, content: string, sourceUrl?: string, summary?: string): string {
   const escape = (value: string) =>
     value
       .replace(/&/g, '&amp;')
@@ -68,6 +74,7 @@ function buildDocDataUrl(title: string, metadata: string, content: string, sourc
     <main class="wrap">
       <section class="hero">
         <h1>${escape(title)}</h1>
+        ${summary ? `<p>${escape(summary)}</p>` : ''}
         ${sourceUrl ? `<p><a href="${escape(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escape(sourceUrl)}</a></p>` : ''}
       </section>
       <section class="grid">
@@ -87,8 +94,14 @@ function buildDocDataUrl(title: string, metadata: string, content: string, sourc
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
-function readSummary(item?: MarketplaceItemSummary, record?: MarketplaceInstalledRecord): string {
-  return item?.summary || record?.description || t('marketplaceInstalledLocalSummary');
+function readSummary(localeFallbacks: string[], item?: MarketplaceItemSummary, record?: MarketplaceInstalledRecord): string {
+  const localizedSummary = pickLocalizedText(item?.summaryI18n, item?.summary, localeFallbacks);
+  if (localizedSummary) {
+    return localizedSummary;
+  }
+
+  const localizedRecordDescription = pickInstalledRecordDescription(record, localeFallbacks);
+  return localizedRecordDescription || t('marketplaceInstalledLocalSummary');
 }
 
 function readTransportLabel(item?: MarketplaceItemSummary, record?: MarketplaceInstalledRecord): string {
@@ -208,8 +221,10 @@ export function McpMarketplacePage() {
   const [installingItem, setInstallingItem] = useState<MarketplaceItemSummary | null>(null);
   const [doctorTarget, setDoctorTarget] = useState<string | null>(null);
   const [doctorResult, setDoctorResult] = useState<MarketplaceMcpDoctorResult | null>(null);
+  const { language } = useI18n();
   const docBrowser = useDocBrowser();
   const { confirm, ConfirmDialog } = useConfirmDialog();
+  const localeFallbacks = useMemo(() => buildLocaleFallbacks(language), [language]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -250,24 +265,49 @@ export function McpMarketplacePage() {
   const installedRecords = useMemo(() => {
     const entries = installedQuery.data?.records ?? [];
     return entries.filter((record) => {
-      const text = `${record.id ?? ''} ${record.label ?? ''} ${record.catalogSlug ?? ''}`.toLowerCase();
+      const text = [
+        record.id ?? '',
+        record.label ?? '',
+        record.catalogSlug ?? '',
+        record.description ?? '',
+        record.descriptionZh ?? ''
+      ].join(' ').toLowerCase();
       return query ? text.includes(query.toLowerCase()) : true;
     });
   }, [installedQuery.data?.records, query]);
 
   const openDoc = async (item?: MarketplaceItemSummary, record?: MarketplaceInstalledRecord) => {
     const title = item?.name ?? record?.label ?? record?.id ?? 'MCP';
+    const summary = readSummary(localeFallbacks, item, record);
     if (!item) {
-      const url = buildDocDataUrl(title, JSON.stringify(record ?? {}, null, 2), t('marketplaceInstalledLocalSummary'), record?.docsUrl);
+      const url = buildDocDataUrl(
+        title,
+        JSON.stringify(record ?? {}, null, 2),
+        t('marketplaceInstalledLocalSummary'),
+        record?.docsUrl,
+        summary
+      );
       docBrowser.open(url, { newTab: true, title, kind: 'content' });
       return;
     }
     try {
       const content = await fetchMcpMarketplaceContent(item.slug);
-      const url = buildDocDataUrl(title, content.metadataRaw || JSON.stringify(item, null, 2), content.bodyRaw || content.raw, content.sourceUrl);
+      const url = buildDocDataUrl(
+        title,
+        content.metadataRaw || JSON.stringify(item, null, 2),
+        content.bodyRaw || content.raw,
+        content.sourceUrl,
+        summary
+      );
       docBrowser.open(url, { newTab: true, title, kind: 'content' });
     } catch (error) {
-      const url = buildDocDataUrl(title, JSON.stringify({ error: error instanceof Error ? error.message : String(error) }, null, 2), item.summary);
+      const url = buildDocDataUrl(
+        title,
+        JSON.stringify({ error: error instanceof Error ? error.message : String(error) }, null, 2),
+        summary,
+        undefined,
+        summary
+      );
       docBrowser.open(url, { newTab: true, title, kind: 'content' });
     }
   };
@@ -311,7 +351,7 @@ export function McpMarketplacePage() {
   const renderCard = (item?: MarketplaceItemSummary, record?: MarketplaceInstalledRecord) => {
     const installed = record ?? (item ? installedByCatalogSlug.get(item.slug) : undefined);
     const name = item?.name ?? record?.label ?? record?.id ?? 'MCP';
-    const summary = readSummary(item, record);
+    const summary = readSummary(localeFallbacks, item, record);
     const transport = readTransportLabel(item, record);
     const status = installed ? (installed.enabled === false ? t('marketplaceDisable') : t('statusReady')) : null;
 

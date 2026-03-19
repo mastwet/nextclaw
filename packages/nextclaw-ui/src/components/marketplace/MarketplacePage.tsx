@@ -2,7 +2,6 @@
 import type {
   MarketplaceInstalledRecord,
   MarketplaceItemSummary,
-  MarketplaceLocalizedTextMap,
   MarketplaceManageAction,
   MarketplacePluginContentView,
   MarketplaceSkillContentView,
@@ -23,6 +22,7 @@ import {
   useMarketplaceInstalled,
   useMarketplaceItems
 } from '@/hooks/useMarketplace';
+import { buildLocaleFallbacks, pickLocalizedText } from '@/components/marketplace/marketplace-localization';
 import { t } from '@/lib/i18n';
 import { PageLayout, PageHeader } from '@/components/layout/page-layout';
 import { cn } from '@/lib/utils';
@@ -132,56 +132,6 @@ function findCatalogItemForRecord(
   }
 
   return catalogLookup.get(toLookupKey(record.type, record.label));
-}
-
-function buildLocaleFallbacks(language: string): string[] {
-  const normalized = language.trim().toLowerCase().replace(/_/g, '-');
-  const base = normalized.split('-')[0];
-  const fallbacks = [normalized, base, 'en'];
-  return Array.from(new Set(fallbacks.filter(Boolean)));
-}
-
-function normalizeLocaleTag(locale: string): string {
-  return locale.trim().toLowerCase().replace(/_/g, '-');
-}
-
-function pickLocalizedText(
-  localized: MarketplaceLocalizedTextMap | undefined,
-  fallback: string | undefined,
-  localeFallbacks: string[]
-): string {
-  if (localized) {
-    const entries = Object.entries(localized)
-      .map(([locale, text]) => ({ locale: normalizeLocaleTag(locale), text: typeof text === 'string' ? text.trim() : '' }))
-      .filter((entry) => entry.text.length > 0);
-
-    if (entries.length > 0) {
-      const exactMap = new Map(entries.map((entry) => [entry.locale, entry.text] as const));
-
-      for (const locale of localeFallbacks) {
-        const normalizedLocale = normalizeLocaleTag(locale);
-        const exact = exactMap.get(normalizedLocale);
-        if (exact) {
-          return exact;
-        }
-      }
-
-      for (const locale of localeFallbacks) {
-        const base = normalizeLocaleTag(locale).split('-')[0];
-        if (!base) {
-          continue;
-        }
-        const matched = entries.find((entry) => entry.locale === base || entry.locale.startsWith(`${base}-`));
-        if (matched) {
-          return matched.text;
-        }
-      }
-
-      return entries[0]?.text ?? '';
-    }
-  }
-
-  return fallback?.trim() ?? '';
 }
 
 function matchInstalledSearch(
