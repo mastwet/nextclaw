@@ -193,8 +193,9 @@ export function ChatInputBarContainer() {
         accessories: [
           {
             key: 'attach',
-            label: t('chatInputAttachComingSoon'),
+            label: t('chatInputAttach'),
             icon: 'paperclip',
+            iconOnly: true,
             disabled: true,
             tooltip: t('chatInputAttachComingSoon')
           }

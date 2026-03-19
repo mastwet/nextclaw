@@ -72,6 +72,7 @@ export type ChatToolbarAccessory = {
   key: string;
   label: string;
   icon?: ChatToolbarAccessoryIcon;
+  iconOnly?: boolean;
   disabled?: boolean;
   tooltip?: string;
   onClick?: () => void;

@@ -112,22 +112,25 @@ export function ChatInputBarToolbar(props: ChatInputBarToolbarProps) {
           const button = (
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-400"
+              className={`inline-flex items-center rounded-lg py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-400 ${
+                item.iconOnly ? 'h-8 w-8 justify-center px-0' : 'gap-1.5 px-3'
+              }`}
               onClick={item.onClick}
               disabled={item.disabled}
               aria-label={item.label}
             >
               <AccessoryIcon icon={item.icon} />
-              <span>{item.label}</span>
+              {item.iconOnly ? null : <span>{item.label}</span>}
             </button>
           );
           if (!item.tooltip) {
             return <div key={item.key}>{button}</div>;
           }
+          const trigger = item.disabled ? <span className="inline-flex">{button}</span> : button;
           return (
             <TooltipProvider key={item.key}>
               <Tooltip>
-                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                <TooltipTrigger asChild>{trigger}</TooltipTrigger>
                 <TooltipContent side="top">
                   <p className="text-xs">{item.tooltip}</p>
                 </TooltipContent>

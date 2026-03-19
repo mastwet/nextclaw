@@ -265,4 +265,45 @@ describe('ChatInputBar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     expect(onStop).toHaveBeenCalled();
   });
+
+  it('renders disabled accessories as icon-only triggers when tooltip copy exists', () => {
+    render(
+      <ChatInputBar
+        {...createInputBarProps({
+          toolbar: {
+            selects: [],
+            accessories: [
+              {
+                key: 'attach',
+                label: 'Attach file',
+                icon: 'paperclip',
+                iconOnly: true,
+                disabled: true,
+                tooltip: 'Coming soon'
+              }
+            ],
+            actions: {
+              isSending: false,
+              canStopGeneration: false,
+              sendDisabled: false,
+              stopDisabled: true,
+              stopHint: 'Stop unavailable',
+              sendButtonLabel: 'Send',
+              stopButtonLabel: 'Stop',
+              onSend: vi.fn(),
+              onStop: vi.fn()
+            }
+          }
+        })}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: 'Attach file' });
+    const trigger = button.parentElement as HTMLElement;
+
+    expect(button).toBeTruthy();
+    expect(screen.queryByText('Attach file')).toBeNull();
+    expect(screen.queryByText('Coming soon')).toBeNull();
+    expect(trigger.tagName).toBe('SPAN');
+  });
 });
