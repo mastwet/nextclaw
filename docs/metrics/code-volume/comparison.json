@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-19T15:02:27.714Z",
+  "generatedAt": "2026-03-20T03:12:07.732Z",
   "base": {
     "name": "nextclaw",
-    "projectRoot": "/Users/peiwang/Projects/nextbot",
+    "projectRoot": "/home/runner/work/nextclaw/nextclaw",
     "scope": {
       "profile": "source",
       "title": "Source LOC",
@@ -44,6 +44,7 @@
         "packages/nextclaw-core/src",
         "packages/nextclaw-mcp/src",
         "packages/nextclaw-openclaw-compat/src",
+        "packages/nextclaw-remote/src",
         "packages/nextclaw-runtime/src",
         "packages/nextclaw-server/src",
         "packages/nextclaw-ui/src",
@@ -77,16 +78,16 @@
       ]
     },
     "totals": {
-      "files": 675,
-      "totalLines": 104033,
-      "blankLines": 10411,
-      "commentLines": 666,
-      "codeLines": 92956
+      "files": 705,
+      "totalLines": 108806,
+      "blankLines": 10787,
+      "commentLines": 667,
+      "codeLines": 97352
     }
   },
   "benchmark": {
     "name": "openclaw",
-    "projectRoot": "/Users/peiwang/Projects/openclaw",
+    "projectRoot": "/home/runner/work/nextclaw/nextclaw/external/openclaw",
     "scope": {
       "profile": "source",
       "includePaths": [
@@ -118,17 +119,17 @@
       ]
     },
     "totals": {
-      "files": 6374,
-      "totalLines": 1208348,
-      "blankLines": 113013,
-      "commentLines": 25258,
-      "codeLines": 1070077
+      "files": 6829,
+      "totalLines": 1299259,
+      "blankLines": 119829,
+      "commentLines": 25393,
+      "codeLines": 1154037
     }
   },
   "comparison": {
-    "baseMinusBenchmarkLines": -977121,
-    "basePercentOfBenchmark": 8.69,
-    "benchmarkMultipleOfBase": 11.51,
-    "baseIsLighterByPercent": 91.31
+    "baseMinusBenchmarkLines": -1056685,
+    "basePercentOfBenchmark": 8.44,
+    "benchmarkMultipleOfBase": 11.85,
+    "baseIsLighterByPercent": 91.56
   }
 }
