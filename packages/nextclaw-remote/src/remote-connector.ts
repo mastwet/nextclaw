@@ -34,14 +34,8 @@ export class RemoteConnector {
       const socket = new WebSocket(params.wsUrl);
       let settled = false;
       let aborted = false;
-      const pingTimer = setInterval(() => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "ping", at: new Date().toISOString() }));
-        }
-      }, 15_000);
 
       const cleanup = () => {
-        clearInterval(pingTimer);
         params.signal?.removeEventListener("abort", onAbort);
       };
 

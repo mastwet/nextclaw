@@ -1,5 +1,13 @@
 # @nextclaw/remote
 
+## 0.1.8
+
+### Patch Changes
+
+- Optimize remote relay cost behavior by removing connector heartbeat traffic and aligning the platform relay flow with hibernation-friendly online/session state semantics.
+- Updated dependencies
+  - @nextclaw/server@0.10.12
+
 ## 0.1.7
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # nextclaw-server
 
+## 0.10.12
+
+### Patch Changes
+
+- Optimize remote relay cost behavior by removing connector heartbeat traffic and aligning the platform relay flow with hibernation-friendly online/session state semantics.
+- Updated dependencies
+  - @nextclaw/mcp@0.1.12
+
 ## 0.10.11
 
 ### Patch Changes

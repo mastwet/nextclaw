@@ -30,6 +30,7 @@ import {
 } from "../utils/platform-utils";
 
 const REMOTE_SESSION_COOKIE = "nextclaw_remote_session";
+const REMOTE_SESSION_TOUCH_THROTTLE_MS = 60_000;
 
 function encodeBase64(bytes: Uint8Array): string {
   let binary = "";
@@ -163,16 +164,8 @@ export async function listRemoteDevicesHandler(c: Context<{ Bindings: Env }>): P
   if (!auth.ok) {
     return auth.response;
   }
-  const now = Date.now();
   const rows = await listRemoteDevicesByUserId(c.env.NEXTCLAW_PLATFORM_DB, auth.user.id);
-  const items = rows.map((row) => {
-    const lastSeenMs = Date.parse(row.last_seen_at);
-    const isFresh = Number.isFinite(lastSeenMs) && now - lastSeenMs <= 30_000;
-    return {
-      ...toRemoteDeviceView(row),
-      status: isFresh ? "online" : "offline"
-    };
-  });
+  const items = rows.map((row) => toRemoteDeviceView(row));
   return c.json({ ok: true, data: { items } });
 }
 
@@ -192,8 +185,7 @@ export async function openRemoteDeviceHandler(c: Context<{ Bindings: Env }>): Pr
     return apiError(c, 404, "DEVICE_NOT_FOUND", "Remote device not found.");
   }
 
-  const lastSeenMs = Date.parse(device.last_seen_at);
-  if (!Number.isFinite(lastSeenMs) || Date.now() - lastSeenMs > 30_000) {
+  if (device.status !== "online") {
     return apiError(c, 409, "DEVICE_OFFLINE", "Remote device is offline.");
   }
 
@@ -327,8 +319,11 @@ export async function remoteProxyHandler(c: Context<{ Bindings: Env }>): Promise
     });
   }
 
-  const nowIso = new Date().toISOString();
-  await touchRemoteSession(c.env.NEXTCLAW_PLATFORM_DB, session.id, nowIso);
+  const now = Date.now();
+  const lastUsedMs = Date.parse(session.last_used_at);
+  if (!Number.isFinite(lastUsedMs) || now - lastUsedMs >= REMOTE_SESSION_TOUCH_THROTTLE_MS) {
+    await touchRemoteSession(c.env.NEXTCLAW_PLATFORM_DB, session.id, new Date(now).toISOString());
+  }
   const stub = c.env.NEXTCLAW_REMOTE_RELAY.get(c.env.NEXTCLAW_REMOTE_RELAY.idFromName(device.id));
   const path = `${url.pathname}${url.search}`;
   const rawBody =

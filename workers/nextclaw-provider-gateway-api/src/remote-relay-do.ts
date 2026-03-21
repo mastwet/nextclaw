@@ -2,6 +2,9 @@ import { touchRemoteDevice } from "./repositories/remote-repository";
 import type { Env } from "./types/platform";
 
 type HeaderEntry = [string, string];
+type WebSocketMessageData = string | ArrayBuffer | ArrayBufferView;
+
+const CONNECTOR_TAG = "connector";
 
 type RelayRequestFrame = {
   type: "request";
@@ -39,11 +42,13 @@ type RelayResponseFrame =
     type: "response.error";
     requestId: string;
     message: string;
-  }
-  | {
-    type: "ping";
-    at: string;
   };
+
+type ConnectorAttachment = {
+  type: "connector";
+  deviceId: string;
+  connectedAt: string;
+};
 
 type PendingRelay = {
   responsePromise: Promise<Response>;
@@ -65,9 +70,20 @@ function decodeBase64(base64: string | undefined): Uint8Array {
   return bytes;
 }
 
+function decodeMessageData(data: WebSocketMessageData): string {
+  if (typeof data === "string") {
+    return data;
+  }
+  if (data instanceof ArrayBuffer) {
+    return new TextDecoder().decode(new Uint8Array(data));
+  }
+  if (ArrayBuffer.isView(data)) {
+    return new TextDecoder().decode(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+  }
+  return "";
+}
+
 export class NextclawRemoteRelayDurableObject {
-  private connector: WebSocket | null = null;
-  private deviceId: string | null = null;
   private readonly pending = new Map<string, PendingRelay>();
 
   constructor(
@@ -87,30 +103,33 @@ export class NextclawRemoteRelayDurableObject {
   }
 
   private async handleConnectorUpgrade(request: Request): Promise<Response> {
+    const deviceId = request.headers.get("x-nextclaw-remote-device-id")?.trim();
+    if (!deviceId) {
+      return new Response("Remote device id missing.", { status: 400 });
+    }
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    server.accept();
-    this.deviceId = request.headers.get("x-nextclaw-remote-device-id")?.trim() ?? this.deviceId;
-    this.connector?.close(1012, "Replaced by a newer connector session.");
-    this.connector = server;
-    server.addEventListener("message", (event) => {
-      void this.handleConnectorMessage(String(event.data ?? ""));
-    });
-    server.addEventListener("close", () => {
-      void this.markOffline();
-      this.connector = null;
-    });
-    server.addEventListener("error", () => {
-      void this.markOffline();
-      this.connector = null;
-    });
-    await this.markOnline();
+    const connectedAt = new Date().toISOString();
+    server.serializeAttachment({
+      type: "connector",
+      deviceId,
+      connectedAt
+    } satisfies ConnectorAttachment);
+    this.state.acceptWebSocket(server, [CONNECTOR_TAG]);
+    for (const existingConnector of this.getConnectorSockets()) {
+      if (existingConnector === server) {
+        continue;
+      }
+      existingConnector.close(1012, "Replaced by a newer connector session.");
+    }
+    await this.setDeviceStatus(deviceId, "online", connectedAt);
     return new Response(null, { status: 101, webSocket: client });
   }
 
   private async handleProxyRequest(request: Request): Promise<Response> {
-    if (!this.connector || this.connector.readyState !== WebSocket.OPEN) {
+    const connector = this.getActiveConnector();
+    if (!connector) {
       return new Response("Remote device connector is offline.", { status: 503 });
     }
     const payload = await request.json<{
@@ -130,7 +149,16 @@ export class NextclawRemoteRelayDurableObject {
       headers: Array.isArray(payload.headers) ? payload.headers : [],
       bodyBase64: payload.bodyBase64
     };
-    this.connector.send(JSON.stringify(frame));
+    try {
+      connector.send(JSON.stringify(frame));
+    } catch (error) {
+      clearTimeout(pending.timeoutId);
+      this.pending.delete(requestId);
+      return new Response(
+        error instanceof Error ? error.message : "Failed to forward remote request.",
+        { status: 503 }
+      );
+    }
     return await pending.responsePromise;
   }
 
@@ -158,6 +186,18 @@ export class NextclawRemoteRelayDurableObject {
     };
   }
 
+  webSocketMessage(_webSocket: WebSocket, message: WebSocketMessageData): void {
+    this.state.waitUntil(this.handleConnectorMessage(decodeMessageData(message)));
+  }
+
+  webSocketClose(webSocket: WebSocket): void {
+    this.state.waitUntil(this.handleConnectorClosed(webSocket));
+  }
+
+  webSocketError(webSocket: WebSocket): void {
+    this.state.waitUntil(this.handleConnectorClosed(webSocket));
+  }
+
   private async handleConnectorMessage(raw: string): Promise<void> {
     let frame: RelayResponseFrame | null = null;
     try {
@@ -166,10 +206,6 @@ export class NextclawRemoteRelayDurableObject {
       return;
     }
     if (!frame) {
-      return;
-    }
-    if (frame.type === "ping") {
-      await this.markOnline(frame.at);
       return;
     }
 
@@ -196,6 +232,36 @@ export class NextclawRemoteRelayDurableObject {
       default:
         return;
     }
+  }
+
+  private getConnectorSockets(): WebSocket[] {
+    return this.state.getWebSockets(CONNECTOR_TAG).filter((socket) => {
+      const attachment = socket.deserializeAttachment() as ConnectorAttachment | null;
+      return attachment?.type === "connector";
+    });
+  }
+
+  private getActiveConnector(): WebSocket | null {
+    for (const socket of this.getConnectorSockets()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        return socket;
+      }
+    }
+    return null;
+  }
+
+  private async handleConnectorClosed(closedSocket: WebSocket): Promise<void> {
+    const attachment = closedSocket.deserializeAttachment() as ConnectorAttachment | null;
+    if (attachment?.type !== "connector") {
+      return;
+    }
+    const hasOtherOpenConnector = this.getConnectorSockets().some((socket) => {
+      return socket !== closedSocket && socket.readyState === WebSocket.OPEN;
+    });
+    if (hasOtherOpenConnector) {
+      return;
+    }
+    await this.setDeviceStatus(attachment.deviceId, "offline", new Date().toISOString());
   }
 
   private finishBufferedResponse(
@@ -250,24 +316,14 @@ export class NextclawRemoteRelayDurableObject {
     pending.rejectResponse(new Error(message));
   }
 
-  private async markOnline(at?: string): Promise<void> {
-    if (!this.deviceId) {
-      return;
-    }
-    const nowIso = at && at.trim().length > 0 ? at : new Date().toISOString();
-    await touchRemoteDevice(this.env.NEXTCLAW_PLATFORM_DB, this.deviceId, {
-      status: "online",
-      lastSeenAt: nowIso
-    });
-  }
-
-  private async markOffline(): Promise<void> {
-    if (!this.deviceId) {
-      return;
-    }
-    await touchRemoteDevice(this.env.NEXTCLAW_PLATFORM_DB, this.deviceId, {
-      status: "offline",
-      lastSeenAt: new Date().toISOString()
+  private async setDeviceStatus(
+    deviceId: string,
+    status: "online" | "offline",
+    at: string
+  ): Promise<void> {
+    await touchRemoteDevice(this.env.NEXTCLAW_PLATFORM_DB, deviceId, {
+      status,
+      lastSeenAt: at
     });
   }
 }
