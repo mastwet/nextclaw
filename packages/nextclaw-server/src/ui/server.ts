@@ -25,6 +25,10 @@ const DEFAULT_ALLOWED_CORS_HEADERS = "Content-Type, Authorization";
 const DEFAULT_ALLOWED_CORS_METHODS = "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS";
 type CorsPolicy = Exclude<UiServerOptions["corsOrigins"], undefined> | typeof DEFAULT_CORS_ORIGINS;
 
+function readRequestHeader(request: Request, name: string): string | null {
+  return request.headers.get(name)?.trim() ?? null;
+}
+
 function appendVaryHeader(headers: Headers, value: string): void {
   const current = headers.get("Vary");
   if (!current) {
@@ -79,8 +83,8 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
   const corsPolicy = options.corsOrigins ?? DEFAULT_CORS_ORIGINS;
   const authService = new UiAuthService(options.configPath);
   app.use("/api/*", async (c, next) => {
-    const allowOrigin = resolveAllowedCorsOrigin(c.req.header("origin")?.trim() ?? null, corsPolicy);
-    const allowHeaders = c.req.header("access-control-request-headers");
+    const allowOrigin = resolveAllowedCorsOrigin(readRequestHeader(c.req.raw, "origin"), corsPolicy);
+    const allowHeaders = readRequestHeader(c.req.raw, "access-control-request-headers");
 
     if (c.req.method === "OPTIONS") {
       if (allowOrigin) {
