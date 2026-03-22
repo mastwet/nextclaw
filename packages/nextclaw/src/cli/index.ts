@@ -30,7 +30,6 @@ program
   .option("--api-base <url>", "Platform API base (supports /v1 suffix)")
   .option("--email <email>", "Login email")
   .option("--password <password>", "Login password")
-  .option("--register", "Register first, then login", false)
   .action(async (opts) => runtime.login(opts));
 
 registerRemoteCommands(program, runtime.remote);

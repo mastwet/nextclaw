@@ -189,10 +189,10 @@ export const REMOTE_LABELS: Record<string, { zh: string; en: string }> = {
   remoteEmail: { zh: '邮箱', en: 'Email' },
   remotePassword: { zh: '密码', en: 'Password' },
   remotePasswordPlaceholder: { zh: '请输入你的平台密码', en: 'Enter your platform password' },
-  remoteRegisterIfNeeded: { zh: '如果账号不存在则注册', en: 'Register If Needed' },
+  remoteRegisterIfNeeded: { zh: '首次验证自动创建账号', en: 'Auto-create on First Verification' },
   remoteRegisterIfNeededHelp: {
-    zh: '开启后会走平台注册接口，然后自动保存登录态。',
-    en: 'When enabled, the UI will register first and then save the resulting login token.'
+    zh: '如果邮箱还没有对应账号，平台会在验证码验证成功后自动创建账号并保存登录态。',
+    en: 'When enabled, the UI will sign in on the platform and then save the resulting login token.'
   },
   remoteLogin: { zh: '登录平台', en: 'Login to Platform' },
   remoteCreateAccount: { zh: '注册并登录', en: 'Create Account & Login' },

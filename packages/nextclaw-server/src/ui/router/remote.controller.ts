@@ -11,10 +11,6 @@ import type { UiRemoteAccessHost } from "./types.js";
 
 const REMOTE_SERVICE_ACTIONS = new Set<RemoteServiceAction>(["start", "restart", "stop"]);
 
-function readBoolean(value: unknown): boolean | undefined {
-  return typeof value === "boolean" ? value : undefined;
-}
-
 function readTrimmedString(value: unknown): string | undefined {
   return typeof value === "string" ? value.trim() : undefined;
 }
@@ -54,8 +50,7 @@ export class RemoteRoutesController {
       return c.json(ok(await this.host.login({
         email,
         password,
-        apiBase: readTrimmedString(body.data.apiBase),
-        register: readBoolean(body.data.register)
+        apiBase: readTrimmedString(body.data.apiBase)
       })));
     } catch (error) {
       return c.json(err("REMOTE_LOGIN_FAILED", formatUserFacingError(error)), 400);
@@ -114,7 +109,7 @@ export class RemoteRoutesController {
 
     try {
       return c.json(ok(await this.host.updateSettings({
-        enabled: readBoolean(body.data.enabled),
+        enabled: typeof body.data.enabled === "boolean" ? body.data.enabled : undefined,
         deviceName: readTrimmedString(body.data.deviceName),
         platformApiBase: readTrimmedString(body.data.platformApiBase)
       })));

@@ -37,10 +37,10 @@ function RemoteDevicesCard({ token }: RemoteDevicesCardProps): JSX.Element {
   });
 
   return (
-    <Card className="space-y-3">
-      <CardTitle>NextClaw Web 设备</CardTitle>
+    <Card className="space-y-3 rounded-[28px] border-slate-200/80 p-5">
+      <CardTitle>我的设备</CardTitle>
       <p className="text-sm text-slate-500">
-        在桌面端开启远程访问后，这台设备会自动出现在这里。你可以直接在网页中打开它，继续使用同一条 Agent 链路。
+        在桌面端登录 NextClaw Account 并开启远程访问后，设备会出现在这里。你可以直接在网页里打开它，继续使用同一条 Agent 链路。
       </p>
       <TableWrap>
         <table className="w-full text-left text-sm">
@@ -169,14 +169,14 @@ export function UserDashboardPage({ token }: Props): JSX.Element {
 
       <div className="grid gap-3 md:grid-cols-3">
         {summaryCards.map((item) => (
-          <Card key={item.label}>
-            <p className="text-xs text-slate-500">{item.label}</p>
-            <p className="mt-2 text-xl font-semibold text-slate-900">{item.value}</p>
+          <Card key={item.label} className="rounded-[28px] border-slate-200/80 p-5">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+            <p className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-slate-900">{item.value}</p>
           </Card>
         ))}
       </div>
 
-      <Card className="space-y-3">
+      <Card className="space-y-3 rounded-[28px] border-slate-200/80 p-5">
         <CardTitle>提交充值申请</CardTitle>
         <p className="text-sm text-slate-500">当前为“人工审核确认充值”的闭环，不做 credits 换算，直接 USD 入账。</p>
         <div className="grid gap-3 md:grid-cols-[160px_1fr_180px]">
@@ -190,7 +190,7 @@ export function UserDashboardPage({ token }: Props): JSX.Element {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="space-y-3">
+        <Card className="space-y-3 rounded-[28px] border-slate-200/80 p-5">
           <CardTitle>充值申请记录</CardTitle>
           <TableWrap>
             <table className="w-full text-left text-sm">
@@ -214,7 +214,7 @@ export function UserDashboardPage({ token }: Props): JSX.Element {
           </TableWrap>
         </Card>
 
-        <Card className="space-y-3">
+        <Card className="space-y-3 rounded-[28px] border-slate-200/80 p-5">
           <CardTitle>消费流水</CardTitle>
           <TableWrap>
             <table className="w-full text-left text-sm">

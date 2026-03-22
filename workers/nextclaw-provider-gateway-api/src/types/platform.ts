@@ -2,6 +2,10 @@ export type Env = {
   DASHSCOPE_API_KEY?: string;
   DASHSCOPE_API_BASE?: string;
   AUTH_TOKEN_SECRET?: string;
+  PLATFORM_AUTH_EMAIL_PROVIDER?: string;
+  PLATFORM_AUTH_EMAIL_FROM?: string;
+  PLATFORM_AUTH_DEV_EXPOSE_CODE?: string;
+  RESEND_API_KEY?: string;
   GLOBAL_FREE_USD_LIMIT?: string;
   DEFAULT_USER_FREE_USD_LIMIT?: string;
   REQUEST_FLAT_USD_PER_REQUEST?: string;

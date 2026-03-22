@@ -62,7 +62,6 @@ export type RemoteLoginRequest = {
   email: string;
   password: string;
   apiBase?: string;
-  register?: boolean;
 };
 
 export type RemoteBrowserAuthStartRequest = {

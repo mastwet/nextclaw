@@ -108,7 +108,6 @@ export class RemoteAccessHost implements UiRemoteAccessHost {
     email: string;
     password: string;
     apiBase?: string;
-    register?: boolean;
   }): Promise<RemoteAccessView> {
     await this.deps.platformAuthCommands.loginResult(input);
     return this.getStatus();

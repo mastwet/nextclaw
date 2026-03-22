@@ -1,4 +1,5 @@
-import { getLanguage, t } from '@/lib/i18n';
+import { t } from '@/lib/i18n';
+import type { getLanguage } from '@/lib/i18n';
 import type { ProviderConfigUpdate, ProviderConfigView, ThinkingLevel } from '@/api/types';
 
 type WireApiType = 'auto' | 'chat' | 'responses';

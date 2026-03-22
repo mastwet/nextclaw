@@ -256,10 +256,7 @@ export class PlatformAuthCommands {
   async loginResult(opts: LoginCommandOptions = {}): Promise<PlatformLoginResult> {
     const { configPath, config, providers, nextclawProvider, platformBase, v1Base, inputApiBase } = resolveProviderConfig(opts);
     const { email, password } = await resolveCredentials(opts);
-    const endpoint = opts.register
-      ? `${platformBase}/platform/auth/register`
-      : `${platformBase}/platform/auth/login`;
-    const response = await fetch(endpoint, {
+    const response = await fetch(`${platformBase}/platform/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

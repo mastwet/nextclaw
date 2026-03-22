@@ -1,0 +1,92 @@
+import type { Hono } from "hono";
+import {
+  authorizeBrowserAuthHandler,
+  browserAuthPageHandler,
+  pollBrowserAuthHandler,
+  sendBrowserEmailCodeHandler,
+  startBrowserAuthHandler,
+} from "./auth-browser-otp-route-handlers";
+import { sendEmailCodeHandler, verifyEmailCodeHandler } from "./auth-email-code-route-handlers";
+import {
+  adminOverviewHandler,
+  adminProfitOverviewHandler,
+  adminProvidersHandler,
+  adminRechargeIntentsHandler,
+  adminUsersHandler,
+  adminModelsHandler,
+  createAdminProviderHandler,
+  patchAdminSettingsHandler,
+  patchAdminProviderHandler,
+  patchAdminUserHandler,
+  putAdminModelHandler,
+} from "./controllers/admin-controller";
+import {
+  confirmRechargeIntentHandler,
+  rejectRechargeIntentHandler,
+} from "./controllers/admin-recharge-controller";
+import { loginHandler, meHandler } from "./controllers/auth-controller";
+import {
+  billingLedgerHandler,
+  billingOverviewHandler,
+  billingRechargeIntentsHandler,
+  createRechargeIntentHandler,
+} from "./controllers/billing-controller";
+import { chatCompletionsHandler, healthHandler, modelsHandler, usageHandler } from "./controllers/openai-controller";
+import {
+  listRemoteDevicesHandler,
+  openRemoteDeviceHandler,
+  openRemoteSessionRedirectHandler,
+  registerRemoteDeviceHandler,
+  remoteConnectorWebSocketHandler,
+} from "./controllers/remote-controller";
+import type { Env } from "./types/platform";
+
+function registerPlatformAuthRoutes(app: Hono<{ Bindings: Env }>): void {
+  app.post("/platform/auth/login", loginHandler);
+  app.post("/platform/auth/email/send-code", sendEmailCodeHandler);
+  app.post("/platform/auth/email/verify-code", verifyEmailCodeHandler);
+  app.get("/platform/auth/me", meHandler);
+  app.post("/platform/auth/browser/start", startBrowserAuthHandler);
+  app.post("/platform/auth/browser/poll", pollBrowserAuthHandler);
+  app.get("/platform/auth/browser", browserAuthPageHandler);
+  app.post("/platform/auth/browser/send-code", sendBrowserEmailCodeHandler);
+  app.post("/platform/auth/browser/verify-code", authorizeBrowserAuthHandler);
+}
+
+function registerRemoteAccessRoutes(app: Hono<{ Bindings: Env }>): void {
+  app.get("/platform/remote/devices", listRemoteDevicesHandler);
+  app.post("/platform/remote/devices/register", registerRemoteDeviceHandler);
+  app.post("/platform/remote/devices/:deviceId/open", openRemoteDeviceHandler);
+  app.get("/platform/remote/open", openRemoteSessionRedirectHandler);
+  app.get("/platform/remote/connect", remoteConnectorWebSocketHandler);
+}
+
+export function registerAppRoutes(app: Hono<{ Bindings: Env }>): void {
+  app.get("/health", healthHandler);
+
+  app.get("/v1/models", modelsHandler);
+  app.get("/v1/usage", usageHandler);
+  app.post("/v1/chat/completions", chatCompletionsHandler);
+
+  registerPlatformAuthRoutes(app);
+  registerRemoteAccessRoutes(app);
+
+  app.get("/platform/billing/overview", billingOverviewHandler);
+  app.get("/platform/billing/ledger", billingLedgerHandler);
+  app.get("/platform/billing/recharge-intents", billingRechargeIntentsHandler);
+  app.post("/platform/billing/recharge-intents", createRechargeIntentHandler);
+
+  app.get("/platform/admin/overview", adminOverviewHandler);
+  app.get("/platform/admin/profit/overview", adminProfitOverviewHandler);
+  app.get("/platform/admin/users", adminUsersHandler);
+  app.patch("/platform/admin/users/:userId", patchAdminUserHandler);
+  app.get("/platform/admin/providers", adminProvidersHandler);
+  app.post("/platform/admin/providers", createAdminProviderHandler);
+  app.patch("/platform/admin/providers/:providerId", patchAdminProviderHandler);
+  app.get("/platform/admin/models", adminModelsHandler);
+  app.put("/platform/admin/models/:publicModelId", putAdminModelHandler);
+  app.get("/platform/admin/recharge-intents", adminRechargeIntentsHandler);
+  app.post("/platform/admin/recharge-intents/:intentId/confirm", confirmRechargeIntentHandler);
+  app.post("/platform/admin/recharge-intents/:intentId/reject", rejectRechargeIntentHandler);
+  app.patch("/platform/admin/settings", patchAdminSettingsHandler);
+}

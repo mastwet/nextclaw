@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { remoteProxyHandler } from "./controllers/remote-controller";
 import { NextclawRemoteRelayDurableObject } from "./remote-relay-do";
-import { registerRoutes } from "./routes";
+import { registerAppRoutes } from "./register-app-routes";
 import type { Env } from "./types/platform";
 import { openaiError } from "./utils/platform-utils";
 
@@ -20,7 +20,7 @@ app.use("/v1/*", cors({
   allowMethods: ["GET", "POST", "OPTIONS"]
 }));
 
-registerRoutes(app);
+registerAppRoutes(app);
 
 app.all("*", remoteProxyHandler);
 

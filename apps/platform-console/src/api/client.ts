@@ -5,6 +5,7 @@ import type {
   AuthResult,
   BillingOverview,
   CursorPage,
+  EmailCodeSendResult,
   LedgerItem,
   RechargeIntentItem,
   RemoteDevice,
@@ -71,10 +72,18 @@ export async function login(email: string, password: string): Promise<AuthResult
   return unwrap(data);
 }
 
-export async function register(email: string, password: string): Promise<AuthResult> {
-  const data = await request<ApiEnvelope<AuthResult>>('/platform/auth/register', {
+export async function sendEmailCode(email: string): Promise<EmailCodeSendResult> {
+  const data = await request<ApiEnvelope<EmailCodeSendResult>>('/platform/auth/email/send-code', {
     method: 'POST',
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email })
+  });
+  return unwrap(data);
+}
+
+export async function verifyEmailCode(email: string, code: string): Promise<AuthResult> {
+  const data = await request<ApiEnvelope<AuthResult>>('/platform/auth/email/verify-code', {
+    method: 'POST',
+    body: JSON.stringify({ email, code })
   });
   return unwrap(data);
 }

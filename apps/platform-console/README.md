@@ -1,4 +1,4 @@
-# NextClaw Platform Console
+# NextClaw Platform
 
 用户前端站点（独立于管理后台）。
 
@@ -7,6 +7,11 @@
 - TanStack Query
 - Zustand
 - Tailwind（shadcn 风格组件组织）
+
+产品定位：
+- 这是 `NextClaw Account` 的用户入口站点。
+- 用户通过邮箱验证码登录；如果邮箱首次使用，验证成功后自动创建账号。
+- 登录后可以查看设备列表、从网页中打开已连接的 NextClaw 设备，并查看账单能力。
 
 ## 本地运行
 
@@ -32,6 +37,10 @@ VITE_PLATFORM_API_BASE=http://127.0.0.1:8790 pnpm -C apps/platform-console dev
 ```bash
 pnpm deploy:platform:console
 ```
+
+上线前前置条件：
+- 后端必须已经配置真实邮件提供方并能发送验证码。
+- 不要在生产环境依赖 `console` 邮件模式。
 
 管理后台独立站点请使用：`apps/platform-admin`。
 

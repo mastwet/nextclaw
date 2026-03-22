@@ -40,7 +40,6 @@ export type LoginCommandOptions = {
   apiBase?: string;
   email?: string;
   password?: string;
-  register?: boolean;
 };
 
 export type PluginsListOptions = {

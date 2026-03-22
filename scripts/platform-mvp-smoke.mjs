@@ -38,7 +38,7 @@ function encodeBase64Url(buffer) {
 
 function hashPassword(password) {
   const salt = randomBytes(16);
-  const hash = pbkdf2Sync(password, salt, 120_000, 32, "sha256");
+  const hash = pbkdf2Sync(password, salt, 100_000, 32, "sha256");
   return {
     salt: encodeBase64Url(salt),
     hash: encodeBase64Url(hash)
@@ -187,21 +187,16 @@ async function main() {
     upstreamServer.once("error", rejectListen);
     upstreamServer.listen(mockUpstreamPort, "127.0.0.1", () => resolveListen());
   });
-
-  writeFileSync(
-    envFile,
-    [
-      "AUTH_TOKEN_SECRET=smoke-token-secret-with-length-at-least-32",
-      "DASHSCOPE_API_KEY=smoke-upstream-key",
-      `DASHSCOPE_API_BASE=${mockBase}`,
-      "GLOBAL_FREE_USD_LIMIT=20",
-      "REQUEST_FLAT_USD_PER_REQUEST=0.0002"
-    ].join("\n"),
-    "utf-8"
-  );
-
+  writeFileSync(envFile, [
+    "AUTH_TOKEN_SECRET=smoke-token-secret-with-length-at-least-32",
+    "DASHSCOPE_API_KEY=smoke-upstream-key",
+    `DASHSCOPE_API_BASE=${mockBase}`,
+    "GLOBAL_FREE_USD_LIMIT=20",
+    "REQUEST_FLAT_USD_PER_REQUEST=0.0002",
+    "PLATFORM_AUTH_EMAIL_PROVIDER=console",
+    "PLATFORM_AUTH_DEV_EXPOSE_CODE=true"
+  ].join("\n"), "utf-8");
   let workerProcess = null;
-
   try {
     console.log("[platform-smoke] apply local migrations...");
     runOrThrow(wranglerBin, [
@@ -270,7 +265,7 @@ async function main() {
 
     await waitForHealth(`${base}/health`);
 
-    console.log("[platform-smoke] login admin + register user...");
+    console.log("[platform-smoke] login admin + email-verify user...");
     const adminLogin = await requestJson({
       method: "POST",
       url: `${base}/platform/auth/login`,
@@ -285,26 +280,27 @@ async function main() {
       throw new Error("Missing admin token after login.");
     }
 
-    const userRegister = await requestJson({
+    const sendUserCode = await requestJson({
       method: "POST",
-      url: `${base}/platform/auth/register`,
-      body: { email: userEmail, password },
-      expectedStatus: 201
+      url: `${base}/platform/auth/email/send-code`,
+      body: { email: userEmail },
+      expectedStatus: 202
     });
-    if (userRegister.body?.data?.user?.role !== "user") {
-      throw new Error(`Expected registered role user, got: ${JSON.stringify(userRegister.body)}`);
+    const debugCode = sendUserCode.body?.data?.debugCode;
+    if (!debugCode) {
+      throw new Error(`Expected debug code in console email mode, got: ${JSON.stringify(sendUserCode.body)}`);
     }
     await requestJson({
       method: "POST",
-      url: `${base}/platform/auth/register`,
-      body: { email: userEmail, password },
-      expectedStatus: 409
+      url: `${base}/platform/auth/email/send-code`,
+      body: { email: userEmail },
+      expectedStatus: 429
     });
 
     const userLogin = await requestJson({
       method: "POST",
-      url: `${base}/platform/auth/login`,
-      body: { email: userEmail, password },
+      url: `${base}/platform/auth/email/verify-code`,
+      body: { email: userEmail, code: debugCode },
       expectedStatus: 200
     });
     if (userLogin.body?.data?.user?.role !== "user") {

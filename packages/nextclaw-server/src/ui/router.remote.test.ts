@@ -189,16 +189,14 @@ describe("remote access routes", () => {
       },
       body: JSON.stringify({
         email: "demo@example.com",
-        password: "password123",
-        register: true
+        password: "password123"
       })
     });
     expect(loginResponse.status).toBe(200);
     expect(remoteAccess.login).toHaveBeenCalledWith({
       email: "demo@example.com",
       password: "password123",
-      apiBase: undefined,
-      register: true
+      apiBase: undefined
     });
 
     const authStartResponse = await app.request("http://localhost/api/remote/auth/start", {

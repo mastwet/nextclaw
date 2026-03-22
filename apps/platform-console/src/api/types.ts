@@ -17,6 +17,14 @@ export type AuthResult = {
   user: UserView;
 };
 
+export type EmailCodeSendResult = {
+  email: string;
+  maskedEmail: string;
+  expiresAt: string;
+  resendAfterSeconds: number;
+  debugCode?: string;
+};
+
 export type BillingOverview = {
   user: UserView;
   globalFreeLimitUsd: number;

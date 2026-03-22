@@ -198,6 +198,53 @@ export async function registerPlatformUser(params: {
   return user;
 }
 
+export async function findOrCreatePlatformEmailUser(params: {
+  env: Env;
+  email: string;
+}): Promise<UserRow> {
+  const email = normalizeEmail(params.email);
+  if (!email || !isValidEmail(email)) {
+    throw new PlatformAuthServiceError(400, "INVALID_EMAIL", "A valid email is required.");
+  }
+
+  const existing = await getUserByEmail(params.env.NEXTCLAW_PLATFORM_DB, email);
+  if (existing) {
+    return existing;
+  }
+
+  const now = new Date().toISOString();
+  const generatedPassword = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
+  const digest = await hashPassword(generatedPassword);
+  const userId = crypto.randomUUID();
+  const inserted = await params.env.NEXTCLAW_PLATFORM_DB.prepare(
+    `INSERT INTO users (
+      id, email, password_hash, password_salt, role,
+      free_limit_usd, free_used_usd, paid_balance_usd,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, 'user', ?, 0, 0, ?, ?)`
+  )
+    .bind(
+      userId,
+      email,
+      digest.hash,
+      digest.salt,
+      getDefaultUserFreeLimit(params.env),
+      now,
+      now
+    )
+    .run();
+  if (!inserted.success || (inserted.meta.changes ?? 0) !== 1) {
+    throw new PlatformAuthServiceError(500, "REGISTER_FAILED", "Failed to create user.");
+  }
+
+  const user = await getUserById(params.env.NEXTCLAW_PLATFORM_DB, userId);
+  if (!user) {
+    throw new PlatformAuthServiceError(500, "REGISTER_FAILED", "User created but cannot be loaded.");
+  }
+  await ensureUserSecurityRow(params.env.NEXTCLAW_PLATFORM_DB, user.id, now);
+  return user;
+}
+
 export async function authenticatePlatformUser(params: {
   env: Env;
   email: string;
