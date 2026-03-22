@@ -1,5 +1,17 @@
 # @nextclaw/remote
 
+## 0.1.16
+
+### Patch Changes
+
+- Fix remote access token-expiry handling so expired platform sessions are no longer treated as logged in.
+
+  The local remote runtime now fails fast on expired or malformed platform tokens, and remote doctor/status surfaces the real token state instead of only checking the `nca.` prefix.
+  Republish the CLI release group packages for version alignment.
+
+- Updated dependencies
+  - @nextclaw/server@0.10.20
+
 ## 0.1.15
 
 ### Patch Changes
