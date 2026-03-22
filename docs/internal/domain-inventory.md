@@ -28,7 +28,7 @@
 | 服务 | Worker 名称 | 业务域名 | workers.dev 默认域名 | 校验结果 |
 | --- | --- | --- | --- | --- |
 | Provider Gateway API | `nextclaw-provider-gateway-api` | `https://ai-gateway-api.nextclaw.io` | `https://nextclaw-provider-gateway-api.15353764479037.workers.dev` | `/health`=200, `/v1/models`=200（两域名一致） |
-| Remote Access Entry | `nextclaw-provider-gateway-api` | `https://remote.claw.cool` | 无 | `/health`=200 |
+| Remote Access Entry | `nextclaw-provider-gateway-api` | `https://r-<access-session-id>.claw.cool`（Worker route: `https://*.claw.cool/*`） | 无 | `https://r-test.claw.cool/health`=200 |
 | Marketplace API | `nextclaw-marketplace-api` | `https://marketplace-api.nextclaw.io` | `https://nextclaw-marketplace-api.15353764479037.workers.dev` | `/health`=200, `/api/v1/skills/items`=200 |
 
 ## 3) 待处理/历史域名

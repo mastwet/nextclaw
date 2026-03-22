@@ -23,6 +23,24 @@ const workerConfig = resolve(
   workerDir,
   "wrangler.toml"
 );
+const REMOTE_ACCESS_HOST_PATTERN = /^r-[a-z0-9-]+\.claw\.cool$/i;
+
+function assertRemoteOpenUrlShape(url, label) {
+  const parsed = new URL(url);
+  if (!REMOTE_ACCESS_HOST_PATTERN.test(parsed.hostname)) {
+    throw new Error(`${label} must use instance subdomain under claw.cool, got ${url}`);
+  }
+  if (parsed.pathname !== "/platform/remote/open") {
+    throw new Error(`${label} must target /platform/remote/open, got ${url}`);
+  }
+  if (parsed.searchParams.get("token")?.trim() !== parsed.searchParams.get("token")) {
+    throw new Error(`${label} token query is malformed, got ${url}`);
+  }
+  if (!parsed.searchParams.get("token")) {
+    throw new Error(`${label} must include token query, got ${url}`);
+  }
+  return parsed;
+}
 
 async function main() {
   const persistDir = mkdtempSync(resolve(tmpdir(), "nextclaw-remote-relay-smoke-"));
@@ -265,6 +283,7 @@ async function main() {
     if (!openUrl) {
       throw new Error(`Missing openUrl in session response: ${JSON.stringify(openSession.body)}`);
     }
+    const remoteOpenUrl = assertRemoteOpenUrlShape(openUrl, "owner openUrl");
     if (!sessionCreatedAt) {
       throw new Error(`Missing lastUsedAt in session response: ${JSON.stringify(openSession.body)}`);
     }
@@ -275,7 +294,7 @@ async function main() {
     if (!sessionRowBeforeProxies) {
       throw new Error("Missing remote session row before proxied requests.");
     }
-    const localOpenUrl = new URL(openUrl);
+    const localOpenUrl = new URL(remoteOpenUrl);
     localOpenUrl.protocol = "http:";
     localOpenUrl.host = `127.0.0.1:${backendPort}`;
     const redirectResponse = await fetchWithRetry(localOpenUrl, { redirect: "manual" }, "owner open redirect");
@@ -333,7 +352,11 @@ async function main() {
     if (!shareUrl || !grantId) {
       throw new Error(`Missing share grant payload: ${JSON.stringify(createdShare.body)}`);
     }
-    const sharePath = new URL(shareUrl).pathname;
+    const parsedShareUrl = new URL(shareUrl);
+    if (parsedShareUrl.origin !== "https://platform.nextclaw.io" || !parsedShareUrl.pathname.startsWith("/share/")) {
+      throw new Error(`Share URL must stay on platform.nextclaw.io/share/<token>, got ${shareUrl}`);
+    }
+    const sharePath = parsedShareUrl.pathname;
     const grantToken = sharePath.split("/").filter(Boolean).at(-1);
     if (!grantToken) {
       throw new Error(`Missing grant token in share URL: ${shareUrl}`);
@@ -347,7 +370,13 @@ async function main() {
     if (!sharedOpenUrl) {
       throw new Error(`Missing openUrl in share open response: ${JSON.stringify(shareOpenApiResponse.body)}`);
     }
-    const localSharedOpenUrl = new URL(sharedOpenUrl);
+    const parsedSharedOpenUrl = assertRemoteOpenUrlShape(sharedOpenUrl, "share openUrl");
+    if (parsedSharedOpenUrl.hostname === remoteOpenUrl.hostname) {
+      throw new Error(
+        `Share openUrl must allocate a distinct access-session host, owner=${openUrl}, share=${sharedOpenUrl}`
+      );
+    }
+    const localSharedOpenUrl = new URL(parsedSharedOpenUrl);
     localSharedOpenUrl.protocol = "http:";
     localSharedOpenUrl.host = `127.0.0.1:${backendPort}`;
     const shareOpenResponse = await fetchWithRetry(localSharedOpenUrl, { redirect: "manual" }, "share open redirect");

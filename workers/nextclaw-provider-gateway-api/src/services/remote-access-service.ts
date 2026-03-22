@@ -20,6 +20,7 @@ import {
 export const REMOTE_SESSION_COOKIE = "nextclaw_remote_session";
 export const REMOTE_SESSION_TOUCH_THROTTLE_MS = 60_000;
 export const DEFAULT_REMOTE_SHARE_GRANT_TTL_SECONDS = 60 * 60 * 24 * 7;
+const REMOTE_ACCESS_SUBDOMAIN_PREFIX = "r-";
 
 function isLoopbackHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "::1" || hostname.startsWith("127.");
@@ -64,13 +65,13 @@ function buildLegacyRemoteOpenUrl(c: Context<{ Bindings: Env }>, token: string):
   return `${origin.protocol}://${origin.host}/platform/remote/open?token=${encodeURIComponent(token)}`;
 }
 
-export function buildRemoteAccessUrl(c: Context<{ Bindings: Env }>, _sessionId: string, token: string): string | null {
+export function buildRemoteAccessUrl(c: Context<{ Bindings: Env }>, sessionId: string, token: string): string | null {
   const origin = readRequestOrigin(c);
   const baseDomain = readRemoteAccessBaseDomain(c);
   if (!baseDomain) {
     return isLoopbackHost(origin.hostname) ? buildLegacyRemoteOpenUrl(c, token) : null;
   }
-  return `${origin.protocol}://${baseDomain}/platform/remote/open?token=${encodeURIComponent(token)}`;
+  return `${origin.protocol}://${REMOTE_ACCESS_SUBDOMAIN_PREFIX}${sessionId}.${baseDomain}/platform/remote/open?token=${encodeURIComponent(token)}`;
 }
 
 export function buildRemoteShareUrl(c: Context<{ Bindings: Env }>, grantToken: string): string | null {
@@ -94,7 +95,11 @@ function readAccessSessionIdFromHost(c: Context<{ Bindings: Env }>): string | nu
   if (!prefix || prefix.includes(".")) {
     return null;
   }
-  return prefix;
+  if (!prefix.startsWith(REMOTE_ACCESS_SUBDOMAIN_PREFIX)) {
+    return null;
+  }
+  const sessionId = prefix.slice(REMOTE_ACCESS_SUBDOMAIN_PREFIX.length).trim();
+  return sessionId || null;
 }
 
 export function isUpgradeWebSocket(c: Context<{ Bindings: Env }>): boolean {
