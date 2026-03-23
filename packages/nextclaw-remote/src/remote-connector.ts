@@ -1,7 +1,14 @@
 import { RemoteAppAdapter } from "./remote-app.adapter.js";
 import { isTerminalRemoteConnectorError } from "./remote-connector-error.js";
 import { RemoteRelayBridge, type RelayRequestFrame } from "./remote-relay-bridge.js";
-import { RemotePlatformClient, delay, redactWsUrl } from "./remote-platform-client.js";
+import {
+  buildReconnectHaltedMessage,
+  formatReconnectDelay,
+  MAX_CONSECUTIVE_RECONNECT_FAILURES,
+  resolveReconnectDelayMs
+} from "./remote-connector-retry.utils.js";
+import { readRemoteConnectorSocketErrorMessage } from "./remote-connector-websocket-error.utils.js";
+import { delay, redactWsUrl, type RemotePlatformClient } from "./remote-platform-client.js";
 import type {
   RegisteredRemoteDevice,
   RemoteConnectorRunOptions,
@@ -15,11 +22,26 @@ export class RemoteConnector {
       platformClient: RemotePlatformClient;
       relayBridgeFactory?: (localOrigin: string) => RemoteRelayBridge;
       logger?: RemoteLogger;
+      createSocket?: (wsUrl: string) => WebSocket;
+      delayFn?: typeof delay;
+      random?: () => number;
     }
   ) {}
 
   private get logger(): RemoteLogger {
     return this.deps.logger ?? console;
+  }
+
+  private get delayFn(): typeof delay {
+    return this.deps.delayFn ?? delay;
+  }
+
+  private get random(): () => number {
+    return this.deps.random ?? Math.random;
+  }
+
+  private createSocket(wsUrl: string): WebSocket {
+    return this.deps.createSocket?.(wsUrl) ?? new WebSocket(wsUrl);
   }
 
   private async connectOnce(params: {
@@ -33,7 +55,7 @@ export class RemoteConnector {
     localOrigin: string;
   }): Promise<"closed" | "aborted"> {
     return await new Promise<"closed" | "aborted">((resolve, reject) => {
-      const socket = new WebSocket(params.wsUrl);
+      const socket = this.createSocket(params.wsUrl);
       const appAdapter = new RemoteAppAdapter(params.localOrigin, socket);
       let settled = false;
       let aborted = false;
@@ -108,13 +130,13 @@ export class RemoteConnector {
         finishResolve(aborted ? "aborted" : "closed");
       });
 
-      socket.addEventListener("error", () => {
+      socket.addEventListener("error", (event) => {
         appAdapter.stop();
         if (aborted) {
           finishResolve("aborted");
           return;
         }
-        finishReject(new Error("Remote connector websocket failed."));
+        finishReject(new Error(readRemoteConnectorSocketErrorMessage(event)));
       });
     });
   }
@@ -242,7 +264,13 @@ export class RemoteConnector {
     context: RemoteRunContext;
     relayBridge: RemoteRelayBridge;
     opts: RemoteConnectorRunOptions;
-  }): Promise<{ device: RegisteredRemoteDevice | null; outcome: "aborted" | "retry" | "stop" }> {
+  }): Promise<{
+    device: RegisteredRemoteDevice | null;
+    outcome: "aborted" | "retry" | "stop";
+    retryFailure: boolean;
+    lastError: string | null;
+  }> {
+    let device = params.device;
     try {
       this.writeRemoteState(params.opts.statusStore, {
         enabled: true,
@@ -253,7 +281,7 @@ export class RemoteConnector {
         localOrigin: params.context.localOrigin,
         lastError: null
       });
-      const device = await this.ensureDevice({ device: params.device, context: params.context });
+      device = await this.ensureDevice({ device, context: params.context });
       const wsUrl =
         `${params.context.platformBase.replace(/^http/i, "ws")}/platform/remote/connect`
         + `?instanceId=${encodeURIComponent(device.id)}&token=${encodeURIComponent(params.context.token)}`;
@@ -278,7 +306,12 @@ export class RemoteConnector {
           lastError: null
         });
       }
-      return { device, outcome: outcome === "aborted" ? "aborted" : "retry" };
+      return {
+        device,
+        outcome: outcome === "aborted" ? "aborted" : "retry",
+        retryFailure: false,
+        lastError: null
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.writeRemoteState(params.opts.statusStore, {
@@ -292,8 +325,10 @@ export class RemoteConnector {
       });
       this.logger.error(`Remote connector error: ${message}`);
       return {
-        device: params.device,
-        outcome: isTerminalRemoteConnectorError(error) ? "stop" : "retry"
+        device,
+        outcome: isTerminalRemoteConnectorError(error) ? "stop" : "retry",
+        retryFailure: true,
+        lastError: message
       };
     }
   }
@@ -306,10 +341,12 @@ export class RemoteConnector {
     await relayBridge.ensureLocalUiHealthy();
     let device: RegisteredRemoteDevice | null = null;
     let preserveRuntimeError = false;
+    let consecutiveReconnectFailures = 0;
 
     while (!opts.signal?.aborted) {
       const cycle = await this.runCycle({ device, context, relayBridge, opts });
       device = cycle.device;
+      consecutiveReconnectFailures = cycle.retryFailure ? consecutiveReconnectFailures + 1 : 0;
       if (cycle.outcome === "stop") {
         preserveRuntimeError = true;
         break;
@@ -317,9 +354,29 @@ export class RemoteConnector {
       if (cycle.outcome === "aborted" || !context.autoReconnect || opts.signal?.aborted) {
         break;
       }
-      this.logger.warn("Remote connector disconnected. Reconnecting in 3s...");
+      if (cycle.retryFailure && consecutiveReconnectFailures >= MAX_CONSECUTIVE_RECONNECT_FAILURES) {
+        const haltedMessage = buildReconnectHaltedMessage(
+          cycle.lastError ?? "Remote connector websocket failed."
+        );
+        this.writeRemoteState(opts.statusStore, {
+          enabled: true,
+          state: "error",
+          deviceId: device?.id,
+          deviceName: context.displayName,
+          platformBase: context.platformBase,
+          localOrigin: context.localOrigin,
+          lastError: haltedMessage
+        });
+        this.logger.error(`Remote connector error: ${haltedMessage}`);
+        preserveRuntimeError = true;
+        break;
+      }
+      const reconnectDelayMs = resolveReconnectDelayMs(cycle.retryFailure ? consecutiveReconnectFailures : 1, this.random);
+      this.logger.warn(
+        `Remote connector disconnected. Reconnecting in ${formatReconnectDelay(reconnectDelayMs)}...`
+      );
       try {
-        await delay(3_000, opts.signal);
+        await this.delayFn(reconnectDelayMs, opts.signal);
       } catch {
         break;
       }

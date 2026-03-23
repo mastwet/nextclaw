@@ -3,7 +3,13 @@ const TERMINAL_REMOTE_ERROR_PATTERNS = [
   /missing bearer token/i,
   /token expired/i,
   /token is invalid/i,
-  /run "nextclaw login"/i
+  /run "nextclaw login"/i,
+  /unexpected server response:\s*400/i,
+  /unexpected server response:\s*401/i,
+  /unexpected server response:\s*403/i,
+  /unexpected server response:\s*404/i,
+  /invalid url/i,
+  /unsupported protocol/i
 ];
 
 export function isTerminalRemoteConnectorError(error: unknown): boolean {

@@ -1,5 +1,16 @@
 # nextclaw-server
 
+## 0.10.33
+
+### Patch Changes
+
+- Stop unbounded remote websocket reconnect loops by classifying terminal handshake failures,
+  backing off retry timing, halting after repeated failures, and preserving the registered
+  device across reconnect attempts. Keep the CLI release group aligned with version-only
+  companion releases for `@nextclaw/mcp` and `@nextclaw/server`.
+- Updated dependencies
+  - @nextclaw/mcp@0.1.29
+
 ## 0.10.32
 
 ### Patch Changes

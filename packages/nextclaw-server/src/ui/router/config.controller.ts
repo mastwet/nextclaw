@@ -18,7 +18,6 @@ import {
 import { pollChannelAuth, startChannelAuth } from "../channel-auth.js";
 import { importProviderAuthFromCli, pollProviderAuth, startProviderAuth } from "../provider-auth.js";
 import type {
-  ChannelAuthPollRequest,
   ChannelAuthPollResult,
   ChannelAuthStartRequest,
   ChannelAuthStartResult,
