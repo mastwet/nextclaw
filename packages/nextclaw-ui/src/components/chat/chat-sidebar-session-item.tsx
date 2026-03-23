@@ -119,7 +119,6 @@ export function ChatSidebarSessionItem(props: ChatSidebarSessionItemProps) {
                 {runStatus ? <SessionRunBadge status={runStatus} /> : null}
               </span>
             </div>
-            <div className="mt-0.5 text-[11px] text-gray-400 truncate">{session.key}</div>
             <div className="mt-0.5 text-[11px] text-gray-400 truncate">
               {session.messageCount} · {formatDateTime(session.updatedAt)}
             </div>

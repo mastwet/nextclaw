@@ -179,7 +179,7 @@ describe('ChatSidebar', () => {
 
     expect(screen.getByText('Codex Task')).not.toBeNull();
     expect(screen.getByText('Codex')).not.toBeNull();
-    expect(screen.getByText('session:codex-1')).not.toBeNull();
+    expect(screen.queryByText('session:codex-1')).toBeNull();
   });
 
   it('formats non-native session badges generically when the type is no longer in the available options', () => {
