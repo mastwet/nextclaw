@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getDataDir } from "@nextclaw/core";
 
@@ -47,6 +47,10 @@ export function loadWeixinAccount(accountId: string): StoredWeixinAccount | null
   return readJsonFile<StoredWeixinAccount>(join(resolveAccountsDir(), toAccountFileName(accountId)));
 }
 
+export function deleteWeixinAccount(accountId: string): void {
+  rmSync(join(resolveAccountsDir(), toAccountFileName(accountId)), { force: true });
+}
+
 export function listStoredWeixinAccountIds(): string[] {
   if (!existsSync(resolveAccountsDir())) {
     return [];
@@ -66,4 +70,8 @@ export function saveWeixinCursor(accountId: string, cursor: string | undefined):
   mkdirSync(resolveCursorsDir(), { recursive: true });
   const filePath = join(resolveCursorsDir(), toAccountFileName(accountId));
   writeFileSync(filePath, JSON.stringify({ cursor: cursor ?? "" }, null, 2));
+}
+
+export function deleteWeixinCursor(accountId: string): void {
+  rmSync(join(resolveCursorsDir(), toAccountFileName(accountId)), { force: true });
 }

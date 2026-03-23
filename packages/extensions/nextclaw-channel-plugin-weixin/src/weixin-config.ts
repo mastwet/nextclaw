@@ -133,8 +133,17 @@ export function buildLoggedInWeixinPluginConfig(params: {
   accountId: string;
   baseUrl: string;
   allowUserId?: string;
+  replaceAccountIds?: string[];
 }): WeixinPluginConfig {
   const next = normalizeWeixinPluginConfig(params.pluginConfig);
+  const replacementIds = new Set(
+    (params.replaceAccountIds ?? [])
+      .map((accountId) => readString(accountId))
+      .filter((accountId): accountId is string => Boolean(accountId) && accountId !== params.accountId),
+  );
+  const accounts = Object.fromEntries(
+    Object.entries(next.accounts ?? {}).filter(([accountId]) => !replacementIds.has(accountId)),
+  );
   const currentAccount = next.accounts?.[params.accountId] ?? {};
   const allowFrom = new Set<string>([
     ...(currentAccount.allowFrom ?? []),
@@ -144,10 +153,10 @@ export function buildLoggedInWeixinPluginConfig(params: {
   return {
     ...next,
     enabled: true,
-    defaultAccountId: next.defaultAccountId ?? params.accountId,
+    defaultAccountId: params.accountId,
     baseUrl: next.baseUrl ?? params.baseUrl,
     accounts: {
-      ...(next.accounts ?? {}),
+      ...accounts,
       [params.accountId]: {
         ...currentAccount,
         enabled: true,

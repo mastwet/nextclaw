@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toDataURL } from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { formatDateTime, t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -51,11 +52,60 @@ export function WeixinChannelAuthSection({
   const pollChannelAuth = usePollChannelAuth();
   const [activeSession, setActiveSession] = useState<ChannelAuthStartResult | null>(null);
   const [authState, setAuthState] = useState<ChannelAuthPollResult | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   const connectedAccountIds = useMemo(() => resolveConnectedAccountIds(channelConfig), [channelConfig]);
   const primaryAccountId = connectedAccountIds[0];
   const baseUrl = resolveBaseUrl(formData, channelConfig);
   const hasConnectedAccount = connectedAccountIds.length > 0;
+
+  useEffect(() => {
+    if (!hasConnectedAccount) {
+      return;
+    }
+
+    setActiveSession(null);
+    setAuthState((prev) => {
+      if (prev?.status === 'authorized') {
+        return prev;
+      }
+      return {
+        channel: 'weixin',
+        status: 'authorized',
+        message: t('weixinAuthAuthorized'),
+        accountId: primaryAccountId ?? null
+      };
+    });
+  }, [hasConnectedAccount, primaryAccountId]);
+
+  useEffect(() => {
+    if (!activeSession) {
+      setQrDataUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void toDataURL(activeSession.qrCodeUrl, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 480
+    })
+      .then((dataUrl: string) => {
+        if (!cancelled) {
+          setQrDataUrl(dataUrl);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrDataUrl(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSession]);
 
   useEffect(() => {
     if (!activeSession) {
@@ -210,7 +260,16 @@ export function WeixinChannelAuthSection({
           {activeSession ? (
             <div className="space-y-3">
               <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white p-3">
-                <img src={activeSession.qrCodeUrl} alt={t('weixinAuthQrAlt')} className="mx-auto aspect-square w-full max-w-[240px] object-contain" />
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt={t('weixinAuthQrAlt')} className="mx-auto aspect-square w-full max-w-[240px] object-contain" />
+                ) : (
+                  <div className="flex aspect-square w-full items-center justify-center rounded-xl bg-gray-50 text-gray-500">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <p className="text-xs">{t('weixinAuthStarting')}</p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-1 text-xs text-gray-500">
                 <p>{authState?.message || activeSession.note || t('weixinAuthScanPrompt')}</p>

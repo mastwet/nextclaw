@@ -1,5 +1,11 @@
 # @nextclaw/channel-plugin-weixin
 
+## 0.1.5
+
+### Patch Changes
+
+- Fix Weixin QR re-auth so rescanning the same Weixin account replaces the current connection instead of appending duplicate bot accounts.
+
 ## 0.1.4
 
 ### Patch Changes

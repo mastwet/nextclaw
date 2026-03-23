@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { saveWeixinAccount } from "./weixin-account.store.js";
+import {
+  deleteWeixinAccount,
+  deleteWeixinCursor,
+  listStoredWeixinAccountIds,
+  loadWeixinAccount,
+  saveWeixinAccount,
+} from "./weixin-account.store.js";
 import { fetchWeixinQrCode, fetchWeixinQrStatus } from "./weixin-api.client.js";
 import {
   buildLoggedInWeixinPluginConfig,
@@ -15,6 +21,7 @@ async function sleep(ms: number): Promise<void> {
 
 const WEIXIN_LOGIN_TIMEOUT_MS = 8 * 60_000;
 const WEIXIN_AUTH_POLL_INTERVAL_MS = 2_000;
+const WEIXIN_AUTH_STATUS_TIMEOUT_MS = 5_000;
 
 type WeixinLoginParams = {
   pluginConfig?: Record<string, unknown>;
@@ -77,6 +84,60 @@ function cleanupExpiredWeixinLoginSessions(now = Date.now()): void {
   }
 }
 
+function normalizeWeixinQrStatus(rawStatus: string | undefined): "pending" | "scanned" | "authorized" | "expired" {
+  const status = rawStatus?.trim().toLowerCase() ?? "";
+  if (status === "scaned" || status === "scanned") {
+    return "scanned";
+  }
+  if (status === "confirmed" || status === "authorized" || status === "success") {
+    return "authorized";
+  }
+  if (status === "expired" || status === "timeout") {
+    return "expired";
+  }
+  return "pending";
+}
+
+function hasAuthorizedCredentials(status: Awaited<ReturnType<typeof fetchWeixinQrStatus>>): boolean {
+  return Boolean(status.bot_token?.trim() && status.ilink_bot_id?.trim());
+}
+
+function resolveReplacementAccountIds(params: {
+  currentPluginConfig: WeixinPluginConfig;
+  requestedAccountId?: string | null;
+  actualAccountId: string;
+  authorizedUserId?: string;
+}): string[] {
+  const replacementIds = new Set<string>();
+  const requestedAccountId = params.requestedAccountId?.trim();
+  const defaultAccountId = params.currentPluginConfig.defaultAccountId?.trim();
+
+  if (requestedAccountId && requestedAccountId !== params.actualAccountId) {
+    replacementIds.add(requestedAccountId);
+  } else if (!requestedAccountId && defaultAccountId && defaultAccountId !== params.actualAccountId) {
+    replacementIds.add(defaultAccountId);
+  }
+
+  if (params.authorizedUserId) {
+    for (const [accountId, accountConfig] of Object.entries(params.currentPluginConfig.accounts ?? {})) {
+      if (accountId !== params.actualAccountId && accountConfig.allowFrom?.includes(params.authorizedUserId)) {
+        replacementIds.add(accountId);
+      }
+    }
+
+    for (const accountId of listStoredWeixinAccountIds()) {
+      if (accountId === params.actualAccountId) {
+        continue;
+      }
+      if (loadWeixinAccount(accountId)?.userId === params.authorizedUserId) {
+        replacementIds.add(accountId);
+      }
+    }
+  }
+
+  return [...replacementIds];
+}
+
 function buildConfirmedLoginResult(params: {
   currentPluginConfig: WeixinPluginConfig;
   requestedAccountId?: string | null;
@@ -92,6 +153,18 @@ function buildConfirmedLoginResult(params: {
     throw new Error("weixin login failed: missing bot token or account id");
   }
 
+  const replacementAccountIds = resolveReplacementAccountIds({
+    currentPluginConfig: params.currentPluginConfig,
+    requestedAccountId: params.requestedAccountId,
+    actualAccountId,
+    authorizedUserId,
+  });
+
+  for (const accountId of replacementAccountIds) {
+    deleteWeixinAccount(accountId);
+    deleteWeixinCursor(accountId);
+  }
+
   saveWeixinAccount({
     accountId: actualAccountId,
     token: botToken,
@@ -104,6 +177,9 @@ function buildConfirmedLoginResult(params: {
   if (params.requestedAccountId?.trim() && params.requestedAccountId.trim() !== actualAccountId) {
     notes.push(`Weixin account resolved to ${actualAccountId}.`);
   }
+  for (const accountId of replacementAccountIds) {
+    notes.push(`Replaced previous Weixin account: ${accountId}`);
+  }
   if (authorizedUserId) {
     notes.push(`Authorized initial user: ${authorizedUserId}`);
   }
@@ -114,6 +190,7 @@ function buildConfirmedLoginResult(params: {
       accountId: actualAccountId,
       baseUrl: resolvedBaseUrl,
       allowUserId: authorizedUserId,
+      replaceAccountIds: replacementAccountIds,
     }) as Record<string, unknown>,
     accountId: actualAccountId,
     notes,
@@ -177,9 +254,13 @@ export async function pollWeixinLoginSession(params: {
     const status = await fetchWeixinQrStatus({
       baseUrl: session.baseUrl,
       qrcode: session.qrCode,
+      timeoutMs: WEIXIN_AUTH_STATUS_TIMEOUT_MS,
     });
+    const normalizedStatus = hasAuthorizedCredentials(status)
+      ? "authorized"
+      : normalizeWeixinQrStatus(status.status);
 
-    if (status.status === "scaned") {
+    if (normalizedStatus === "scanned") {
       return {
         channel: WEIXIN_CHANNEL_ID,
         status: "scanned",
@@ -188,7 +269,7 @@ export async function pollWeixinLoginSession(params: {
       };
     }
 
-    if (status.status === "confirmed") {
+    if (normalizedStatus === "authorized") {
       const result = buildConfirmedLoginResult({
         currentPluginConfig: session.currentPluginConfig,
         requestedAccountId: session.requestedAccountId,
@@ -207,7 +288,7 @@ export async function pollWeixinLoginSession(params: {
       };
     }
 
-    if (status.status === "expired") {
+    if (normalizedStatus === "expired") {
       weixinLoginSessions.delete(params.sessionId);
       return {
         channel: WEIXIN_CHANNEL_ID,

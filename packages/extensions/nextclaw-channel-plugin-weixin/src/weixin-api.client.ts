@@ -39,7 +39,7 @@ type WeixinQrCodeResponse = {
 };
 
 export type WeixinQrStatusResponse = {
-  status?: "wait" | "scaned" | "confirmed" | "expired";
+  status?: string;
   bot_token?: string;
   ilink_bot_id?: string;
   baseurl?: string;
@@ -142,6 +142,7 @@ export async function fetchWeixinQrCode(params: {
 export async function fetchWeixinQrStatus(params: {
   baseUrl: string;
   qrcode: string;
+  timeoutMs?: number;
   signal?: AbortSignal;
 }): Promise<WeixinQrStatusResponse> {
   const url = new URL(
@@ -152,7 +153,7 @@ export async function fetchWeixinQrStatus(params: {
     return await fetchWeixinJson<WeixinQrStatusResponse>({
       url: url.toString(),
       method: "GET",
-      timeoutMs: DEFAULT_WEIXIN_POLL_TIMEOUT_MS,
+      timeoutMs: params.timeoutMs ?? DEFAULT_WEIXIN_POLL_TIMEOUT_MS,
       headers: {
         "iLink-App-ClientVersion": "1",
       },

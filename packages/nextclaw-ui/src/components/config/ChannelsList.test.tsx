@@ -53,6 +53,10 @@ const mocks = vi.hoisted(() => ({
   }
 }));
 
+vi.mock('qrcode', () => ({
+  toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,weixin-qr')
+}));
+
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
   return {
@@ -128,6 +132,10 @@ describe('ChannelsList', () => {
           baseUrl: 'https://ilinkai.weixin.qq.com'
         })
       });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByAltText('Weixin login QR code').getAttribute('src')).toBe('data:image/png;base64,weixin-qr');
     });
   });
 
