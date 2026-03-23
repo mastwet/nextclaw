@@ -1,5 +1,12 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.17
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/channel-plugin-weixin@0.1.5
+
 ## 0.3.16
 
 ### Patch Changes

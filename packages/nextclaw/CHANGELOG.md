@@ -1,5 +1,14 @@
 # nextclaw
 
+## 0.13.38
+
+### Patch Changes
+
+- @nextclaw/mcp@0.1.30
+- @nextclaw/openclaw-compat@0.3.17
+- @nextclaw/server@0.10.34
+- @nextclaw/remote@0.1.28
+
 ## 0.13.37
 
 ### Patch Changes

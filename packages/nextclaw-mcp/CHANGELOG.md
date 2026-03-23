@@ -1,5 +1,11 @@
 # @nextclaw/mcp
 
+## 0.1.30
+
+### Patch Changes
+
+- Republish alongside the Weixin host rollout so `@nextclaw/server` and `nextclaw` can release as one aligned package batch.
+
 ## 0.1.29
 
 ### Patch Changes

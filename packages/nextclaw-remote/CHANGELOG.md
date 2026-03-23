@@ -1,5 +1,11 @@
 # @nextclaw/remote
 
+## 0.1.28
+
+### Patch Changes
+
+- @nextclaw/server@0.10.34
+
 ## 0.1.27
 
 ### Patch Changes
