@@ -6,20 +6,33 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
-import { SessionRunBadge } from '@/components/common/SessionRunBadge';
+import { ChatSidebarSessionItem } from '@/components/chat/chat-sidebar-session-item';
+import { useChatSessionLabelService } from '@/components/chat/chat-session-label.service';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import { useChatRunStatusStore } from '@/components/chat/stores/chat-run-status.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
+import { resolveChatChain } from '@/components/chat/chat-chain';
 import { cn } from '@/lib/utils';
-import { LANGUAGE_OPTIONS, formatDateTime, t, type I18nLanguage } from '@/lib/i18n';
+import { LANGUAGE_OPTIONS, t, type I18nLanguage } from '@/lib/i18n';
 import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useDocBrowser } from '@/components/doc-browser';
 import { useUiStore } from '@/stores/ui.store';
-import { NavLink } from 'react-router-dom';
-import { AlarmClock, BookOpen, BrainCircuit, ChevronDown, Languages, MessageSquareText, Palette, Plus, Search, Settings } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import {
+  AlarmClock,
+  BookOpen,
+  BrainCircuit,
+  ChevronDown,
+  Languages,
+  MessageSquareText,
+  Palette,
+  Plus,
+  Search,
+  Settings
+} from 'lucide-react';
 
 type DateGroup = {
   label: string;
@@ -103,13 +116,19 @@ const navItems = [
 export function ChatSidebar() {
   const presenter = usePresenter();
   const docBrowser = useDocBrowser();
+  const location = useLocation();
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const [editingSessionKey, setEditingSessionKey] = useState<string | null>(null);
+  const [draftLabel, setDraftLabel] = useState('');
+  const [savingSessionKey, setSavingSessionKey] = useState<string | null>(null);
   const inputSnapshot = useChatInputStore((state) => state.snapshot);
   const listSnapshot = useChatSessionListStore((state) => state.snapshot);
   const runSnapshot = useChatRunStatusStore((state) => state.snapshot);
   const connectionStatus = useUiStore((state) => state.connectionStatus);
   const { language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
+  const updateSessionLabel = useChatSessionLabelService();
+  const chatChain = resolveChatChain(location.search);
   const currentThemeLabel = t(THEME_OPTIONS.find((o) => o.value === theme)?.labelKey ?? 'themeWarm');
   const currentLanguageLabel = LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? language;
 
@@ -124,6 +143,53 @@ export function ChatSidebar() {
     if (language === nextLang) return;
     setLanguage(nextLang);
     window.location.reload();
+  };
+
+  const patchSessionLabelInStore = (sessionKey: string, label: string | undefined) => {
+    const { sessions } = useChatSessionListStore.getState().snapshot;
+    useChatSessionListStore.getState().setSnapshot({
+      sessions: sessions.map((session) =>
+        session.key === sessionKey
+          ? {
+              ...session,
+              ...(label ? { label } : { label: undefined })
+            }
+          : session
+      )
+    });
+  };
+
+  const startEditingSessionLabel = (session: SessionEntryView) => {
+    setEditingSessionKey(session.key);
+    setDraftLabel(session.label?.trim() ?? '');
+  };
+
+  const cancelEditingSessionLabel = () => {
+    setEditingSessionKey(null);
+    setDraftLabel('');
+    setSavingSessionKey(null);
+  };
+
+  const saveSessionLabel = async (session: SessionEntryView) => {
+    const normalizedLabel = draftLabel.trim();
+    const currentLabel = session.label?.trim() ?? '';
+    if (normalizedLabel === currentLabel) {
+      cancelEditingSessionLabel();
+      return;
+    }
+
+    setSavingSessionKey(session.key);
+    try {
+      await updateSessionLabel({
+        chatChain,
+        sessionKey: session.key,
+        label: normalizedLabel || null
+      });
+      patchSessionLabelInStore(session.key, normalizedLabel || undefined);
+      cancelEditingSessionLabel();
+    } catch {
+      setSavingSessionKey(null);
+    }
   };
 
   return (
@@ -268,41 +334,25 @@ export function ChatSidebar() {
                     const active = listSnapshot.selectedSessionKey === session.key;
                     const runStatus = runSnapshot.sessionRunStatusByKey.get(session.key);
                     const sessionTypeLabel = resolveSessionTypeLabel(session.sessionType, inputSnapshot.sessionTypeOptions);
+                    const isEditing = editingSessionKey === session.key;
+                    const isSaving = savingSessionKey === session.key;
                     return (
-                      <button
+                      <ChatSidebarSessionItem
                         key={session.key}
-                        onClick={() => presenter.chatSessionListManager.selectSession(session.key)}
-                        className={cn(
-                          'w-full rounded-xl px-3 py-2 text-left transition-all text-[13px]',
-                          active
-                            ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
-                            : 'text-gray-700 hover:bg-gray-200/60 hover:text-gray-900'
-                        )}
-                      >
-                        <div className="grid grid-cols-[minmax(0,1fr)_0.875rem] items-center gap-1.5">
-                          <span className="flex min-w-0 items-center gap-1.5">
-                            <span className="truncate font-medium">{sessionTitle(session)}</span>
-                            {sessionTypeLabel ? (
-                              <span
-                                className={cn(
-                                  'shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none',
-                                  active
-                                    ? 'border-gray-300 bg-white/80 text-gray-700'
-                                    : 'border-gray-200 bg-gray-100 text-gray-500'
-                                )}
-                              >
-                                {sessionTypeLabel}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-                            {runStatus ? <SessionRunBadge status={runStatus} /> : null}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-gray-400 truncate">
-                          {session.messageCount} · {formatDateTime(session.updatedAt)}
-                        </div>
-                      </button>
+                        session={session}
+                        active={active}
+                        runStatus={runStatus}
+                        sessionTypeLabel={sessionTypeLabel}
+                        title={sessionTitle(session)}
+                        isEditing={isEditing}
+                        draftLabel={draftLabel}
+                        isSaving={isSaving}
+                        onSelect={() => presenter.chatSessionListManager.selectSession(session.key)}
+                        onStartEditing={() => startEditingSessionLabel(session)}
+                        onDraftLabelChange={setDraftLabel}
+                        onSave={() => saveSessionLabel(session)}
+                        onCancel={cancelEditingSessionLabel}
+                      />
                     );
                   })}
                 </div>
