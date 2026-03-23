@@ -1,5 +1,14 @@
 # nextclaw
 
+## 0.13.34
+
+### Patch Changes
+
+- Republish NextClaw with the fixed UI server wiring so the Weixin channel appears in the Channels page in real service startup flows.
+
+- Updated dependencies
+  - @nextclaw/server@0.10.30
+
 ## 0.13.33
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # nextclaw-server
 
+## 0.10.30
+
+### Patch Changes
+
+- Fix the real UI server startup path so plugin channel bindings and UI metadata are passed through to the router, making the Weixin channel appear in frontend config instead of disappearing outside controller-only tests.
+
 ## 0.10.29
 
 ### Patch Changes

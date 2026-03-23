@@ -132,7 +132,9 @@ export function startUiServer(options: UiServerOptions): UiServerHandle {
       chatRuntime: options.chatRuntime,
       ncpAgent: options.ncpAgent,
       authService,
-      remoteAccess: options.remoteAccess
+      remoteAccess: options.remoteAccess,
+      getPluginChannelBindings: options.getPluginChannelBindings,
+      getPluginUiMetadata: options.getPluginUiMetadata
     })
   );
 
