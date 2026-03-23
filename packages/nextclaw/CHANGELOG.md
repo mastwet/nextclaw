@@ -1,5 +1,14 @@
 # nextclaw
 
+## 0.13.36
+
+### Patch Changes
+
+- Republish the verified Weixin QR auth UI flow above already occupied npm versions so the published CLI and UI packages match the code that passed real smoke validation.
+- Updated dependencies
+  - @nextclaw/server@0.10.32
+  - @nextclaw/remote@0.1.26
+
 ## 0.13.35
 
 ### Patch Changes
