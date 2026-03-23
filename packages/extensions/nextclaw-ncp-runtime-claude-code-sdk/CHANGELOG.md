@@ -1,5 +1,11 @@
 # @nextclaw/nextclaw-ncp-runtime-claude-code-sdk
 
+## 0.1.3
+
+### Patch Changes
+
+- Fix Claude marketplace installs so the bundled Claude Agent SDK CLI path still resolves when the package does not export `./package.json`.
+
 ## 0.1.2
 
 ### Patch Changes

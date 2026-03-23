@@ -4,14 +4,28 @@ import { dirname, isAbsolute, join } from "node:path";
 
 const require = createRequire(import.meta.url);
 
-export function resolveBundledClaudeAgentSdkCliPath(): string | undefined {
-  try {
-    const packageJsonPath = require.resolve("@anthropic-ai/claude-agent-sdk/package.json");
-    const cliPath = join(dirname(packageJsonPath), "cli.js");
-    return existsSync(cliPath) ? cliPath : undefined;
-  } catch {
+function resolveClaudeAgentSdkBaseDir(resolveModulePath: (specifier: string) => string): string | undefined {
+  const candidates = ["@anthropic-ai/claude-agent-sdk/package.json", "@anthropic-ai/claude-agent-sdk"];
+  for (const candidate of candidates) {
+    try {
+      return dirname(resolveModulePath(candidate));
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
+export function resolveBundledClaudeAgentSdkCliPath(
+  resolveModulePath: (specifier: string) => string = require.resolve.bind(require),
+): string | undefined {
+  const sdkBaseDir = resolveClaudeAgentSdkBaseDir(resolveModulePath);
+  if (!sdkBaseDir) {
     return undefined;
   }
+
+  const cliPath = join(sdkBaseDir, "cli.js");
+  return existsSync(cliPath) ? cliPath : undefined;
 }
 
 export function resolveCurrentProcessExecutable(): string | undefined {
