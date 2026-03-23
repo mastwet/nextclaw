@@ -45,7 +45,8 @@ export class CronCommands {
       message: opts.message,
       deliver: Boolean(opts.deliver),
       channel: opts.channel,
-      to: opts.to
+      to: opts.to,
+      accountId: opts.account
     });
     console.log(`✓ Added job '${job.name}' (${job.id})`);
   }

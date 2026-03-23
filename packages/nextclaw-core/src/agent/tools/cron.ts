@@ -5,6 +5,7 @@ import type { CronSchedule } from "../../cron/types.js";
 export class CronTool extends Tool {
   private channel = "cli";
   private chatId = "direct";
+  private accountId?: string;
 
   constructor(private cronService: CronService) {
     super();
@@ -27,15 +28,17 @@ export class CronTool extends Tool {
         every: { type: "integer" },
         cron: { type: "string" },
         at: { type: "string" },
-        deliver: { type: "boolean" }
+        deliver: { type: "boolean" },
+        accountId: { type: "string" }
       },
       required: ["name", "message"]
     };
   }
 
-  setContext(channel: string, chatId: string): void {
+  setContext(channel: string, chatId: string, accountId?: string | null): void {
     this.channel = channel;
     this.chatId = chatId;
+    this.accountId = typeof accountId === "string" && accountId.trim().length > 0 ? accountId : undefined;
   }
 
   async execute(params: Record<string, unknown>): Promise<string> {
@@ -45,6 +48,8 @@ export class CronTool extends Tool {
     const cron = params.cron ? String(params.cron) : undefined;
     const at = params.at ? String(params.at) : undefined;
     const deliver = Boolean(params.deliver ?? false);
+    const accountId =
+      typeof params.accountId === "string" && params.accountId.trim().length > 0 ? params.accountId : this.accountId;
 
     let schedule: CronSchedule | null = null;
     if (every) {
@@ -66,7 +71,8 @@ export class CronTool extends Tool {
       message,
       deliver,
       channel: this.channel,
-      to: this.chatId
+      to: this.chatId,
+      accountId
     });
 
     return `Scheduled job '${job.name}' (${job.id})`;

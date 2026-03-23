@@ -1,10 +1,13 @@
 import * as NextclawCore from "@nextclaw/core";
 import {
   getPluginChannelBindings,
+  getPluginUiMetadataFromRegistry,
   resolvePluginChannelMessageToolHints,
   setPluginRuntimeBridge,
   startPluginChannelGateways,
-  stopPluginChannelGateways
+  stopPluginChannelGateways,
+  type PluginChannelBinding,
+  type PluginUiMetadata
 } from "@nextclaw/openclaw-compat";
 import type { RemoteServiceModule } from "@nextclaw/remote";
 import { startUiServer, type UiServerEvent } from "@nextclaw/server";
@@ -41,7 +44,9 @@ import {
   toExtensionRegistry,
 } from "./plugins.js";
 import { ServiceMarketplaceInstaller } from "./service-marketplace-installer.js";
+import { createCronJobHandler } from "./service-cron-job-handler.js";
 import { installPluginRuntimeBridge } from "./service-plugin-runtime-bridge.js";
+import { createServiceUiChatRuntime } from "./service-ui-chat-runtime.js";
 import { reloadServicePlugins } from "./service-plugin-reload.js";
 import {
   logPluginGatewayDiagnostics,
@@ -241,25 +246,7 @@ export class ServiceCommands {
       pluginChannelBindings
     });
 
-    cron.onJob = async (job) => {
-      const response = await runtimePool.processDirect({
-        content: job.payload.message,
-        sessionKey: `cron:${job.id}`,
-        channel: job.payload.channel ?? "cli",
-        chatId: job.payload.to ?? "direct",
-        agentId: runtimePool.primaryAgentId
-      });
-      if (job.payload.deliver && job.payload.to) {
-        await bus.publishOutbound({
-          channel: job.payload.channel ?? "cli",
-          chatId: job.payload.to,
-          content: response,
-          media: [],
-          metadata: {}
-        });
-      }
-      return response;
-    };
+    cron.onJob = createCronJobHandler({ runtimePool, bus });
 
     const heartbeat = new HeartbeatService(
       workspace,
@@ -292,6 +279,8 @@ export class ServiceCommands {
           cfg: resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath }),
           accountId,
         }),
+      () => pluginChannelBindings,
+      () => getPluginUiMetadataFromRegistry(pluginRegistry),
       remoteModule
     );
     await startGatewaySupportServices({
@@ -1055,79 +1044,13 @@ export class ServiceCommands {
     getConfig: () => Config,
     getExtensionRegistry: () => NextclawExtensionRegistry | undefined,
     resolveMessageToolHints: (params: { channel: string; accountId?: string | null }) => string[],
+    getPluginChannelBindings: () => PluginChannelBinding[],
+    getPluginUiMetadata: () => PluginUiMetadata[],
     remoteModule: RemoteServiceModule | null
   ): Promise<void> {
     if (!uiConfig.enabled) {
       return;
     }
-    const resolveStopCapability = (params: {
-      sessionKey?: string; agentId?: string; channel?: string; chatId?: string; metadata?: Record<string, unknown>;
-    }) => runtimePool.supportsTurnAbort({
-      sessionKey: params.sessionKey,
-      agentId: params.agentId,
-      channel: params.channel,
-      chatId: params.chatId,
-      metadata: params.metadata
-    });
-    const resolveChatTurnParams = (params: {
-      message: string;
-      sessionKey?: string;
-      agentId?: string;
-      channel?: string;
-      chatId?: string;
-      model?: string;
-      metadata?: Record<string, unknown>;
-      runId?: string;
-    }) => {
-      const sessionKey =
-        typeof params.sessionKey === "string" && params.sessionKey.trim().length > 0
-          ? params.sessionKey.trim()
-          : `ui:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
-      const inferredAgentId =
-        typeof params.agentId === "string" && params.agentId.trim().length > 0
-          ? params.agentId.trim()
-          : parseAgentScopedSessionKey(sessionKey)?.agentId;
-      const model = typeof params.model === "string" && params.model.trim().length > 0 ? params.model.trim() : undefined;
-      const metadata =
-        params.metadata && typeof params.metadata === "object" && !Array.isArray(params.metadata)
-          ? { ...params.metadata }
-          : {};
-      if (model) {
-        metadata.model = model;
-      }
-      const runId = typeof params.runId === "string" && params.runId.trim().length > 0
-        ? params.runId.trim()
-        : undefined;
-      return {
-        runId,
-        sessionKey,
-        inferredAgentId,
-        model,
-        metadata,
-        channel: typeof params.channel === "string" && params.channel.trim().length > 0 ? params.channel : "ui",
-        chatId: typeof params.chatId === "string" && params.chatId.trim().length > 0 ? params.chatId : "web-ui"
-      };
-    };
-
-    const buildTurnResult = (params: { reply: string; sessionKey: string; inferredAgentId?: string; model?: string }) => ({
-      reply: params.reply,
-      sessionKey: params.sessionKey,
-      ...(params.inferredAgentId ? { agentId: params.inferredAgentId } : {}),
-      ...(params.model ? { model: params.model } : {})
-    });
-
-    const resolveSessionTypeLabel = (sessionType: string): string => {
-      if (sessionType === "native") {
-        return "Native";
-      }
-      return sessionType
-        .trim()
-        .split(/[-_]+/g)
-        .filter(Boolean)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ") || sessionType;
-    };
-
     let publishUiEvent: ((event: UiServerEvent) => void) | null = null;
     runtimePool.setSystemSessionUpdatedHandler(({ sessionKey, message }) => {
       if (!publishUiEvent) {
@@ -1184,78 +1107,10 @@ export class ServiceCommands {
         installer: marketplaceInstaller
       },
       remoteAccess,
+      getPluginChannelBindings,
+      getPluginUiMetadata,
       ncpAgent,
-      chatRuntime: {
-        listSessionTypes: async () => {
-          const options = runtimePool.listAvailableEngineKinds().map((value) => ({
-            value,
-            label: resolveSessionTypeLabel(value)
-          }));
-          return {
-            defaultType: "native",
-            options
-          };
-        },
-        getCapabilities: async (params) => {
-          const sessionKey =
-            typeof params.sessionKey === "string" && params.sessionKey.trim().length > 0
-              ? params.sessionKey.trim()
-              : `ui:capability:${Date.now().toString(36)}`;
-          const capability = resolveStopCapability({
-            sessionKey,
-            agentId: typeof params.agentId === "string" ? params.agentId : undefined,
-            channel: "ui",
-            chatId: "web-ui",
-            metadata: {}
-          });
-          return {
-            stopSupported: capability.supported,
-            ...(capability.reason ? { stopReason: capability.reason } : {})
-          };
-        },
-        processTurn: async (params) => {
-          const resolved = resolveChatTurnParams(params);
-
-          const reply = await runtimePool.processDirect({
-            content: params.message,
-            sessionKey: resolved.sessionKey,
-            channel: resolved.channel,
-            chatId: resolved.chatId,
-            agentId: resolved.inferredAgentId,
-            metadata: resolved.metadata
-          });
-
-          return buildTurnResult({
-            reply,
-            sessionKey: resolved.sessionKey,
-            inferredAgentId: resolved.inferredAgentId,
-            model: resolved.model
-          });
-        },
-        startTurnRun: async (params) => {
-          return runCoordinator.startRun(params);
-        },
-        listRuns: async (params) => {
-          return runCoordinator.listRuns(params);
-        },
-        getRun: async (params) => {
-          return runCoordinator.getRun(params);
-        },
-        streamRun: async function* (params) {
-          for await (const event of runCoordinator.streamRun(params)) {
-            yield event;
-          }
-        },
-        stopTurn: async (params) => {
-          return await runCoordinator.stopRun(params);
-        },
-        processTurnStream: async function* (params) {
-          const run = runCoordinator.startRun(params);
-          for await (const event of runCoordinator.streamRun({ runId: run.runId })) {
-            yield event;
-          }
-        }
-      }
+      chatRuntime: createServiceUiChatRuntime({ runtimePool, runCoordinator })
     });
     publishUiEvent = uiServer.publish;
     const uiUrl = `http://${uiServer.host}:${uiServer.port}`;

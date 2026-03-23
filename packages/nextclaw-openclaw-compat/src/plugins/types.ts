@@ -158,6 +158,26 @@ export type OpenClawChannelAgentPrompt = {
   messageToolHints?: (params: { cfg: Config; accountId?: string | null }) => string[];
 };
 
+export type OpenClawChannelAuthLoginResult = {
+  pluginConfig: Record<string, unknown>;
+  accountId?: string | null;
+  notes?: string[];
+};
+
+export type OpenClawChannelAuth = {
+  login?: (params: {
+    cfg: Config;
+    pluginId: string;
+    channelId: string;
+    pluginConfig?: Record<string, unknown>;
+    accountId?: string | null;
+    baseUrl?: string | null;
+    verbose?: boolean;
+  }) =>
+    | Promise<OpenClawChannelAuthLoginResult>
+    | OpenClawChannelAuthLoginResult;
+};
+
 export type OpenClawChannelPlugin = {
   id: string;
   meta?: Record<string, unknown>;
@@ -169,6 +189,7 @@ export type OpenClawChannelPlugin = {
   gateway?: OpenClawChannelGateway;
   agentTools?: OpenClawPluginTool[] | (() => OpenClawPluginTool | OpenClawPluginTool[] | null | undefined);
   agentPrompt?: OpenClawChannelAgentPrompt;
+  auth?: OpenClawChannelAuth;
   outbound?: {
     sendText?: (ctx: {
       cfg: Config;

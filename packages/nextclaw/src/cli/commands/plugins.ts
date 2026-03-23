@@ -1,7 +1,9 @@
 import {
   buildPluginStatusReport,
   loadOpenClawPlugins,
+  mergePluginConfigView,
   resolveUninstallDirectoryTargets,
+  toPluginConfigView,
   type PluginChannelBinding,
   type PluginRegistry
 } from "@nextclaw/openclaw-compat";
@@ -36,6 +38,7 @@ import {
   uninstallPluginMutation,
 } from "./plugin-mutation-actions.js";
 export { type NextclawExtensionRegistry, toExtensionRegistry } from "./plugin-extension-registry.js";
+export { mergePluginConfigView, toPluginConfigView } from "@nextclaw/openclaw-compat";
 
 export function loadPluginRegistry(config: Config, workspaceDir: string): PluginRegistry {
   const workspaceExtensionsDir = resolveDevFirstPartyPluginDir(process.env.NEXTCLAW_DEV_FIRST_PARTY_PLUGIN_DIR);
@@ -68,62 +71,6 @@ export function logPluginDiagnostics(registry: PluginRegistry): void {
       console.warn(`[plugins] ${text}`);
     }
   }
-}
-
-export function toPluginConfigView(config: Config, bindings: PluginChannelBinding[]): Record<string, unknown> {
-  const view = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
-  const channels =
-    view.channels && typeof view.channels === "object" && !Array.isArray(view.channels)
-      ? ({ ...(view.channels as Record<string, unknown>) } as Record<string, unknown>)
-      : {};
-
-  for (const binding of bindings) {
-    const pluginConfig = config.plugins.entries?.[binding.pluginId]?.config;
-    if (!pluginConfig || typeof pluginConfig !== "object" || Array.isArray(pluginConfig)) {
-      continue;
-    }
-    channels[binding.channelId] = JSON.parse(JSON.stringify(pluginConfig)) as Record<string, unknown>;
-  }
-
-  view.channels = channels;
-  return view;
-}
-
-export function mergePluginConfigView(
-  baseConfig: Config,
-  pluginViewConfig: Record<string, unknown>,
-  bindings: PluginChannelBinding[]
-): Config {
-  const next = JSON.parse(JSON.stringify(baseConfig)) as Config;
-  const pluginChannels =
-    pluginViewConfig.channels && typeof pluginViewConfig.channels === "object" && !Array.isArray(pluginViewConfig.channels)
-      ? (pluginViewConfig.channels as Record<string, unknown>)
-      : {};
-
-  const entries = { ...(next.plugins.entries ?? {}) };
-
-  for (const binding of bindings) {
-    if (!Object.prototype.hasOwnProperty.call(pluginChannels, binding.channelId)) {
-      continue;
-    }
-
-    const channelConfig = pluginChannels[binding.channelId];
-    if (!channelConfig || typeof channelConfig !== "object" || Array.isArray(channelConfig)) {
-      continue;
-    }
-
-    entries[binding.pluginId] = {
-      ...(entries[binding.pluginId] ?? {}),
-      config: channelConfig as Record<string, unknown>
-    };
-  }
-
-  next.plugins = {
-    ...next.plugins,
-    entries
-  };
-
-  return next;
 }
 
 export class PluginCommands {

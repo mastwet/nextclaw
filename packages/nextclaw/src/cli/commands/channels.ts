@@ -3,7 +3,7 @@ import { getWorkspacePath, loadConfig, saveConfig } from "@nextclaw/core";
 import { BUILTIN_CHANNEL_PLUGIN_IDS, builtinProviderIds } from "@nextclaw/runtime";
 import { buildPluginStatusReport, enablePluginInConfig, getPluginChannelBindings } from "@nextclaw/openclaw-compat";
 import { loadPluginRegistry, mergePluginConfigView, toPluginConfigView } from "./plugins.js";
-import type { ChannelsAddOptions, RequestRestartParams } from "../types.js";
+import type { ChannelsAddOptions, ChannelsLoginOptions, RequestRestartParams } from "../types.js";
 
 const CHANNEL_LABELS: Record<string, string> = {
   telegram: "Telegram",
@@ -18,6 +18,13 @@ const CHANNEL_LABELS: Record<string, string> = {
   qq: "QQ"
 };
 const RESERVED_PROVIDER_IDS = builtinProviderIds();
+
+type PluginChannelBinding = ReturnType<typeof getPluginChannelBindings>[number];
+type PluginLoginResult = {
+  pluginConfig: Record<string, unknown>;
+  accountId?: string | null;
+  notes?: string[];
+};
 
 export class ChannelCommands {
   constructor(
@@ -56,13 +63,127 @@ export class ChannelCommands {
     }
   }
 
-  channelsLogin(): void {
+  async channelsLogin(opts: ChannelsLoginOptions = {}): Promise<void> {
+    const channelId = opts.channel?.trim();
+    if (!channelId) {
+      this.runLegacyBridgeLogin();
+      return;
+    }
+
+    const config = loadConfig();
+    const binding = this.resolvePluginChannelBinding(config, channelId);
+    if (!binding) {
+      console.error(`No plugin channel found for: ${channelId}`);
+      process.exit(1);
+    }
+
+    const result = await this.loginPluginChannel(config, binding, opts);
+    if (!result) {
+      return;
+    }
+
+    saveConfig(this.buildNextConfigAfterChannelLogin(config, binding, result));
+    this.printPluginChannelLoginResult(binding, result);
+    await this.deps.requestRestart({
+      reason: `channel login via plugin: ${binding.pluginId}`,
+      manualMessage: "Restart the gateway to apply changes."
+    });
+  }
+
+  private runLegacyBridgeLogin(): void {
     const bridgeDir = this.deps.getBridgeDir();
     console.log(`${this.deps.logo} Starting bridge...`);
     console.log("Scan the QR code to connect.\n");
     const result = spawnSync("npm", ["start"], { cwd: bridgeDir, stdio: "inherit" });
     if (result.status !== 0) {
       console.error(`Bridge failed: ${result.status ?? 1}`);
+    }
+  }
+
+  private resolvePluginChannelBinding(config: ReturnType<typeof loadConfig>, channelId: string): PluginChannelBinding | undefined {
+    const workspaceDir = getWorkspacePath(config.agents.defaults.workspace);
+    const pluginRegistry = loadPluginRegistry(config, workspaceDir);
+    const bindings = getPluginChannelBindings(pluginRegistry);
+    return bindings.find((entry) => entry.channelId === channelId || entry.pluginId === channelId);
+  }
+
+  private async loginPluginChannel(
+    config: ReturnType<typeof loadConfig>,
+    binding: PluginChannelBinding,
+    opts: ChannelsLoginOptions,
+  ): Promise<PluginLoginResult | null> {
+    const login = binding.channel.auth?.login;
+    if (!login) {
+      if (binding.channelId === "whatsapp") {
+        this.runLegacyBridgeLogin();
+        return null;
+      }
+      console.error(`Channel "${binding.channelId}" does not support login.`);
+      process.exit(1);
+    }
+
+    const result = await login({
+      cfg: config,
+      pluginId: binding.pluginId,
+      channelId: binding.channelId,
+      pluginConfig: this.clonePluginConfig(config.plugins.entries?.[binding.pluginId]?.config),
+      accountId: opts.account?.trim() || null,
+      baseUrl: opts.url?.trim() || opts.httpUrl?.trim() || null,
+      verbose: Boolean(opts.verbose)
+    });
+    this.assertValidPluginLoginResult(result);
+    return result;
+  }
+
+  private clonePluginConfig(value: unknown): Record<string, unknown> | undefined {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return undefined;
+    }
+    return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+  }
+
+  private assertValidPluginLoginResult(result: unknown): asserts result is PluginLoginResult {
+    if (!result || typeof result !== "object" || Array.isArray(result)) {
+      console.error("Channel login returned an invalid result.");
+      process.exit(1);
+    }
+    const record = result as Record<string, unknown>;
+    if (!record.pluginConfig || typeof record.pluginConfig !== "object" || Array.isArray(record.pluginConfig)) {
+      console.error("Channel login returned an invalid plugin config.");
+      process.exit(1);
+    }
+  }
+
+  private buildNextConfigAfterChannelLogin(
+    config: ReturnType<typeof loadConfig>,
+    binding: PluginChannelBinding,
+    result: PluginLoginResult,
+  ): ReturnType<typeof loadConfig> {
+    return enablePluginInConfig(
+      {
+        ...config,
+        plugins: {
+          ...config.plugins,
+          entries: {
+            ...(config.plugins.entries ?? {}),
+            [binding.pluginId]: {
+              ...(config.plugins.entries?.[binding.pluginId] ?? {}),
+              config: result.pluginConfig
+            }
+          }
+        }
+      },
+      binding.pluginId
+    );
+  }
+
+  private printPluginChannelLoginResult(binding: PluginChannelBinding, result: PluginLoginResult): void {
+    console.log(`Logged into channel "${binding.channelId}" via plugin "${binding.pluginId}".`);
+    if (result.accountId) {
+      console.log(`Active account: ${result.accountId}`);
+    }
+    for (const note of result.notes ?? []) {
+      console.log(note);
     }
   }
 

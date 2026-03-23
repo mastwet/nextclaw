@@ -1,5 +1,18 @@
 # @nextclaw/ui
 
+## 0.9.14
+
+### Patch Changes
+
+- Add the Weixin channel entry to the Channels page so users can configure personal Weixin accounts directly from the frontend.
+
+## 0.9.13
+
+### Patch Changes
+
+- Fix local UI runtime probe fallback so local NextClaw instances keep using local transport
+  instead of breaking on `/_remote/runtime` HTML responses.
+
 ## 0.9.12
 
 ### Patch Changes

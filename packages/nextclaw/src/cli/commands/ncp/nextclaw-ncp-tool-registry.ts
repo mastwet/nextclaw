@@ -216,10 +216,7 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
 
     this.registerTool(new WebSearchTool(context.searchConfig));
     this.registerTool(new WebFetchTool());
-
-    const messageTool = new MessageTool((message) => this.options.bus.publishOutbound(message));
-    messageTool.setContext(context.channel, context.chatId);
-    this.registerTool(messageTool);
+    this.registerMessagingTools(context);
 
     const spawnTool = new SpawnTool(this.subagents);
     spawnTool.setContext(
@@ -251,10 +248,16 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
     const gatewayTool = new GatewayTool(this.options.gatewayController);
     gatewayTool.setContext({ sessionKey: context.sessionId });
     this.registerTool(gatewayTool);
+  }
 
+  private registerMessagingTools(context: PreparedRunContext): void {
+    const accountId = readMetadataAccountId(context.metadata, {});
+    const messageTool = new MessageTool((message) => this.options.bus.publishOutbound(message));
+    messageTool.setContext(context.channel, context.chatId, accountId ?? null);
+    this.registerTool(messageTool);
     if (this.options.cronService) {
       const cronTool = new CronTool(this.options.cronService);
-      cronTool.setContext(context.channel, context.chatId);
+      cronTool.setContext(context.channel, context.chatId, accountId ?? null);
       this.registerTool(cronTool);
     }
   }

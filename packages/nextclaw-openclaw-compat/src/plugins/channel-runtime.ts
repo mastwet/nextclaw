@@ -98,6 +98,91 @@ export function getPluginUiMetadataFromRegistry(registry: PluginRegistry): Plugi
   }));
 }
 
+function cloneConfig<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function resolveProjectedPluginChannelEnabled(params: {
+  entryEnabled?: boolean;
+  channelConfig?: Record<string, unknown>;
+}): boolean {
+  const channelEnabled = typeof params.channelConfig?.enabled === "boolean"
+    ? params.channelConfig.enabled
+    : false;
+  return params.entryEnabled !== false && channelEnabled;
+}
+
+export function toPluginConfigView(config: Config, bindings: PluginChannelBinding[]): Record<string, unknown> {
+  const view = cloneConfig(config) as Record<string, unknown>;
+  const channels =
+    view.channels && typeof view.channels === "object" && !Array.isArray(view.channels)
+      ? ({ ...(view.channels as Record<string, unknown>) } as Record<string, unknown>)
+      : {};
+
+  for (const binding of bindings) {
+    const pluginEntry = config.plugins.entries?.[binding.pluginId];
+    const pluginConfig = pluginEntry?.config;
+    const normalizedChannelConfig =
+      pluginConfig && typeof pluginConfig === "object" && !Array.isArray(pluginConfig)
+        ? cloneConfig(pluginConfig) as Record<string, unknown>
+        : {};
+    channels[binding.channelId] = {
+      ...normalizedChannelConfig,
+      enabled: resolveProjectedPluginChannelEnabled({
+        entryEnabled: pluginEntry?.enabled,
+        channelConfig: normalizedChannelConfig
+      })
+    };
+  }
+
+  view.channels = channels;
+  return view;
+}
+
+export function mergePluginConfigView(
+  baseConfig: Config,
+  pluginViewConfig: Record<string, unknown>,
+  bindings: PluginChannelBinding[]
+): Config {
+  const next = cloneConfig(baseConfig) as Config;
+  const pluginChannels =
+    pluginViewConfig.channels && typeof pluginViewConfig.channels === "object" && !Array.isArray(pluginViewConfig.channels)
+      ? (pluginViewConfig.channels as Record<string, unknown>)
+      : {};
+
+  const entries = { ...(next.plugins.entries ?? {}) };
+
+  for (const binding of bindings) {
+    if (!Object.prototype.hasOwnProperty.call(pluginChannels, binding.channelId)) {
+      continue;
+    }
+
+    const channelConfig = pluginChannels[binding.channelId];
+    if (!channelConfig || typeof channelConfig !== "object" || Array.isArray(channelConfig)) {
+      continue;
+    }
+
+    const normalizedChannelConfig = cloneConfig(channelConfig) as Record<string, unknown>;
+    const projectedEnabled = typeof normalizedChannelConfig.enabled === "boolean"
+      ? normalizedChannelConfig.enabled
+      : undefined;
+    const currentEntry = entries[binding.pluginId] ?? {};
+
+    entries[binding.pluginId] = {
+      ...currentEntry,
+      ...(projectedEnabled === true ? { enabled: true } : {}),
+      config: normalizedChannelConfig
+    };
+  }
+
+  next.plugins = {
+    ...next.plugins,
+    entries
+  };
+
+  return next;
+}
+
 export async function startPluginChannelGateways(params: {
   registry: PluginRegistry;
   logger?: PluginLogger;

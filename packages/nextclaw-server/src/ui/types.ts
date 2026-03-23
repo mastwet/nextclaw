@@ -1,4 +1,5 @@
 import type { CronService, ThinkingLevel } from "@nextclaw/core";
+import type { PluginChannelBinding, PluginUiMetadata } from "@nextclaw/openclaw-compat";
 import type { NcpAgentClientEndpoint, NcpMessage, NcpSessionApi, NcpSessionSummary } from "@nextclaw/ncp";
 import type { NcpHttpAgentStreamProvider } from "@nextclaw/ncp-http-agent-server";
 import type { MarketplaceApiConfig } from "./marketplace.types.js";
@@ -822,6 +823,8 @@ export type UiServerOptions = {
   chatRuntime?: UiChatRuntime;
   ncpAgent?: UiNcpAgent;
   remoteAccess?: UiRemoteAccessHost;
+  getPluginChannelBindings?: () => PluginChannelBinding[];
+  getPluginUiMetadata?: () => PluginUiMetadata[];
 };
 
 export type UiServerHandle = {

@@ -2,6 +2,7 @@ import {
   loadConfig,
   saveConfig,
   ConfigSchema,
+  DEFAULT_WORKSPACE_PATH,
   probeFeishu,
   LiteLLMProvider,
   type Config,
@@ -25,6 +26,15 @@ import {
   type ThinkingLevel
 } from "@nextclaw/core";
 import { createDefaultProviderConfig } from "./provider-config.factory.js";
+import {
+  buildPluginChannelUiHints,
+  buildProjectedChannelMeta,
+  getProjectedChannelConfig,
+  getProjectedChannelMap,
+  mergeProjectedPluginChannelConfig,
+  normalizePluginProjectionOptions,
+  type PluginConfigProjectionOptions
+} from "./plugin-channel-config.projection.js";
 import { findServerBuiltinProviderByName, listServerBuiltinProviders } from "./provider-overrides.js";
 import type {
   BochaFreshnessValue,
@@ -142,18 +152,7 @@ function clearSecretRefsByPrefix(config: Config, pathPrefix: string): void {
     }
   }
 }
-
-type ChannelTutorialUrls = NonNullable<ConfigMetaView["channels"][number]["tutorialUrls"]>;
-
-const DOCS_BASE_URL = "https://docs.nextclaw.io";
 const BOCHA_OPEN_URL = "https://open.bocha.cn";
-const CHANNEL_TUTORIAL_URLS: Record<string, ChannelTutorialUrls> = {
-  feishu: {
-    default: `${DOCS_BASE_URL}/guide/tutorials/feishu`,
-    en: `${DOCS_BASE_URL}/en/guide/tutorials/feishu`,
-    zh: `${DOCS_BASE_URL}/zh/guide/tutorials/feishu`
-  }
-};
 
 const SEARCH_PROVIDER_META: ConfigMetaView["search"] = [
   {
@@ -396,8 +395,8 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
   "channels.feishu.verifyConnection": runFeishuVerifyAction
 };
 
-function buildUiHints(config: Config): ConfigUiHints {
-  return buildConfigSchemaView(config).uiHints;
+function buildUiHints(config: Config, options?: PluginConfigProjectionOptions): ConfigUiHints {
+  return buildConfigSchemaView(config, options).uiHints;
 }
 
 function maskApiKey(value: string): { apiKeySet: boolean; apiKeyMasked?: string } {
@@ -492,8 +491,9 @@ function toProviderView(
   return view;
 }
 
-export function buildConfigView(config: Config): ConfigView {
-  const uiHints = buildUiHints(config);
+export function buildConfigView(config: Config, options?: PluginConfigProjectionOptions): ConfigView {
+  const uiHints = buildUiHints(config, options);
+  const projectedChannels = getProjectedChannelMap(config, options);
   const providers: Record<string, ProviderConfigView> = {};
   for (const [name, provider] of Object.entries(config.providers)) {
     const spec = findServerBuiltinProviderByName(name);
@@ -503,11 +503,7 @@ export function buildConfigView(config: Config): ConfigView {
     agents: config.agents,
     providers,
     search: buildSearchView(config),
-    channels: sanitizePublicConfigValue(
-      config.channels as Record<string, Record<string, unknown>>,
-      "channels",
-      uiHints
-    ),
+    channels: sanitizePublicConfigValue(projectedChannels, "channels", uiHints),
     bindings: sanitizePublicConfigValue(config.bindings, "bindings", uiHints),
     session: sanitizePublicConfigValue(config.session, "session", uiHints),
     tools: sanitizePublicConfigValue(config.tools, "tools", uiHints),
@@ -568,7 +564,7 @@ function clearSecretRef(config: Config, path: string): void {
   }
 }
 
-export function buildConfigMeta(config: Config): ConfigMetaView {
+export function buildConfigMeta(config: Config, options?: PluginConfigProjectionOptions): ConfigMetaView {
   const configProviders = config.providers as Record<string, ProviderConfig>;
   const builtinProviders = BUILTIN_PROVIDERS.map((spec) => {
     const providerConfig = configProviders[spec.name];
@@ -643,22 +639,17 @@ export function buildConfigMeta(config: Config): ConfigMetaView {
       };
     });
   const providers = [...customProviders, ...builtinProviders];
-  const channels = Object.keys(config.channels).map((name) => {
-    const tutorialUrls = CHANNEL_TUTORIAL_URLS[name];
-    const tutorialUrl = tutorialUrls?.default ?? tutorialUrls?.en ?? tutorialUrls?.zh;
-    return {
-      name,
-      displayName: name,
-      enabled: Boolean((config.channels as Record<string, { enabled?: boolean }>)[name]?.enabled),
-      tutorialUrl,
-      tutorialUrls
-    };
-  });
+  const channels = buildProjectedChannelMeta(config, options);
   return { providers, search: SEARCH_PROVIDER_META, channels };
 }
 
-export function buildConfigSchemaView(_config: Config): ConfigSchemaResponse {
-  return buildConfigSchema({ version: getPackageVersion() });
+export function buildConfigSchemaView(_config: Config, options?: PluginConfigProjectionOptions): ConfigSchemaResponse {
+  const base = buildConfigSchema({ version: getPackageVersion() });
+  const pluginUiHints = buildPluginChannelUiHints(options);
+  if (Object.keys(pluginUiHints).length === 0) {
+    return base;
+  }
+  return { ...base, uiHints: { ...base.uiHints, ...pluginUiHints } };
 }
 
 export async function executeConfigAction(
@@ -728,16 +719,12 @@ export function loadConfigOrDefault(configPath: string): Config {
   return loadConfig(configPath);
 }
 
-export function updateModel(
-  configPath: string,
-  patch: {
-    model?: string;
-  }
-): ConfigView {
+export function updateModel(configPath: string, patch: { model?: string; workspace?: string }): ConfigView {
   const config = loadConfigOrDefault(configPath);
 
-  if (typeof patch.model === "string") {
-    config.agents.defaults.model = patch.model;
+  if (typeof patch.model === "string") config.agents.defaults.model = patch.model;
+  if (typeof patch.workspace === "string") {
+    config.agents.defaults.workspace = normalizeOptionalString(patch.workspace) ?? DEFAULT_WORKSPACE_PATH;
   }
 
   const next = ConfigSchema.parse(config);
@@ -1082,10 +1069,12 @@ export async function testProviderConnection(
 export function updateChannel(
   configPath: string,
   channelName: string,
-  patch: Record<string, unknown>
+  patch: Record<string, unknown>,
+  options?: PluginConfigProjectionOptions
 ): Record<string, unknown> | null {
   const config = loadConfigOrDefault(configPath);
-  const channel = (config.channels as Record<string, Record<string, unknown>>)[channelName];
+  const normalizedOptions = normalizePluginProjectionOptions(options);
+  const channel = getProjectedChannelConfig(config, channelName, normalizedOptions);
   if (!channel) {
     return null;
   }
@@ -1095,14 +1084,25 @@ export function updateChannel(
       clearSecretRef(config, path);
     }
   }
-  (config.channels as Record<string, Record<string, unknown>>)[channelName] = { ...channel, ...patch };
+  const mergedChannel = { ...channel, ...patch };
+  const mergedPluginConfig = mergeProjectedPluginChannelConfig(config, channelName, mergedChannel, normalizedOptions);
+  if (mergedPluginConfig) {
+    const next = ConfigSchema.parse(mergedPluginConfig);
+    saveConfig(next, configPath);
+    return sanitizePublicConfigValue(
+      getProjectedChannelConfig(next, channelName, normalizedOptions) ?? {},
+      `channels.${channelName}`,
+      buildUiHints(next, normalizedOptions)
+    );
+  }
+
+  (config.channels as Record<string, Record<string, unknown>>)[channelName] = mergedChannel;
   const next = ConfigSchema.parse(config);
   saveConfig(next, configPath);
-  const uiHints = buildUiHints(next);
   return sanitizePublicConfigValue(
-    (next.channels as Record<string, Record<string, unknown>>)[channelName],
+    getProjectedChannelConfig(next, channelName, normalizedOptions) ?? {},
     `channels.${channelName}`,
-    uiHints
+    buildUiHints(next, normalizedOptions)
   );
 }
 

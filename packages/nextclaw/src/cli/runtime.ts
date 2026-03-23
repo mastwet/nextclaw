@@ -53,6 +53,7 @@ import { WorkspaceManager } from "./workspace.js";
 import type {
   AgentCommandOptions,
   ChannelsAddOptions,
+  ChannelsLoginOptions,
   ConfigGetOptions,
   ConfigSetOptions,
   CronAddOptions,
@@ -81,7 +82,6 @@ export const LOGO = "🤖";
 
 const EXIT_COMMANDS = new Set(["exit", "quit", "/exit", "/quit", ":q"]);
 const FORCED_PUBLIC_UI_HOST = "0.0.0.0";
-
 export function resolveSkillsInstallWorkdir(params: {
   explicitWorkdir?: string;
   configuredWorkspace?: string;
@@ -766,7 +766,7 @@ export class CliRuntime {
   async secretsApply(opts: SecretsApplyOptions): Promise<void> { await this.secretsCommands.secretsApply(opts); }
   async secretsReload(opts: SecretsReloadOptions = {}): Promise<void> { await this.secretsCommands.secretsReload(opts); }
   channelsStatus(): void { this.channelCommands.channelsStatus(); }
-  channelsLogin(): void { this.channelCommands.channelsLogin(); }
+  async channelsLogin(opts: ChannelsLoginOptions): Promise<void> { await this.channelCommands.channelsLogin(opts); }
   async channelsAdd(opts: ChannelsAddOptions): Promise<void> { await this.channelCommands.channelsAdd(opts); }
 
   cronList(opts: { all?: boolean }): void {

@@ -1,4 +1,5 @@
 import type * as NextclawCore from "@nextclaw/core";
+import type { PluginChannelBinding, PluginUiMetadata } from "@nextclaw/openclaw-compat";
 import type { UiAuthService } from "../auth.service.js";
 import type {
   MarketplaceApiConfig,
@@ -27,6 +28,8 @@ export type UiRouterOptions = {
   ncpAgent?: UiNcpAgent;
   authService?: UiAuthService;
   remoteAccess?: UiRemoteAccessHost;
+  getPluginChannelBindings?: () => PluginChannelBinding[];
+  getPluginUiMetadata?: () => PluginUiMetadata[];
 };
 
 export type UiRemoteAccessHost = {

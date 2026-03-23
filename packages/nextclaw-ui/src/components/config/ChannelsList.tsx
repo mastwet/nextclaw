@@ -20,7 +20,8 @@ const channelDescriptionKeys: Record<string, string> = {
   email: 'channelDescEmail',
   webhook: 'channelDescWebhook',
   discord: 'channelDescDiscord',
-  feishu: 'channelDescFeishu'
+  feishu: 'channelDescFeishu',
+  weixin: 'channelDescWeixin'
 };
 
 export function ChannelsList() {

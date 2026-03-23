@@ -37,23 +37,30 @@ import type { UiRouterOptions } from "./types.js";
 export class ConfigRoutesController {
   constructor(private readonly options: UiRouterOptions) {}
 
+  private getPluginConfigOptions() {
+    return {
+      pluginChannelBindings: this.options.getPluginChannelBindings?.() ?? [],
+      pluginUiMetadata: this.options.getPluginUiMetadata?.() ?? []
+    };
+  }
+
   readonly getConfig = (c: Context) => {
     const config = loadConfigOrDefault(this.options.configPath);
-    return c.json(ok(buildConfigView(config)));
+    return c.json(ok(buildConfigView(config, this.getPluginConfigOptions())));
   };
 
   readonly getConfigMeta = (c: Context) => {
     const config = loadConfigOrDefault(this.options.configPath);
-    return c.json(ok(buildConfigMeta(config)));
+    return c.json(ok(buildConfigMeta(config, this.getPluginConfigOptions())));
   };
 
   readonly getConfigSchema = (c: Context) => {
     const config = loadConfigOrDefault(this.options.configPath);
-    return c.json(ok(buildConfigSchemaView(config)));
+    return c.json(ok(buildConfigSchemaView(config, this.getPluginConfigOptions())));
   };
 
   readonly updateConfigModel = async (c: Context) => {
-    const body = await readJson<{ model?: string }>(c.req.raw);
+    const body = await readJson<{ model?: string; workspace?: string }>(c.req.raw);
     if (!body.ok) {
       return c.json(err("INVALID_BODY", "invalid json body"), 400);
     }
@@ -64,15 +71,20 @@ export class ConfigRoutesController {
     }
 
     const view = updateModel(this.options.configPath, {
-      model: body.data.model
+      model: body.data.model,
+      workspace: body.data.workspace
     });
 
     if (hasModel) {
       this.options.publish({ type: "config.updated", payload: { path: "agents.defaults.model" } });
     }
+    if (typeof body.data.workspace === "string") {
+      this.options.publish({ type: "config.updated", payload: { path: "agents.defaults.workspace" } });
+    }
 
     return c.json(ok({
-      model: view.agents.defaults.model
+      model: view.agents.defaults.model,
+      workspace: view.agents.defaults.workspace
     }));
   };
 
@@ -220,7 +232,7 @@ export class ConfigRoutesController {
     if (!body.ok) {
       return c.json(err("INVALID_BODY", "invalid json body"), 400);
     }
-    const result = updateChannel(this.options.configPath, channel, body.data);
+    const result = updateChannel(this.options.configPath, channel, body.data, this.getPluginConfigOptions());
     if (!result) {
       return c.json(err("NOT_FOUND", `unknown channel: ${channel}`), 404);
     }

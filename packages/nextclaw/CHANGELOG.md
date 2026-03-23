@@ -1,5 +1,67 @@
 # nextclaw
 
+## 0.13.33
+
+### Patch Changes
+
+- Ship the frontend Weixin channel config entry in the bundled UI so installed NextClaw users can configure the personal Weixin plugin from the Channels page.
+
+- Updated dependencies
+  - @nextclaw/openclaw-compat@0.3.15
+  - @nextclaw/server@0.10.29
+  - @nextclaw/ui@0.9.14
+
+## 0.13.32
+
+### Patch Changes
+
+- Republish the verified Weixin channel plugin release above already occupied npm versions so the published packages match the repository state that passed real QR login and real reply validation.
+- Updated dependencies
+  - @nextclaw/core@0.9.11
+  - @nextclaw/openclaw-compat@0.3.14
+  - @nextclaw/mcp@0.1.28
+  - @nextclaw/server@0.10.28
+  - @nextclaw/remote@0.1.24
+  - @nextclaw/runtime@0.2.11
+  - @nextclaw/ncp-mcp@0.1.28
+
+## 0.13.31
+
+### Patch Changes
+
+- Add the Weixin channel plugin with QR login, long-poll inbound handling, `context_token`-based reply delivery, and `accountId` routing across the shared host contracts.
+
+  Expose plugin-aware `nextclaw channels login --channel weixin`, bundle the new Weixin plugin into the OpenClaw compatibility loader, and pass channel `accountId` through the message tool, cron, and service runtime so verified Weixin reply flows work end to end.
+
+- Updated dependencies
+  - @nextclaw/core@0.9.10
+  - @nextclaw/openclaw-compat@0.3.13
+  - @nextclaw/mcp@0.1.27
+  - @nextclaw/server@0.10.27
+  - @nextclaw/remote@0.1.23
+  - @nextclaw/runtime@0.2.10
+  - @nextclaw/ncp-mcp@0.1.27
+
+## 0.13.30
+
+### Patch Changes
+
+- Fix local UI runtime probe fallback so local NextClaw instances keep using local transport
+  instead of breaking on `/_remote/runtime` HTML responses.
+- Add the Weixin channel plugin with QR login, long-poll inbound handling, `context_token`-based reply delivery, and `accountId` routing across the shared host contracts.
+
+  Expose plugin-aware `nextclaw channels login --channel weixin`, bundle the new Weixin plugin into the OpenClaw compatibility loader, and pass channel `accountId` through the message tool, cron, and service runtime so verified Weixin reply flows work end to end.
+
+- Updated dependencies
+- Updated dependencies
+  - @nextclaw/mcp@0.1.26
+  - @nextclaw/server@0.10.26
+  - @nextclaw/core@0.9.9
+  - @nextclaw/openclaw-compat@0.3.12
+  - @nextclaw/ncp-mcp@0.1.26
+  - @nextclaw/remote@0.1.22
+  - @nextclaw/runtime@0.2.9
+
 ## 0.13.29
 
 ### Patch Changes

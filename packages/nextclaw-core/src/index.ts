@@ -25,6 +25,7 @@ export * from "./bus/control.js";
 export * from "./bus/queue.js";
 export * from "./channels/feishu-probe.js";
 export * from "./channels/manager.js";
+export * from "./channels/base.js";
 export * from "./commands/registry.js";
 export * from "./config/brand.js";
 export * from "./config/actions.js";

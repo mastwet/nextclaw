@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { getWorkspacePathFromConfig, type Config } from "@nextclaw/core";
+import { BUNDLED_CHANNEL_PLUGIN_PACKAGES } from "./bundled-channel-plugin-packages.constants.js";
 import { filterPluginCandidatesByExcludedRoots } from "./candidate-filter.js";
 import { normalizePluginsConfig, resolveEnableState } from "./config-state.js";
 import { discoverOpenClawPlugins } from "./discovery.js";
@@ -31,19 +32,6 @@ const defaultLogger: PluginLogger = {
   error: (message: string) => console.error(message),
   debug: (message: string) => console.debug(message)
 };
-
-const BUNDLED_CHANNEL_PLUGIN_PACKAGES = [
-  "@nextclaw/channel-plugin-telegram",
-  "@nextclaw/channel-plugin-whatsapp",
-  "@nextclaw/channel-plugin-discord",
-  "@nextclaw/channel-plugin-feishu",
-  "@nextclaw/channel-plugin-mochat",
-  "@nextclaw/channel-plugin-dingtalk",
-  "@nextclaw/channel-plugin-wecom",
-  "@nextclaw/channel-plugin-email",
-  "@nextclaw/channel-plugin-slack",
-  "@nextclaw/channel-plugin-qq"
-] as const;
 
 function resolvePackageRootFromEntry(entryFile: string): string {
   let cursor = path.dirname(entryFile);

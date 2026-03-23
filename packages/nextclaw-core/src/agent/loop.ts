@@ -164,7 +164,12 @@ export class AgentLoop {
     }
   }
 
-  private setExtensionToolContext(params: { sessionKey: string; channel: string; chatId: string }): void {
+  private setExtensionToolContext(params: {
+    sessionKey: string;
+    channel: string;
+    chatId: string;
+    accountId?: string | null;
+  }): void {
     this.currentExtensionToolContext = {
       config: this.options.config,
       workspaceDir: this.options.workspace,
@@ -460,20 +465,15 @@ export class AgentLoop {
       deliveryMetadata.group_id = groupId;
     }
 
-    const accountId =
-      params.accountId ??
-      this.normalizeOptionalString(params.metadata.accountId) ??
-      this.normalizeOptionalString(params.metadata.account_id);
-    if (accountId) {
-      deliveryMetadata.accountId = accountId;
+    const accountId = this.normalizeOptionalString(params.accountId ?? params.metadata.accountId ?? params.metadata.account_id);
+    if (accountId) deliveryMetadata.accountId = accountId;
+    const context: Record<string, unknown> = { channel: params.channel, chatId: params.chatId };
+    if (replyTo) {
+      context.replyTo = replyTo;
     }
-
-    const context: Record<string, unknown> = {
-      channel: params.channel,
-      chatId: params.chatId,
-      ...(replyTo ? { replyTo } : {}),
-      ...(accountId ? { accountId } : {})
-    };
+    if (accountId) {
+      context.accountId = accountId;
+    }
 
     if (Object.keys(deliveryMetadata).length > 0) {
       context.metadata = deliveryMetadata;
@@ -682,7 +682,7 @@ export class AgentLoop {
 
     const messageTool = this.tools.get("message");
     if (messageTool instanceof MessageTool) {
-      messageTool.setContext(msg.channel, msg.chatId);
+      messageTool.setContext(msg.channel, msg.chatId, accountId ?? null);
     }
     const execTool = this.tools.get("exec");
     if (execTool instanceof ExecTool) {
@@ -694,7 +694,7 @@ export class AgentLoop {
     }
     const cronTool = this.tools.get("cron");
     if (cronTool instanceof CronTool) {
-      cronTool.setContext(msg.channel, msg.chatId);
+      cronTool.setContext(msg.channel, msg.chatId, accountId ?? null);
     }
     const gatewayTool = this.tools.get("gateway");
     if (gatewayTool instanceof GatewayTool) {
@@ -884,9 +884,17 @@ export class AgentLoop {
       sessionThinkingLevel: sessionThinking
     });
 
+    const accountId =
+      (msg.metadata?.account_id as string | undefined) ??
+      (msg.metadata?.accountId as string | undefined) ??
+      (typeof session.metadata.last_account_id === "string" ? (session.metadata.last_account_id as string) : undefined);
+    if (accountId) {
+      session.metadata.last_account_id = accountId;
+    }
+
     const messageTool = this.tools.get("message");
     if (messageTool instanceof MessageTool) {
-      messageTool.setContext(originChannel, originChatId);
+      messageTool.setContext(originChannel, originChatId, accountId ?? null);
     }
     const execTool = this.tools.get("exec");
     if (execTool instanceof ExecTool) {
@@ -898,19 +906,11 @@ export class AgentLoop {
     }
     const cronTool = this.tools.get("cron");
     if (cronTool instanceof CronTool) {
-      cronTool.setContext(originChannel, originChatId);
+      cronTool.setContext(originChannel, originChatId, accountId ?? null);
     }
     const gatewayTool = this.tools.get("gateway");
     if (gatewayTool instanceof GatewayTool) {
       gatewayTool.setContext({ sessionKey });
-    }
-
-    const accountId =
-      (msg.metadata?.account_id as string | undefined) ??
-      (msg.metadata?.accountId as string | undefined) ??
-      (typeof session.metadata.last_account_id === "string" ? (session.metadata.last_account_id as string) : undefined);
-    if (accountId) {
-      session.metadata.last_account_id = accountId;
     }
 
     const messageToolHints = this.options.resolveMessageToolHints?.({

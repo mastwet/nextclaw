@@ -1,5 +1,77 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.15
+
+### Patch Changes
+
+- Project the independent Weixin plugin channel into the shared config view so the UI can expose it as a normal channel entry and persist updates back into plugin config safely.
+
+## 0.3.14
+
+### Patch Changes
+
+- Republish the verified Weixin channel plugin release above already occupied npm versions so the published packages match the repository state that passed real QR login and real reply validation.
+- Updated dependencies
+  - @nextclaw/core@0.9.11
+  - @nextclaw/channel-plugin-weixin@0.1.3
+  - @nextclaw/channel-runtime@0.2.11
+  - @nextclaw/channel-plugin-dingtalk@0.2.11
+  - @nextclaw/channel-plugin-discord@0.2.11
+  - @nextclaw/channel-plugin-email@0.2.11
+  - @nextclaw/channel-plugin-feishu@0.2.11
+  - @nextclaw/channel-plugin-mochat@0.2.11
+  - @nextclaw/channel-plugin-qq@0.2.11
+  - @nextclaw/channel-plugin-slack@0.2.11
+  - @nextclaw/channel-plugin-telegram@0.2.11
+  - @nextclaw/channel-plugin-wecom@0.2.11
+  - @nextclaw/channel-plugin-whatsapp@0.2.11
+
+## 0.3.13
+
+### Patch Changes
+
+- Add the Weixin channel plugin with QR login, long-poll inbound handling, `context_token`-based reply delivery, and `accountId` routing across the shared host contracts.
+
+  Expose plugin-aware `nextclaw channels login --channel weixin`, bundle the new Weixin plugin into the OpenClaw compatibility loader, and pass channel `accountId` through the message tool, cron, and service runtime so verified Weixin reply flows work end to end.
+
+- Updated dependencies
+  - @nextclaw/core@0.9.10
+  - @nextclaw/channel-plugin-weixin@0.1.2
+  - @nextclaw/channel-runtime@0.2.10
+  - @nextclaw/channel-plugin-dingtalk@0.2.10
+  - @nextclaw/channel-plugin-discord@0.2.10
+  - @nextclaw/channel-plugin-email@0.2.10
+  - @nextclaw/channel-plugin-feishu@0.2.10
+  - @nextclaw/channel-plugin-mochat@0.2.10
+  - @nextclaw/channel-plugin-qq@0.2.10
+  - @nextclaw/channel-plugin-slack@0.2.10
+  - @nextclaw/channel-plugin-telegram@0.2.10
+  - @nextclaw/channel-plugin-wecom@0.2.10
+  - @nextclaw/channel-plugin-whatsapp@0.2.10
+
+## 0.3.12
+
+### Patch Changes
+
+- Add the Weixin channel plugin with QR login, long-poll inbound handling, `context_token`-based reply delivery, and `accountId` routing across the shared host contracts.
+
+  Expose plugin-aware `nextclaw channels login --channel weixin`, bundle the new Weixin plugin into the OpenClaw compatibility loader, and pass channel `accountId` through the message tool, cron, and service runtime so verified Weixin reply flows work end to end.
+
+- Updated dependencies
+  - @nextclaw/core@0.9.9
+  - @nextclaw/channel-plugin-weixin@0.1.1
+  - @nextclaw/channel-runtime@0.2.9
+  - @nextclaw/channel-plugin-dingtalk@0.2.9
+  - @nextclaw/channel-plugin-discord@0.2.9
+  - @nextclaw/channel-plugin-email@0.2.9
+  - @nextclaw/channel-plugin-feishu@0.2.9
+  - @nextclaw/channel-plugin-mochat@0.2.9
+  - @nextclaw/channel-plugin-qq@0.2.9
+  - @nextclaw/channel-plugin-slack@0.2.9
+  - @nextclaw/channel-plugin-telegram@0.2.9
+  - @nextclaw/channel-plugin-wecom@0.2.9
+  - @nextclaw/channel-plugin-whatsapp@0.2.9
+
 ## 0.3.11
 
 ### Patch Changes

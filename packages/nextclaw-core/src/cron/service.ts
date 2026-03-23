@@ -189,6 +189,7 @@ export class CronService {
     deliver?: boolean;
     channel?: string;
     to?: string;
+    accountId?: string;
     deleteAfterRun?: boolean;
   }): CronJob {
     const store = this.loadStore();
@@ -203,7 +204,8 @@ export class CronService {
         message: params.message,
         deliver: params.deliver ?? false,
         channel: params.channel,
-        to: params.to
+        to: params.to,
+        accountId: params.accountId
       },
       state: {
         nextRunAtMs: computeNextRun(params.schedule, now)

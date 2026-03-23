@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/openclaw-compat",
-  "version": "0.3.11",
+  "version": "0.3.15",
   "private": false,
   "description": "OpenClaw plugin compatibility layer for NextClaw.",
   "type": "module",
@@ -30,6 +30,7 @@
     "@nextclaw/channel-plugin-qq": "workspace:*",
     "@nextclaw/channel-plugin-slack": "workspace:*",
     "@nextclaw/channel-plugin-telegram": "workspace:*",
+    "@nextclaw/channel-plugin-weixin": "workspace:*",
     "@nextclaw/channel-plugin-wecom": "workspace:*",
     "@nextclaw/channel-plugin-whatsapp": "workspace:*",
     "@nextclaw/channel-runtime": "workspace:*",

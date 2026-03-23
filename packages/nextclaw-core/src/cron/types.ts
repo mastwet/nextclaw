@@ -9,6 +9,7 @@ export type CronPayload = {
   deliver?: boolean;
   channel?: string | null;
   to?: string | null;
+  accountId?: string | null;
 };
 
 export type CronJobState = {
