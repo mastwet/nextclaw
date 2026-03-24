@@ -6,6 +6,8 @@ import { resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { WebSocketServer } from "ws";
 import {
+  assertFixedDomainOpenUrlShape,
+  assertRemoteOpenUrlShape,
   extractCookie,
   fetchWithRetry,
   findFreePort,
@@ -24,39 +26,6 @@ const workerConfig = resolve(
   workerDir,
   "wrangler.toml"
 );
-const REMOTE_ACCESS_HOST_PATTERN = /^r-[a-z0-9-]+\.claw\.cool$/i;
-const REMOTE_ACCESS_FIXED_HOST = "remote.claw.cool";
-
-function assertRemoteOpenUrlShape(url, label) {
-  const parsed = new URL(url);
-  if (!REMOTE_ACCESS_HOST_PATTERN.test(parsed.hostname)) {
-    throw new Error(`${label} must use instance subdomain under claw.cool, got ${url}`);
-  }
-  if (parsed.pathname !== "/platform/remote/open") {
-    throw new Error(`${label} must target /platform/remote/open, got ${url}`);
-  }
-  if (parsed.searchParams.get("token")?.trim() !== parsed.searchParams.get("token")) {
-    throw new Error(`${label} token query is malformed, got ${url}`);
-  }
-  if (!parsed.searchParams.get("token")) {
-    throw new Error(`${label} must include token query, got ${url}`);
-  }
-  return parsed;
-}
-
-function assertFixedDomainOpenUrlShape(url, label) {
-  const parsed = new URL(url);
-  if (parsed.hostname !== REMOTE_ACCESS_FIXED_HOST) {
-    throw new Error(`${label} must use fixed remote host ${REMOTE_ACCESS_FIXED_HOST}, got ${url}`);
-  }
-  if (parsed.pathname !== "/platform/remote/open") {
-    throw new Error(`${label} must target /platform/remote/open, got ${url}`);
-  }
-  if (!parsed.searchParams.get("token")) {
-    throw new Error(`${label} must include token query, got ${url}`);
-  }
-  return parsed;
-}
 
 async function main() {
   const persistDir = mkdtempSync(resolve(tmpdir(), "nextclaw-remote-relay-smoke-"));

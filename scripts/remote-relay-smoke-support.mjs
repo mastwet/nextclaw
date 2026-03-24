@@ -13,6 +13,8 @@ export const wranglerBin = resolve(
 );
 
 export const nextclawCli = resolve(rootDir, "packages/nextclaw/dist/cli/index.js");
+const remoteAccessHostPattern = /^r-[a-z0-9-]+\.claw\.cool$/i;
+const remoteAccessFixedHost = "remote.claw.cool";
 
 export function runOrThrow(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, {
@@ -124,6 +126,37 @@ export function extractCookie(setCookieHeader) {
     throw new Error(`Invalid Set-Cookie header: ${setCookieHeader}`);
   }
   return firstSegment;
+}
+
+export function assertRemoteOpenUrlShape(url, label) {
+  const parsed = new URL(url);
+  if (!remoteAccessHostPattern.test(parsed.hostname)) {
+    throw new Error(`${label} must use instance subdomain under claw.cool, got ${url}`);
+  }
+  if (parsed.pathname !== "/platform/remote/open") {
+    throw new Error(`${label} must target /platform/remote/open, got ${url}`);
+  }
+  if (parsed.searchParams.get("token")?.trim() !== parsed.searchParams.get("token")) {
+    throw new Error(`${label} token query is malformed, got ${url}`);
+  }
+  if (!parsed.searchParams.get("token")) {
+    throw new Error(`${label} must include token query, got ${url}`);
+  }
+  return parsed;
+}
+
+export function assertFixedDomainOpenUrlShape(url, label) {
+  const parsed = new URL(url);
+  if (parsed.hostname !== remoteAccessFixedHost) {
+    throw new Error(`${label} must use fixed remote host ${remoteAccessFixedHost}, got ${url}`);
+  }
+  if (parsed.pathname !== "/platform/remote/open") {
+    throw new Error(`${label} must target /platform/remote/open, got ${url}`);
+  }
+  if (!parsed.searchParams.get("token")) {
+    throw new Error(`${label} must include token query, got ${url}`);
+  }
+  return parsed;
 }
 
 function parseD1Results(stdout) {
