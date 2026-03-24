@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-23T03:18:57.420Z",
+  "generatedAt": "2026-03-24T03:13:50.767Z",
   "base": {
     "name": "nextclaw",
     "projectRoot": "/home/runner/work/nextclaw/nextclaw",
@@ -23,6 +23,7 @@
         "packages/extensions/nextclaw-channel-plugin-slack/index.js",
         "packages/extensions/nextclaw-channel-plugin-telegram/index.js",
         "packages/extensions/nextclaw-channel-plugin-wecom/index.js",
+        "packages/extensions/nextclaw-channel-plugin-weixin/src",
         "packages/extensions/nextclaw-channel-plugin-whatsapp/index.js",
         "packages/extensions/nextclaw-channel-runtime/src",
         "packages/extensions/nextclaw-engine-plugin-claude-agent-sdk/src",
@@ -78,11 +79,11 @@
       ]
     },
     "totals": {
-      "files": 747,
-      "totalLines": 114004,
-      "blankLines": 11236,
-      "commentLines": 669,
-      "codeLines": 102099
+      "files": 815,
+      "totalLines": 122327,
+      "blankLines": 12008,
+      "commentLines": 670,
+      "codeLines": 109649
     }
   },
   "benchmark": {
@@ -119,17 +120,17 @@
       ]
     },
     "totals": {
-      "files": 7213,
-      "totalLines": 1372287,
-      "blankLines": 124510,
-      "commentLines": 25572,
-      "codeLines": 1222205
+      "files": 7284,
+      "totalLines": 1392720,
+      "blankLines": 126147,
+      "commentLines": 25655,
+      "codeLines": 1240918
     }
   },
   "comparison": {
-    "baseMinusBenchmarkLines": -1120106,
-    "basePercentOfBenchmark": 8.35,
-    "benchmarkMultipleOfBase": 11.97,
-    "baseIsLighterByPercent": 91.65
+    "baseMinusBenchmarkLines": -1131269,
+    "basePercentOfBenchmark": 8.84,
+    "benchmarkMultipleOfBase": 11.32,
+    "baseIsLighterByPercent": 91.16
   }
 }

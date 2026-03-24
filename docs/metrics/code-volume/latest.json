@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-23T03:18:57.420Z",
+  "generatedAt": "2026-03-24T03:13:50.767Z",
   "projectRoot": "/home/runner/work/nextclaw/nextclaw",
   "git": {
-    "sha": "528babc27c8f133bfbd961688f50b7ce6d39238c",
+    "sha": "26d99cae146149ac44ed925ab4f7ddc769d6b97e",
     "ref": "master"
   },
   "scope": {
@@ -24,6 +24,7 @@
       "packages/extensions/nextclaw-channel-plugin-slack/index.js",
       "packages/extensions/nextclaw-channel-plugin-telegram/index.js",
       "packages/extensions/nextclaw-channel-plugin-wecom/index.js",
+      "packages/extensions/nextclaw-channel-plugin-weixin/src",
       "packages/extensions/nextclaw-channel-plugin-whatsapp/index.js",
       "packages/extensions/nextclaw-channel-runtime/src",
       "packages/extensions/nextclaw-engine-plugin-claude-agent-sdk/src",
@@ -79,28 +80,28 @@
     ]
   },
   "totals": {
-    "files": 747,
-    "totalLines": 114004,
-    "blankLines": 11236,
-    "commentLines": 669,
-    "codeLines": 102099
+    "files": 815,
+    "totalLines": 122327,
+    "blankLines": 12008,
+    "commentLines": 670,
+    "codeLines": 109649
   },
   "byLanguage": [
     {
       "name": "TypeScript",
-      "files": 599,
-      "totalLines": 95899,
-      "blankLines": 9662,
-      "commentLines": 604,
-      "codeLines": 85633
+      "files": 659,
+      "totalLines": 103131,
+      "blankLines": 10329,
+      "commentLines": 605,
+      "codeLines": 92197
     },
     {
       "name": "TSX",
-      "files": 138,
-      "totalLines": 17825,
-      "blankLines": 1534,
+      "files": 146,
+      "totalLines": 18916,
+      "blankLines": 1639,
       "commentLines": 65,
-      "codeLines": 16226
+      "codeLines": 17212
     },
     {
       "name": "JavaScript",
@@ -114,43 +115,43 @@
   "byScope": [
     {
       "name": "packages/nextclaw-ui",
-      "files": 171,
-      "totalLines": 24402,
-      "blankLines": 2207,
-      "commentLines": 153,
-      "codeLines": 22042
+      "files": 203,
+      "totalLines": 27333,
+      "blankLines": 2493,
+      "commentLines": 152,
+      "codeLines": 24688
     },
     {
       "name": "packages/nextclaw",
-      "files": 85,
-      "totalLines": 16819,
-      "blankLines": 1674,
+      "files": 89,
+      "totalLines": 17271,
+      "blankLines": 1715,
       "commentLines": 47,
-      "codeLines": 15098
+      "codeLines": 15509
     },
     {
       "name": "packages/nextclaw-core",
       "files": 84,
-      "totalLines": 13415,
-      "blankLines": 1331,
+      "totalLines": 13438,
+      "blankLines": 1330,
       "commentLines": 14,
-      "codeLines": 12070
+      "codeLines": 12094
     },
     {
       "name": "packages/nextclaw-server",
-      "files": 44,
-      "totalLines": 11390,
-      "blankLines": 1123,
-      "commentLines": 2,
-      "codeLines": 10265
+      "files": 50,
+      "totalLines": 12334,
+      "blankLines": 1217,
+      "commentLines": 3,
+      "codeLines": 11114
     },
     {
       "name": "workers/nextclaw-provider-gateway-api",
-      "files": 27,
-      "totalLines": 7741,
-      "blankLines": 626,
+      "files": 39,
+      "totalLines": 9649,
+      "blankLines": 775,
       "commentLines": 3,
-      "codeLines": 7112
+      "codeLines": 8871
     },
     {
       "name": "packages/extensions/nextclaw-channel-runtime",
@@ -161,6 +162,14 @@
       "codeLines": 4587
     },
     {
+      "name": "packages/nextclaw-openclaw-compat",
+      "files": 23,
+      "totalLines": 4394,
+      "blankLines": 463,
+      "commentLines": 8,
+      "codeLines": 3923
+    },
+    {
       "name": "packages/nextclaw-agent-chat-ui",
       "files": 46,
       "totalLines": 4267,
@@ -169,20 +178,12 @@
       "codeLines": 3806
     },
     {
-      "name": "packages/nextclaw-openclaw-compat",
-      "files": 22,
-      "totalLines": 4245,
-      "blankLines": 446,
-      "commentLines": 8,
-      "codeLines": 3791
-    },
-    {
       "name": "packages/ncp-packages/nextclaw-ncp-toolkit",
       "files": 22,
-      "totalLines": 3162,
-      "blankLines": 321,
+      "totalLines": 3225,
+      "blankLines": 325,
       "commentLines": 9,
-      "codeLines": 2832
+      "codeLines": 2891
     },
     {
       "name": "workers/marketplace-api",
@@ -217,6 +218,14 @@
       "codeLines": 1575
     },
     {
+      "name": "packages/nextclaw-remote",
+      "files": 16,
+      "totalLines": 1690,
+      "blankLines": 154,
+      "commentLines": 1,
+      "codeLines": 1535
+    },
+    {
       "name": "packages/nextclaw-agent-chat",
       "files": 13,
       "totalLines": 1498,
@@ -225,12 +234,20 @@
       "codeLines": 1301
     },
     {
+      "name": "packages/extensions/nextclaw-channel-plugin-weixin",
+      "files": 7,
+      "totalLines": 1265,
+      "blankLines": 132,
+      "commentLines": 1,
+      "codeLines": 1132
+    },
+    {
       "name": "packages/extensions/nextclaw-ncp-runtime-claude-code-sdk",
       "files": 6,
-      "totalLines": 1189,
-      "blankLines": 114,
+      "totalLines": 1203,
+      "blankLines": 116,
       "commentLines": 0,
-      "codeLines": 1075
+      "codeLines": 1087
     },
     {
       "name": "packages/extensions/nextclaw-ncp-runtime-plugin-claude-code-sdk",
@@ -247,14 +264,6 @@
       "blankLines": 205,
       "commentLines": 316,
       "codeLines": 1046
-    },
-    {
-      "name": "packages/nextclaw-remote",
-      "files": 10,
-      "totalLines": 1100,
-      "blankLines": 105,
-      "commentLines": 1,
-      "codeLines": 994
     },
     {
       "name": "packages/ncp-packages/nextclaw-ncp-agent-runtime",
@@ -347,10 +356,10 @@
     {
       "name": "packages/ncp-packages/nextclaw-ncp-react",
       "files": 5,
-      "totalLines": 347,
-      "blankLines": 46,
+      "totalLines": 331,
+      "blankLines": 45,
       "commentLines": 0,
-      "codeLines": 301
+      "codeLines": 286
     },
     {
       "name": "packages/ncp-packages/nextclaw-ncp-react-ui",
@@ -458,8 +467,8 @@
     }
   ],
   "delta": {
-    "previousCodeLines": 98717,
-    "codeLines": 3382,
-    "percent": 3.43
+    "previousCodeLines": null,
+    "codeLines": null,
+    "percent": null
   }
 }
