@@ -5,9 +5,10 @@ import { Cpu, GitBranch, History, MessageCircle, MessageSquare, Sparkles, BookOp
 import { NavLink } from 'react-router-dom';
 import { useDocBrowser } from '@/components/doc-browser';
 import { BrandHeader } from '@/components/common/BrandHeader';
+import { SidebarActionItem, SidebarNavLinkItem, SidebarSelectItem } from '@/components/layout/sidebar-items';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import { SelectItem } from '@/components/ui/select';
 import { useRemoteStatus } from '@/hooks/useRemoteAccess';
 import { useAppPresenter } from '@/presenter/app-presenter-context';
 
@@ -23,6 +24,7 @@ export function Sidebar({ mode }: SidebarProps) {
   const remoteStatus = useRemoteStatus();
   const { language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
+  const isSettingsMode = mode === 'settings';
   const currentLanguageLabel = LANGUAGE_OPTIONS.find((option) => option.value === language)?.label ?? language;
   const currentThemeLabel = t(THEME_OPTIONS.find((option) => option.value === theme)?.labelKey ?? 'themeWarm');
   const accountEmail = remoteStatus.data?.account.email?.trim();
@@ -119,11 +121,12 @@ export function Sidebar({ mode }: SidebarProps) {
       icon: Wrench,
     }
   ];
-  const navItems = mode === 'main' ? mainNavItems : settingsNavItems;
+  const navItems = isSettingsMode ? settingsNavItems : mainNavItems;
+  const sidebarDensity = isSettingsMode ? 'compact' : 'default';
 
   return (
     <aside className="w-[240px] shrink-0 flex h-full min-h-0 flex-col overflow-hidden bg-secondary px-4 py-6">
-      {mode === 'settings' ? (
+      {isSettingsMode ? (
         <div className="shrink-0 px-2 pb-3">
           <div
             className="flex items-center gap-2 px-1 py-1"
@@ -131,7 +134,7 @@ export function Sidebar({ mode }: SidebarProps) {
           >
             <NavLink
               to="/chat"
-              className="group inline-flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1 text-[12px] font-medium text-gray-500 transition-colors hover:text-gray-900"
+              className="group inline-flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1 text-[12px] font-medium text-gray-500 transition-colors hover:bg-gray-200/60 hover:text-gray-900"
             >
               <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-gray-400 group-hover:text-gray-700" />
               <span className="truncate">{t('backToMain')}</span>
@@ -149,35 +152,16 @@ export function Sidebar({ mode }: SidebarProps) {
       <div className="flex min-h-0 flex-1 flex-col">
         {/* Navigation */}
         <nav className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
-          <ul className="space-y-1 pb-4">
+          <ul className={cn(isSettingsMode ? 'space-y-0.5 pb-3' : 'space-y-1 pb-4')}>
             {navItems.map((item) => {
-              const Icon = item.icon;
-
               return (
                 <li key={item.target}>
-                  <NavLink
+                  <SidebarNavLinkItem
                     to={item.target}
-                    className={({ isActive }) =>
-                      cn(
-                        'group w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-all duration-base',
-                        isActive
-                          ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
-                          : 'text-gray-600 hover:bg-gray-200/60 hover:text-gray-900'
-                      )
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon
-                          className={cn(
-                            'h-[17px] w-[17px] transition-colors',
-                            isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800'
-                          )}
-                        />
-                        <span className="flex-1 text-left">{item.label}</span>
-                      </>
-                    )}
-                  </NavLink>
+                    label={item.label}
+                    icon={item.icon}
+                    density={sidebarDensity}
+                  />
                 </li>
               );
             })}
@@ -185,91 +169,67 @@ export function Sidebar({ mode }: SidebarProps) {
         </nav>
 
         {/* Footer actions stay reachable while the nav scrolls independently. */}
-        <div className="mt-3 shrink-0 border-t border-[#dde0ea] bg-secondary pt-3">
-          {mode === 'settings' ? (
-            <button
+        <div className={cn('shrink-0 border-t border-[#dde0ea] bg-secondary', isSettingsMode ? 'mt-2 pt-3' : 'mt-3 pt-3')}>
+          {isSettingsMode ? (
+            <SidebarActionItem
               onClick={() => presenter.accountManager.openAccountPanel()}
-              className="mb-2 w-full rounded-xl px-3 py-2.5 text-left text-gray-600 transition-all duration-base hover:bg-[#e4e7ef] hover:text-gray-900"
-              data-testid="settings-sidebar-account-entry"
-            >
-              <div className="flex items-start gap-3">
-                <KeyRound className="mt-0.5 h-[17px] w-[17px] shrink-0 text-gray-400" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-medium text-gray-600">
-                    {t('remoteAccountEntryManage')}
-                  </p>
-                  <p className="mt-1 truncate text-xs text-gray-500">
-                    {accountConnected ? accountEmail || t('remoteAccountEntryConnected') : t('remoteAccountEntryDisconnected')}
-                  </p>
-                </div>
-              </div>
-            </button>
+              icon={KeyRound}
+              label={t('remoteAccountEntryManage')}
+              density="compact"
+              className="mb-1.5"
+              trailing={accountConnected ? accountEmail || t('remoteAccountEntryConnected') : t('remoteAccountEntryDisconnected')}
+              trailingClassName="max-w-[92px] truncate text-right"
+              testId="settings-sidebar-account-entry"
+              trailingTestId="settings-sidebar-account-status"
+            />
           ) : null}
           {mode === 'main' && (
             <div className="mb-2">
-              <NavLink
+              <SidebarNavLinkItem
                 to="/settings"
-                className={({ isActive }) =>
-                  cn(
-                    'group w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-all duration-base',
-                    isActive
-                      ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
-                      : 'text-gray-600 hover:bg-[#e4e7ef] hover:text-gray-900'
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <Settings className={cn('h-[17px] w-[17px] transition-colors', isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800')} />
-                    <span className="flex-1 text-left">{t('settings')}</span>
-                  </>
-                )}
-              </NavLink>
+                label={t('settings')}
+                icon={Settings}
+              />
             </div>
           )}
           <div className="mb-2">
-            <Select value={theme} onValueChange={(value) => handleThemeSwitch(value as UiTheme)}>
-              <SelectTrigger className="w-full h-auto rounded-xl border-0 bg-transparent px-3 py-2.5 text-[14px] font-medium text-gray-600 shadow-none hover:bg-[#e4e7ef] focus:ring-0">
-                <div className="flex min-w-0 items-center gap-3">
-                  <Palette className="h-[17px] w-[17px] text-gray-400" />
-                  <span className="text-left">{t('theme')}</span>
-                </div>
-                <span className="ml-auto text-xs text-gray-500">{currentThemeLabel}</span>
-              </SelectTrigger>
-              <SelectContent>
-                {THEME_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value} className="text-xs">
-                    {t(option.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SidebarSelectItem
+              value={theme}
+              onValueChange={(value) => handleThemeSwitch(value as UiTheme)}
+              icon={Palette}
+              label={t('theme')}
+              valueLabel={currentThemeLabel}
+              density={sidebarDensity}
+            >
+              {THEME_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="text-xs">
+                  {t(option.labelKey)}
+                </SelectItem>
+              ))}
+            </SidebarSelectItem>
           </div>
           <div className="mb-2">
-            <Select value={language} onValueChange={(value) => handleLanguageSwitch(value as I18nLanguage)}>
-              <SelectTrigger className="w-full h-auto rounded-xl border-0 bg-transparent px-3 py-2.5 text-[14px] font-medium text-gray-600 shadow-none hover:bg-[#e4e7ef] focus:ring-0">
-                <div className="flex min-w-0 items-center gap-3">
-                  <Languages className="h-[17px] w-[17px] text-gray-400" />
-                  <span className="text-left">{t('language')}</span>
-                </div>
-                <span className="ml-auto text-xs text-gray-500">{currentLanguageLabel}</span>
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value} className="text-xs">
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SidebarSelectItem
+              value={language}
+              onValueChange={(value) => handleLanguageSwitch(value as I18nLanguage)}
+              icon={Languages}
+              label={t('language')}
+              valueLabel={currentLanguageLabel}
+              density={sidebarDensity}
+            >
+              {LANGUAGE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="text-xs">
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SidebarSelectItem>
           </div>
-          <button
+          <SidebarActionItem
             onClick={() => docBrowser.open(undefined, { kind: 'docs', newTab: true, title: 'Docs' })}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium text-gray-600 transition-all duration-base hover:bg-[#e4e7ef] hover:text-gray-800"
-          >
-            <BookOpen className="h-[17px] w-[17px] text-gray-400" />
-            <span className="flex-1 text-left">{t('docBrowserHelp')}</span>
-          </button>
+            icon={BookOpen}
+            label={t('docBrowserHelp')}
+            density={sidebarDensity}
+          />
         </div>
       </div>
     </aside>

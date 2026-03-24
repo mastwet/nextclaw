@@ -5,7 +5,7 @@ import { BrandHeader } from '@/components/common/BrandHeader';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import { SelectItem } from '@/components/ui/select';
 import { ChatSidebarSessionItem } from '@/components/chat/chat-sidebar-session-item';
 import { useChatSessionLabelService } from '@/components/chat/chat-session-label.service';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
@@ -19,8 +19,9 @@ import { THEME_OPTIONS, type UiTheme } from '@/lib/theme';
 import { useI18n } from '@/components/providers/I18nProvider';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { useDocBrowser } from '@/components/doc-browser';
+import { SidebarActionItem, SidebarNavLinkItem, SidebarSelectItem } from '@/components/layout/sidebar-items';
 import { useUiStore } from '@/stores/ui.store';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   AlarmClock,
   BookOpen,
@@ -284,28 +285,14 @@ export function ChatSidebar() {
       <div className="px-3 pb-2">
         <ul className="space-y-0.5">
           {navItems.map((item) => {
-            const Icon = item.icon;
             return (
               <li key={item.target}>
-                <NavLink
+                <SidebarNavLinkItem
                   to={item.target}
-                  className={({ isActive }) => cn(
-                    'group w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150',
-                    isActive
-                      ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-200/60 hover:text-gray-900'
-                  )}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <Icon className={cn(
-                        'h-4 w-4 transition-colors',
-                        isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800'
-                      )} />
-                      <span>{item.label()}</span>
-                    </>
-                  )}
-                </NavLink>
+                  label={item.label()}
+                  icon={item.icon}
+                  density="compact"
+                />
               </li>
             );
           })}
@@ -363,57 +350,42 @@ export function ChatSidebar() {
       </div>
 
       <div className="px-3 py-3 border-t border-gray-200/60 space-y-0.5">
-        <NavLink
+        <SidebarNavLinkItem
           to="/settings"
-          className={({ isActive }) => cn(
-            'group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150',
-            isActive
-              ? 'bg-gray-200 text-gray-900 font-semibold shadow-sm'
-              : 'text-gray-600 hover:bg-gray-200/60 hover:text-gray-900'
-          )}
-        >
-          {({ isActive }) => (
-            <>
-              <Settings className={cn('h-4 w-4 transition-colors', isActive ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-800')} />
-              <span>{t('settings')}</span>
-            </>
-          )}
-        </NavLink>
-        <button
+          label={t('settings')}
+          icon={Settings}
+          density="compact"
+        />
+        <SidebarActionItem
           onClick={() => docBrowser.open(undefined, { kind: 'docs', newTab: true, title: 'Docs' })}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 text-gray-600 hover:bg-gray-200/60 hover:text-gray-800"
+          icon={BookOpen}
+          label={t('docBrowserHelp')}
+          density="compact"
+        />
+        <SidebarSelectItem
+          value={theme}
+          onValueChange={(value) => setTheme(value as UiTheme)}
+          icon={Palette}
+          label={t('theme')}
+          valueLabel={currentThemeLabel}
+          density="compact"
         >
-          <BookOpen className="h-4 w-4 text-gray-400" />
-          <span>{t('docBrowserHelp')}</span>
-        </button>
-        <Select value={theme} onValueChange={(value) => setTheme(value as UiTheme)}>
-          <SelectTrigger className="w-full h-auto rounded-xl border-0 bg-transparent shadow-none px-3 py-2 text-[13px] font-medium text-gray-600 hover:bg-gray-200/60 focus:ring-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Palette className="h-4 w-4 text-gray-400" />
-              <span>{t('theme')}</span>
-            </div>
-            <span className="ml-auto text-[11px] text-gray-500">{currentThemeLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {THEME_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value} className="text-xs">{t(option.labelKey)}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={language} onValueChange={(value) => handleLanguageSwitch(value as I18nLanguage)}>
-          <SelectTrigger className="w-full h-auto rounded-xl border-0 bg-transparent shadow-none px-3 py-2 text-[13px] font-medium text-gray-600 hover:bg-gray-200/60 focus:ring-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Languages className="h-4 w-4 text-gray-400" />
-              <span>{t('language')}</span>
-            </div>
-            <span className="ml-auto text-[11px] text-gray-500">{currentLanguageLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {LANGUAGE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value} className="text-xs">{option.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {THEME_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value} className="text-xs">{t(option.labelKey)}</SelectItem>
+          ))}
+        </SidebarSelectItem>
+        <SidebarSelectItem
+          value={language}
+          onValueChange={(value) => handleLanguageSwitch(value as I18nLanguage)}
+          icon={Languages}
+          label={t('language')}
+          valueLabel={currentLanguageLabel}
+          density="compact"
+        >
+          {LANGUAGE_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value} className="text-xs">{option.label}</SelectItem>
+          ))}
+        </SidebarSelectItem>
       </div>
     </aside>
   );
