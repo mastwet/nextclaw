@@ -104,20 +104,24 @@
       "lastSeenAt": "最近在线",
       "actions": "操作"
     },
-    "actions": {
-      "createShare": "创建分享链接",
-      "viewShare": "查看分享",
-      "openInWeb": "在网页中打开",
-      "createAnotherShare": "再创建一个"
-    },
-    "status": {
-      "online": "在线",
-      "offline": "离线",
-      "shareActive": "可用分享",
-      "shareRevoked": "已撤销分享",
-      "shareExpired": "已过期分享"
-    },
-    "messages": {
+  "actions": {
+    "createShare": "创建分享链接",
+    "viewShare": "查看分享",
+    "openInWeb": "在网页中打开",
+    "createAnotherShare": "再创建一个",
+    "archive": "归档",
+    "restore": "恢复",
+    "delete": "删除"
+  },
+  "status": {
+    "online": "在线",
+    "offline": "离线",
+    "archived": "已归档",
+    "shareActive": "可用分享",
+    "shareRevoked": "已撤销分享",
+    "shareExpired": "已过期分享"
+  },
+  "messages": {
       "empty": "还没有可用实例。先回到桌面端登录 NextClaw 并开启远程访问。",
       "loadingShares": "加载分享链接中...",
       "loadInstancesFailed": "实例加载失败",
@@ -126,15 +130,31 @@
       "revokeShareFailed": "撤销分享失败",
       "loadSharesFailed": "加载分享失败",
       "shareCopied": "分享链接已复制到剪贴板。",
-      "shareCopyManual": "复制失败，请手动复制链接。",
-      "newShareCopied": "新分享链接已复制到剪贴板。",
-      "newShareCreated": "新分享链接已创建，请手动复制。",
-      "shareRevoked": "分享链接已撤销，已打开的分享会话会立即失效。",
-      "noShares": "当前实例还没有分享链接。"
-    },
-    "sharePanel": {
-      "title": "分享链接",
-      "description": "撤销后，已经打开的分享会话也会立即失效。",
+    "shareCopyManual": "复制失败，请手动复制链接。",
+    "newShareCopied": "新分享链接已复制到剪贴板。",
+    "newShareCreated": "新分享链接已创建，请手动复制。",
+    "shareRevoked": "分享链接已撤销，已打开的分享会话会立即失效。",
+    "noShares": "当前实例还没有分享链接。",
+    "archiveSuccess": "实例已归档，主列表里不会再显示它。",
+    "restoreSuccess": "实例已恢复到主列表。",
+    "deleteSuccess": "归档实例已被永久删除。",
+    "archiveFailed": "归档实例失败",
+    "restoreFailed": "恢复实例失败",
+    "deleteFailed": "删除实例失败",
+    "archiveConfirm": "确认归档这个实例，并把它从主列表里隐藏吗？",
+    "deleteConfirm": "确认永久删除这个已归档实例吗？它关联的分享链接和会话记录也会一起移除。"
+  },
+  "archived": {
+    "title": "已归档实例",
+    "description": "已归档实例不会再出现在主列表，直到你恢复或删除它。",
+    "loading": "加载已归档实例中...",
+    "loadFailed": "加载已归档实例失败",
+    "empty": "还没有已归档实例。",
+    "archivedAt": "归档于 {archivedAt}"
+  },
+  "sharePanel": {
+    "title": "分享链接",
+    "description": "撤销后，已经打开的分享会话也会立即失效。",
       "meta": "创建于 {createdAt}，失效于 {expiresAt}",
       "activeSessions": "当前活跃分享会话：{count}"
     },

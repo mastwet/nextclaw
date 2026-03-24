@@ -138,8 +138,12 @@ export async function fetchBillingOverview(token: string): Promise<BillingOvervi
   return unwrap(data);
 }
 
-export async function fetchRemoteInstances(token: string): Promise<{ items: RemoteInstance[] }> {
-  const data = await request<ApiEnvelope<{ items: RemoteInstance[] }>>('/platform/remote/instances', {}, token);
+export async function fetchRemoteInstances(
+  token: string,
+  options: { includeArchived?: boolean } = {}
+): Promise<{ items: RemoteInstance[] }> {
+  const query = options.includeArchived ? '?includeArchived=true' : '';
+  const data = await request<ApiEnvelope<{ items: RemoteInstance[] }>>(`/platform/remote/instances${query}`, {}, token);
   return unwrap(data);
 }
 
@@ -193,6 +197,42 @@ export async function createRemoteShareGrant(
     ...grant,
     shareUrl: normalizeDevelopmentHostedUrl(grant.shareUrl)
   };
+}
+
+export async function archiveRemoteInstance(token: string, instanceId: string): Promise<RemoteInstance> {
+  const data = await request<ApiEnvelope<{ instance: RemoteInstance }>>(
+    `/platform/remote/instances/${encodeURIComponent(instanceId)}/archive`,
+    {
+      method: 'POST',
+      body: JSON.stringify({})
+    },
+    token
+  );
+  return unwrap(data).instance;
+}
+
+export async function unarchiveRemoteInstance(token: string, instanceId: string): Promise<RemoteInstance> {
+  const data = await request<ApiEnvelope<{ instance: RemoteInstance }>>(
+    `/platform/remote/instances/${encodeURIComponent(instanceId)}/unarchive`,
+    {
+      method: 'POST',
+      body: JSON.stringify({})
+    },
+    token
+  );
+  return unwrap(data).instance;
+}
+
+export async function deleteRemoteInstance(token: string, instanceId: string): Promise<{ deleted: boolean; instanceId: string }> {
+  const data = await request<ApiEnvelope<{ deleted: boolean; instanceId: string }>>(
+    `/platform/remote/instances/${encodeURIComponent(instanceId)}/delete`,
+    {
+      method: 'POST',
+      body: JSON.stringify({})
+    },
+    token
+  );
+  return unwrap(data);
 }
 
 export async function openRemoteShare(grantToken: string): Promise<RemoteAccessSession> {

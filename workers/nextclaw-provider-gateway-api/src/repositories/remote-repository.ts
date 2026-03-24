@@ -17,7 +17,7 @@ function normalizeRemoteAccessSessionStatus(row: RemoteAccessSessionRow): Remote
 export async function getRemoteInstanceByInstallId(db: D1Database, instanceInstallId: string): Promise<RemoteInstanceRow | null> {
   const row = await db.prepare(
     `SELECT id, user_id, device_install_id AS instance_install_id, display_name, platform, app_version,
-            local_origin, status, last_seen_at, created_at, updated_at
+            local_origin, status, last_seen_at, archived_at, created_at, updated_at
        FROM remote_devices
       WHERE device_install_id = ?`
   )
@@ -29,7 +29,7 @@ export async function getRemoteInstanceByInstallId(db: D1Database, instanceInsta
 export async function getRemoteInstanceById(db: D1Database, instanceId: string): Promise<RemoteInstanceRow | null> {
   const row = await db.prepare(
     `SELECT id, user_id, device_install_id AS instance_install_id, display_name, platform, app_version,
-            local_origin, status, last_seen_at, created_at, updated_at
+            local_origin, status, last_seen_at, archived_at, created_at, updated_at
        FROM remote_devices
       WHERE id = ?`
   )
@@ -38,15 +38,24 @@ export async function getRemoteInstanceById(db: D1Database, instanceId: string):
   return row ?? null;
 }
 
-export async function listRemoteInstancesByUserId(db: D1Database, userId: string): Promise<RemoteInstanceRow[]> {
+export async function listRemoteInstancesByUserId(
+  db: D1Database,
+  userId: string,
+  options: { includeArchived?: boolean } = {}
+): Promise<RemoteInstanceRow[]> {
+  const includeArchived = options.includeArchived === true;
   const rows = await db.prepare(
     `SELECT id, user_id, device_install_id AS instance_install_id, display_name, platform, app_version,
-            local_origin, status, last_seen_at, created_at, updated_at
+            local_origin, status, last_seen_at, archived_at, created_at, updated_at
        FROM remote_devices
       WHERE user_id = ?
-      ORDER BY updated_at DESC, id DESC`
+        AND (? = 1 OR archived_at IS NULL)
+      ORDER BY
+        CASE WHEN archived_at IS NULL THEN 0 ELSE 1 END ASC,
+        updated_at DESC,
+        id DESC`
   )
-    .bind(userId)
+    .bind(userId, includeArchived ? 1 : 0)
     .all<RemoteInstanceRow>();
   return rows.results ?? [];
 }
@@ -69,8 +78,8 @@ export async function upsertRemoteInstance(
   await db.prepare(
     `INSERT INTO remote_devices (
       id, user_id, device_install_id, display_name, platform, app_version,
-      local_origin, status, last_seen_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      local_origin, status, last_seen_at, archived_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
     ON CONFLICT(device_install_id) DO UPDATE SET
       user_id = excluded.user_id,
       display_name = excluded.display_name,
@@ -79,6 +88,7 @@ export async function upsertRemoteInstance(
       local_origin = excluded.local_origin,
       status = excluded.status,
       last_seen_at = excluded.last_seen_at,
+      archived_at = NULL,
       updated_at = excluded.updated_at`
   )
     .bind(
@@ -113,6 +123,55 @@ export async function touchRemoteInstance(
       WHERE id = ?`
   )
     .bind(payload.status, payload.lastSeenAt, payload.lastSeenAt, instanceId)
+    .run();
+}
+
+export async function archiveRemoteInstance(db: D1Database, instanceId: string, archivedAt: string): Promise<void> {
+  await db.prepare(
+    `UPDATE remote_devices
+        SET archived_at = ?,
+            updated_at = ?
+      WHERE id = ?`
+  )
+    .bind(archivedAt, archivedAt, instanceId)
+    .run();
+}
+
+export async function unarchiveRemoteInstance(db: D1Database, instanceId: string, updatedAt: string): Promise<void> {
+  await db.prepare(
+    `UPDATE remote_devices
+        SET archived_at = NULL,
+            updated_at = ?
+      WHERE id = ?`
+  )
+    .bind(updatedAt, instanceId)
+    .run();
+}
+
+export async function deleteRemoteAccessSessionsByInstanceId(db: D1Database, instanceId: string): Promise<void> {
+  await db.prepare(
+    `DELETE FROM remote_sessions
+      WHERE device_id = ?`
+  )
+    .bind(instanceId)
+    .run();
+}
+
+export async function deleteRemoteShareGrantsByInstanceId(db: D1Database, instanceId: string): Promise<void> {
+  await db.prepare(
+    `DELETE FROM remote_share_grants
+      WHERE device_id = ?`
+  )
+    .bind(instanceId)
+    .run();
+}
+
+export async function deleteRemoteInstanceById(db: D1Database, instanceId: string): Promise<void> {
+  await db.prepare(
+    `DELETE FROM remote_devices
+      WHERE id = ?`
+  )
+    .bind(instanceId)
     .run();
 }
 
@@ -286,6 +345,7 @@ export function toRemoteInstanceView(row: RemoteInstanceRow): RemoteInstanceView
     localOrigin: row.local_origin,
     status: row.status,
     lastSeenAt: row.last_seen_at,
+    archivedAt: row.archived_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

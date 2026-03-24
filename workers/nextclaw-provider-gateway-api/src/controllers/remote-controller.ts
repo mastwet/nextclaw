@@ -9,23 +9,18 @@ import {
   createRemoteShareGrant,
   getRemoteAccessSessionByToken,
   getRemoteInstanceById,
-  getRemoteInstanceByInstallId,
   getRemoteShareGrantById,
   getRemoteShareGrantByToken,
-  listRemoteInstancesByUserId,
   listRemoteShareGrantsByInstanceId,
   revokeRemoteShareGrant,
-  toRemoteAccessSessionView,
-  toRemoteInstanceView,
   toRemoteShareGrantView,
   touchRemoteAccessSession,
-  upsertRemoteInstance,
+  toRemoteAccessSessionView,
 } from "../repositories/remote-repository";
 import { ensurePlatformBootstrap, requireAuthUser } from "../services/platform-service";
 import {
   buildRemoteAccessUrl,
   buildRemoteShareUrl,
-  createOwnerOpenSession,
   createShareOpenSession,
   DEFAULT_REMOTE_SHARE_GRANT_TTL_SECONDS,
   encodeBase64,
@@ -47,7 +42,6 @@ import {
   randomOpaqueToken,
   readJson,
   readNumber,
-  readString,
   sanitizeResponseHeaders,
 } from "../utils/platform-utils";
 
@@ -69,128 +63,6 @@ function requireRemoteShareUrl(c: Context<{ Bindings: Env }>, grantToken: string
     return apiError(c, 503, "REMOTE_SHARE_URL_UNAVAILABLE", "NextClaw Web base URL is not configured.");
   }
   return shareUrl;
-}
-
-export async function registerRemoteInstanceHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
-  await ensurePlatformBootstrap(c.env);
-  const auth = await requireAuthUser(c);
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  const body = await readJson(c);
-  const instanceInstallId =
-    readString(body, "instanceInstallId").trim()
-    || readString(body, "deviceInstallId").trim();
-  const displayName = readString(body, "displayName").trim();
-  const platform = readString(body, "platform").trim();
-  const appVersion = readString(body, "appVersion").trim();
-  const localOrigin = readString(body, "localOrigin").trim();
-  const nowIso = new Date().toISOString();
-
-  if (!instanceInstallId || !displayName || !platform || !appVersion || !localOrigin) {
-    return apiError(c, 400, "INVALID_BODY", "instanceInstallId, displayName, platform, appVersion, and localOrigin are required.");
-  }
-
-  const existing = await getRemoteInstanceByInstallId(c.env.NEXTCLAW_PLATFORM_DB, instanceInstallId);
-  if (existing && existing.user_id !== auth.user.id) {
-    return apiError(c, 409, "INSTANCE_OWNED", "This instance is already linked to another account.");
-  }
-
-  const instanceId = existing?.id ?? crypto.randomUUID();
-  await upsertRemoteInstance(c.env.NEXTCLAW_PLATFORM_DB, {
-    id: instanceId,
-    userId: auth.user.id,
-    instanceInstallId,
-    displayName,
-    platform,
-    appVersion,
-    localOrigin,
-    status: "offline",
-    lastSeenAt: nowIso
-  });
-
-  const instance = await getRemoteInstanceById(c.env.NEXTCLAW_PLATFORM_DB, instanceId);
-  if (!instance) {
-    return apiError(c, 500, "REMOTE_INSTANCE_FAILED", "Failed to persist remote instance.");
-  }
-
-  await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
-    actorUserId: auth.user.id,
-    action: existing ? "remote.instance.updated" : "remote.instance.created",
-    targetType: "remote_instance",
-    targetId: instance.id,
-    beforeJson: existing ? JSON.stringify(toRemoteInstanceView(existing)) : null,
-    afterJson: JSON.stringify(toRemoteInstanceView(instance)),
-    metadataJson: null
-  });
-
-  return c.json({
-    ok: true,
-    data: {
-      instance: toRemoteInstanceView(instance)
-    }
-  });
-}
-
-export async function listRemoteInstancesHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
-  await ensurePlatformBootstrap(c.env);
-  const auth = await requireAuthUser(c);
-  if (!auth.ok) {
-    return auth.response;
-  }
-  const rows = await listRemoteInstancesByUserId(c.env.NEXTCLAW_PLATFORM_DB, auth.user.id);
-  return c.json({ ok: true, data: { items: rows.map((row) => toRemoteInstanceView(row)) } });
-}
-
-export async function openRemoteInstanceHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
-  await ensurePlatformBootstrap(c.env);
-  const auth = await requireAuthUser(c);
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  const instanceId = c.req.param("instanceId")?.trim() || c.req.param("deviceId")?.trim() || "";
-  if (!instanceId) {
-    return apiError(c, 400, "INVALID_INSTANCE", "instanceId is required.");
-  }
-  const instance = await getRemoteInstanceById(c.env.NEXTCLAW_PLATFORM_DB, instanceId);
-  if (!instance || instance.user_id !== auth.user.id) {
-    return apiError(c, 404, "INSTANCE_NOT_FOUND", "Remote instance not found.");
-  }
-  if (instance.status !== "online") {
-    return apiError(c, 409, "INSTANCE_OFFLINE", "Remote instance is offline.");
-  }
-
-  const session = await createOwnerOpenSession({
-    c,
-    ownerUserId: auth.user.id,
-    instanceId: instance.id
-  });
-  const openUrl = requireRemoteAccessUrl(c, session.id, session.token);
-  if (openUrl instanceof Response) {
-    return openUrl;
-  }
-
-  await appendAuditLog(c.env.NEXTCLAW_PLATFORM_DB, {
-    actorUserId: auth.user.id,
-    action: "remote.access_session.created",
-    targetType: "remote_access_session",
-    targetId: session.id,
-    beforeJson: null,
-    afterJson: JSON.stringify({
-      id: session.id,
-      instanceId: instance.id,
-      sourceType: session.source_type,
-      expiresAt: session.expires_at
-    }),
-    metadataJson: null
-  });
-
-  return c.json({
-    ok: true,
-    data: toRemoteAccessSessionView(session, openUrl)
-  });
 }
 
 export async function listRemoteShareGrantsHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
@@ -568,7 +440,3 @@ export async function remoteProxyHandler(c: Context<{ Bindings: Env }>): Promise
     headers: sanitizeResponseHeaders(response.headers)
   });
 }
-
-export const registerRemoteDeviceHandler = registerRemoteInstanceHandler;
-export const listRemoteDevicesHandler = listRemoteInstancesHandler;
-export const openRemoteDeviceHandler = openRemoteInstanceHandler;

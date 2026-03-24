@@ -42,20 +42,25 @@ import {
 import { chatCompletionsHandler, healthHandler, modelsHandler, usageHandler } from "./controllers/openai-controller";
 import {
   createRemoteShareGrantHandler,
-  listRemoteInstancesHandler,
   listRemoteShareGrantsHandler,
-  openRemoteInstanceHandler,
   openRemoteShareSessionHandler,
-  listRemoteDevicesHandler,
-  openRemoteDeviceHandler,
   openRemoteSessionRedirectHandler,
   remoteBrowserRuntimeHandler,
   remoteBrowserWebSocketHandler,
-  registerRemoteInstanceHandler,
-  registerRemoteDeviceHandler,
   revokeRemoteShareGrantHandler,
   remoteConnectorWebSocketHandler,
 } from "./controllers/remote-controller";
+import {
+  archiveRemoteInstanceHandler,
+  deleteRemoteInstanceHandler,
+  listRemoteDevicesHandler,
+  listRemoteInstancesHandler,
+  openRemoteDeviceHandler,
+  openRemoteInstanceHandler,
+  registerRemoteDeviceHandler,
+  registerRemoteInstanceHandler,
+  unarchiveRemoteInstanceHandler,
+} from "./controllers/remote-instance-controller";
 import { adminRemoteQuotaSummaryHandler, remoteQuotaSummaryHandler } from "./controllers/remote-quota-controller";
 import type { Env } from "./types/platform";
 
@@ -83,6 +88,9 @@ function registerRemoteAccessRoutes(app: Hono<{ Bindings: Env }>): void {
   app.get("/platform/remote/quota", remoteQuotaSummaryHandler);
   app.post("/platform/remote/instances/register", registerRemoteInstanceHandler);
   app.post("/platform/remote/instances/:instanceId/open", openRemoteInstanceHandler);
+  app.post("/platform/remote/instances/:instanceId/archive", archiveRemoteInstanceHandler);
+  app.post("/platform/remote/instances/:instanceId/unarchive", unarchiveRemoteInstanceHandler);
+  app.post("/platform/remote/instances/:instanceId/delete", deleteRemoteInstanceHandler);
   app.get("/platform/remote/instances/:instanceId/shares", listRemoteShareGrantsHandler);
   app.post("/platform/remote/instances/:instanceId/shares", createRemoteShareGrantHandler);
   app.post("/platform/remote/shares/:grantId/revoke", revokeRemoteShareGrantHandler);

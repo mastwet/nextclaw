@@ -104,20 +104,24 @@
       "lastSeenAt": "Last seen",
       "actions": "Actions"
     },
-    "actions": {
-      "createShare": "Create share link",
-      "viewShare": "View shares",
-      "openInWeb": "Open in browser",
-      "createAnotherShare": "Create another"
-    },
-    "status": {
-      "online": "Online",
-      "offline": "Offline",
-      "shareActive": "Active share",
-      "shareRevoked": "Revoked share",
-      "shareExpired": "Expired share"
-    },
-    "messages": {
+  "actions": {
+    "createShare": "Create share link",
+    "viewShare": "View shares",
+    "openInWeb": "Open in browser",
+    "createAnotherShare": "Create another",
+    "archive": "Archive",
+    "restore": "Restore",
+    "delete": "Delete"
+  },
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "archived": "Archived",
+    "shareActive": "Active share",
+    "shareRevoked": "Revoked share",
+    "shareExpired": "Expired share"
+  },
+  "messages": {
       "empty": "No instances yet. Go back to the desktop app, sign in, and enable remote access first.",
       "loadingShares": "Loading share links...",
       "loadInstancesFailed": "Failed to load instances",
@@ -126,15 +130,31 @@
       "revokeShareFailed": "Failed to revoke share link",
       "loadSharesFailed": "Failed to load shares",
       "shareCopied": "Share link copied to clipboard.",
-      "shareCopyManual": "Copy failed. Please copy the link manually.",
-      "newShareCopied": "New share link copied to clipboard.",
-      "newShareCreated": "New share link created. Please copy it manually.",
-      "shareRevoked": "Share link revoked. Existing shared sessions will stop working immediately.",
-      "noShares": "No share links for this instance yet."
-    },
-    "sharePanel": {
-      "title": "Share links",
-      "description": "Once revoked, already-open shared sessions stop working immediately.",
+    "shareCopyManual": "Copy failed. Please copy the link manually.",
+    "newShareCopied": "New share link copied to clipboard.",
+    "newShareCreated": "New share link created. Please copy it manually.",
+    "shareRevoked": "Share link revoked. Existing shared sessions will stop working immediately.",
+    "noShares": "No share links for this instance yet.",
+    "archiveSuccess": "Instance archived. It is now hidden from the main list.",
+    "restoreSuccess": "Instance restored to the main list.",
+    "deleteSuccess": "Archived instance deleted permanently.",
+    "archiveFailed": "Failed to archive instance",
+    "restoreFailed": "Failed to restore instance",
+    "deleteFailed": "Failed to delete instance",
+    "archiveConfirm": "Archive this instance and hide it from the main list?",
+    "deleteConfirm": "Delete this archived instance permanently? This also removes its saved share links and session history."
+  },
+  "archived": {
+    "title": "Archived instances",
+    "description": "Archived instances stay out of the main list until you restore or delete them.",
+    "loading": "Loading archived instances...",
+    "loadFailed": "Failed to load archived instances",
+    "empty": "No archived instances.",
+    "archivedAt": "Archived {archivedAt}"
+  },
+  "sharePanel": {
+    "title": "Share links",
+    "description": "Once revoked, already-open shared sessions stop working immediately.",
       "meta": "Created {createdAt}, expires {expiresAt}",
       "activeSessions": "Active shared sessions: {count}"
     },

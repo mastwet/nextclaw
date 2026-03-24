@@ -131,6 +131,7 @@ export type RemoteInstanceRow = {
   local_origin: string;
   status: RemoteInstanceStatus;
   last_seen_at: string;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -175,6 +176,7 @@ export type RemoteInstanceView = {
   localOrigin: string;
   status: RemoteInstanceStatus;
   lastSeenAt: string;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

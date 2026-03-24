@@ -18,6 +18,21 @@ async function fulfillJson(route, data) {
 
 async function assertDashboardFlow(browser) {
   const page = await browser.newPage({ locale: "en-US" });
+  const activeInstances = [
+    {
+      id: "inst-1",
+      instanceInstallId: "install-1",
+      displayName: "MacBook Pro",
+      appVersion: "0.13.99",
+      platform: "macOS",
+      status: "online",
+      lastSeenAt: "2026-03-23T09:00:00.000Z",
+      archivedAt: null,
+      createdAt: "2026-03-23T08:00:00.000Z",
+      updatedAt: "2026-03-23T09:00:00.000Z"
+    }
+  ];
+  const archivedInstances = [];
 
   await page.route("**/platform/auth/me", async (route) => {
     await fulfillJson(route, {
@@ -29,19 +44,39 @@ async function assertDashboardFlow(browser) {
     });
   });
 
-  await page.route("**/platform/remote/instances", async (route) => {
+  await page.route("**/platform/remote/instances**", async (route) => {
+    const url = new URL(route.request().url());
+    const includeArchived = url.searchParams.get("includeArchived") === "true";
     await fulfillJson(route, {
-      items: [
-        {
-          id: "inst-1",
-          displayName: "MacBook Pro",
-          appVersion: "0.13.99",
-          platform: "macOS",
-          status: "online",
-          lastSeenAt: "2026-03-23T09:00:00.000Z"
-        }
-      ]
+      items: includeArchived ? [...activeInstances, ...archivedInstances] : activeInstances
     });
+  });
+
+  await page.route("**/platform/remote/instances/inst-1/archive", async (route) => {
+    const archived = {
+      ...activeInstances[0],
+      archivedAt: "2026-03-23T10:00:00.000Z",
+      updatedAt: "2026-03-23T10:00:00.000Z"
+    };
+    activeInstances.splice(0, 1);
+    archivedInstances.splice(0, archivedInstances.length, archived);
+    await fulfillJson(route, { instance: archived });
+  });
+
+  await page.route("**/platform/remote/instances/inst-1/unarchive", async (route) => {
+    const restored = {
+      ...archivedInstances[0],
+      archivedAt: null,
+      updatedAt: "2026-03-23T10:05:00.000Z"
+    };
+    archivedInstances.splice(0, 1);
+    activeInstances.splice(0, activeInstances.length, restored);
+    await fulfillJson(route, { instance: restored });
+  });
+
+  await page.route("**/platform/remote/instances/inst-1/delete", async (route) => {
+    archivedInstances.splice(0, 1);
+    await fulfillJson(route, { deleted: true, instanceId: "inst-1" });
   });
 
   await page.route("**/platform/remote/quota", async (route) => {
@@ -103,6 +138,46 @@ async function assertDashboardFlow(browser) {
   }
   if (bodyText.includes("Recharge") || bodyText.includes("Ledger")) {
     throw new Error("Dashboard still exposes billing details that should stay hidden.");
+  }
+
+  page.once("dialog", async (dialog) => {
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Archive" }).click();
+  await page.waitForFunction(() => document.body.innerText.includes("Archived instances"));
+  await page.waitForFunction(() => document.body.innerText.includes("Restore"));
+  await page.waitForFunction(() => document.body.innerText.includes("Delete"));
+
+  const archivedText = await page.locator("body").innerText();
+  if (!archivedText.includes("Archived instances")) {
+    throw new Error("Dashboard did not render the archived instances section after archiving.");
+  }
+  if (!archivedText.includes("Restore") || !archivedText.includes("Delete")) {
+    throw new Error("Archived instance actions did not render.");
+  }
+
+  await page.getByRole("button", { name: "Restore" }).click();
+  await page.waitForFunction(() => document.body.innerText.includes("Instance restored to the main list."));
+
+  const restoredText = await page.locator("body").innerText();
+  if (!restoredText.includes("Instance restored to the main list.")) {
+    throw new Error("Dashboard did not confirm restore.");
+  }
+
+  page.once("dialog", async (dialog) => {
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Archive" }).click();
+  await page.waitForTimeout(300);
+  page.once("dialog", async (dialog) => {
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Delete" }).click();
+  await page.waitForFunction(() => document.body.innerText.includes("Archived instance deleted permanently."));
+
+  const deletedText = await page.locator("body").innerText();
+  if (!deletedText.includes("Archived instance deleted permanently.")) {
+    throw new Error("Dashboard did not confirm deletion.");
   }
 
   await page.getByRole("button", { name: "中文" }).click();

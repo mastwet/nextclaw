@@ -78,6 +78,7 @@ export type RemoteInstance = {
   localOrigin: string;
   status: 'online' | 'offline';
   lastSeenAt: string;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

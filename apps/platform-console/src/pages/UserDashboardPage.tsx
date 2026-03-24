@@ -1,12 +1,7 @@
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
-  createRemoteShareGrant,
   fetchRemoteQuotaSummary,
-  fetchRemoteInstances,
-  fetchRemoteShareGrants,
-  openRemoteInstance,
-  revokeRemoteShareGrant
 } from '@/api/client';
 import type { RemoteInstance, RemoteQuotaSummary, RemoteShareGrant } from '@/api/types';
 import { Button } from '@/components/ui/button';
@@ -15,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { TableWrap } from '@/components/ui/table';
 import { createTranslator, formatDateTime, type LocaleCode } from '@/i18n/i18n.service';
 import { useLocaleStore } from '@/i18n/locale.store';
+import { useRemoteInstancesCardState } from '@/pages/UserDashboardPage.remote-state';
 
 type Props = {
   token: string;
@@ -28,11 +24,25 @@ type RemoteInstancesTableProps = {
   instances: RemoteInstance[];
   isLoading: boolean;
   resolvedInstanceId: string | null;
+  isArchivingInstance: boolean;
   isCreatingShare: boolean;
   isOpeningInstance: boolean;
+  onArchiveInstance: (instanceId: string) => void;
   onCreateShare: (instanceId: string) => void;
   onSelectInstance: (instanceId: string) => void;
   onOpenInstance: (instanceId: string) => void;
+};
+
+type ArchivedInstancesPanelProps = {
+  locale: LocaleCode;
+  t: Translate;
+  instances: RemoteInstance[];
+  isLoading: boolean;
+  error: unknown;
+  isDeletingInstance: boolean;
+  isRestoringInstance: boolean;
+  onDeleteInstance: (instanceId: string) => void;
+  onRestoreInstance: (instanceId: string) => void;
 };
 
 type RemoteShareGrantPanelProps = {
@@ -55,8 +65,10 @@ function RemoteInstancesTable({
   instances,
   isLoading,
   resolvedInstanceId,
+  isArchivingInstance,
   isCreatingShare,
   isOpeningInstance,
+  onArchiveInstance,
   onCreateShare,
   onSelectInstance,
   onOpenInstance
@@ -88,7 +100,7 @@ function RemoteInstancesTable({
               </td>
               <td className="px-3 py-2">{formatDateTime(locale, instance.lastSeenAt)}</td>
               <td className="px-3 py-2 text-right">
-                <div className="flex justify-end gap-2">
+                <div className="flex flex-wrap justify-end gap-2">
                   <Button
                     variant="secondary"
                     onClick={() => onCreateShare(instance.id)}
@@ -108,6 +120,13 @@ function RemoteInstancesTable({
                   >
                     {t('remote.actions.openInWeb')}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => onArchiveInstance(instance.id)}
+                    disabled={isArchivingInstance}
+                  >
+                    {t('remote.actions.archive')}
+                  </Button>
                 </div>
               </td>
             </tr>
@@ -122,6 +141,101 @@ function RemoteInstancesTable({
         </tbody>
       </table>
     </TableWrap>
+  );
+}
+
+function ArchivedInstancesPanel({
+  locale,
+  t,
+  instances,
+  isLoading,
+  error,
+  isDeletingInstance,
+  isRestoringInstance,
+  onDeleteInstance,
+  onRestoreInstance
+}: ArchivedInstancesPanelProps): JSX.Element | null {
+  if (!isLoading && !error && instances.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4">
+      <div>
+        <p className="text-sm font-medium text-slate-900">{t('remote.archived.title')}</p>
+        <p className="text-sm text-slate-500">{t('remote.archived.description')}</p>
+      </div>
+
+      {isLoading ? <p className="text-sm text-slate-500">{t('remote.archived.loading')}</p> : null}
+      {error ? (
+        <p className="text-sm text-rose-600">
+          {error instanceof Error ? error.message : t('remote.archived.loadFailed')}
+        </p>
+      ) : null}
+
+      {!isLoading && !error ? (
+        <TableWrap>
+          <table className="w-full text-left text-sm">
+            <thead className="bg-white text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-3 py-2">{t('remote.table.instance')}</th>
+                <th className="px-3 py-2">{t('remote.table.platform')}</th>
+                <th className="px-3 py-2">{t('remote.table.status')}</th>
+                <th className="px-3 py-2">{t('remote.table.lastSeenAt')}</th>
+                <th className="px-3 py-2 text-right">{t('remote.table.actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {instances.map((instance) => (
+                <tr key={instance.id} className="border-t border-slate-100 bg-white">
+                  <td className="px-3 py-2">
+                    <div className="font-medium text-slate-900">{instance.displayName}</div>
+                    <div className="text-xs text-slate-500">{instance.appVersion}</div>
+                    {instance.archivedAt ? (
+                      <div className="text-xs text-slate-400">
+                        {t('remote.archived.archivedAt', {
+                          archivedAt: formatDateTime(locale, instance.archivedAt)
+                        })}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2">{instance.platform}</td>
+                  <td className="px-3 py-2">
+                    <span className="text-slate-500">{t('remote.status.archived')}</span>
+                  </td>
+                  <td className="px-3 py-2">{formatDateTime(locale, instance.lastSeenAt)}</td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button
+                        variant="secondary"
+                        onClick={() => onRestoreInstance(instance.id)}
+                        disabled={isRestoringInstance}
+                      >
+                        {t('remote.actions.restore')}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        onClick={() => onDeleteInstance(instance.id)}
+                        disabled={isDeletingInstance}
+                      >
+                        {t('remote.actions.delete')}
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {instances.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-4 text-sm text-slate-500">
+                    {t('remote.archived.empty')}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </TableWrap>
+      ) : null}
+    </div>
   );
 }
 
@@ -350,60 +464,28 @@ function RemoteInstancesCard(props: {
   t: Translate;
   token: string;
 }): JSX.Element {
-  const queryClient = useQueryClient();
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
-  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
-
-  const remoteInstancesQuery = useQuery({
-    queryKey: ['remote-instances'],
-    queryFn: async () => await fetchRemoteInstances(props.token)
+  const {
+    archivedInstances,
+    archivedInstancesQuery,
+    archiveRemoteInstanceMutation,
+    copyShareUrl,
+    createRemoteShareMutation,
+    deleteRemoteInstanceMutation,
+    handleArchiveInstance,
+    handleDeleteInstance,
+    handleRestoreInstance,
+    openRemoteInstanceMutation,
+    remoteInstancesQuery,
+    remoteShareGrantsQuery,
+    resolvedInstanceId,
+    revokeRemoteShareMutation,
+    setSelectedInstanceId,
+    shareFeedback,
+    unarchiveRemoteInstanceMutation
+  } = useRemoteInstancesCardState({
+    token: props.token,
+    t: props.t
   });
-
-  const resolvedInstanceId = selectedInstanceId ?? remoteInstancesQuery.data?.items?.[0]?.id ?? null;
-
-  const remoteShareGrantsQuery = useQuery({
-    queryKey: ['remote-share-grants', resolvedInstanceId],
-    enabled: Boolean(resolvedInstanceId),
-    queryFn: async () => await fetchRemoteShareGrants(props.token, resolvedInstanceId ?? '')
-  });
-
-  const openRemoteInstanceMutation = useMutation({
-    mutationFn: async (instanceId: string) => await openRemoteInstance(props.token, instanceId),
-    onSuccess: (session) => {
-      window.open(session.openUrl, '_blank', 'noopener,noreferrer');
-    }
-  });
-
-  const createRemoteShareMutation = useMutation({
-    mutationFn: async (instanceId: string) => await createRemoteShareGrant(props.token, instanceId),
-    onSuccess: async (grant) => {
-      setSelectedInstanceId(grant.instanceId);
-      await queryClient.invalidateQueries({ queryKey: ['remote-share-grants', grant.instanceId] });
-      try {
-        await navigator.clipboard.writeText(grant.shareUrl);
-        setShareFeedback(props.t('remote.messages.newShareCopied'));
-      } catch {
-        setShareFeedback(props.t('remote.messages.newShareCreated'));
-      }
-    }
-  });
-
-  const revokeRemoteShareMutation = useMutation({
-    mutationFn: async (params: { grantId: string; instanceId: string }) => await revokeRemoteShareGrant(props.token, params.grantId),
-    onSuccess: async (_result, variables) => {
-      await queryClient.invalidateQueries({ queryKey: ['remote-share-grants', variables.instanceId] });
-      setShareFeedback(props.t('remote.messages.shareRevoked'));
-    }
-  });
-
-  async function copyShareUrl(shareUrl: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareFeedback(props.t('remote.messages.shareCopied'));
-    } catch {
-      setShareFeedback(props.t('remote.messages.shareCopyManual'));
-    }
-  }
 
   return (
     <Card className="space-y-4 rounded-[28px] border-slate-200/80 p-5">
@@ -415,8 +497,10 @@ function RemoteInstancesCard(props: {
         instances={remoteInstancesQuery.data?.items ?? []}
         isLoading={remoteInstancesQuery.isLoading}
         resolvedInstanceId={resolvedInstanceId}
+        isArchivingInstance={archiveRemoteInstanceMutation.isPending}
         isCreatingShare={createRemoteShareMutation.isPending}
         isOpeningInstance={openRemoteInstanceMutation.isPending}
+        onArchiveInstance={handleArchiveInstance}
         onCreateShare={(instanceId) => {
           setSelectedInstanceId(instanceId);
           void createRemoteShareMutation.mutateAsync(instanceId);
@@ -444,6 +528,21 @@ function RemoteInstancesCard(props: {
           {revokeRemoteShareMutation.error instanceof Error ? revokeRemoteShareMutation.error.message : props.t('remote.messages.revokeShareFailed')}
         </p>
       ) : null}
+      {archiveRemoteInstanceMutation.error ? (
+        <p className="text-sm text-rose-600">
+          {archiveRemoteInstanceMutation.error instanceof Error ? archiveRemoteInstanceMutation.error.message : props.t('remote.messages.archiveFailed')}
+        </p>
+      ) : null}
+      {unarchiveRemoteInstanceMutation.error ? (
+        <p className="text-sm text-rose-600">
+          {unarchiveRemoteInstanceMutation.error instanceof Error ? unarchiveRemoteInstanceMutation.error.message : props.t('remote.messages.restoreFailed')}
+        </p>
+      ) : null}
+      {deleteRemoteInstanceMutation.error ? (
+        <p className="text-sm text-rose-600">
+          {deleteRemoteInstanceMutation.error instanceof Error ? deleteRemoteInstanceMutation.error.message : props.t('remote.messages.deleteFailed')}
+        </p>
+      ) : null}
       {shareFeedback ? <p className="text-sm text-slate-600">{shareFeedback}</p> : null}
 
       <RemoteShareGrantPanel
@@ -458,6 +557,17 @@ function RemoteInstancesCard(props: {
         onCreateShare={(instanceId) => void createRemoteShareMutation.mutateAsync(instanceId)}
         onCopyShareUrl={(shareUrl) => void copyShareUrl(shareUrl)}
         onRevokeShare={(grantId, instanceId) => revokeRemoteShareMutation.mutate({ grantId, instanceId })}
+      />
+      <ArchivedInstancesPanel
+        locale={props.locale}
+        t={props.t}
+        instances={archivedInstances}
+        isLoading={archivedInstancesQuery.isLoading}
+        error={archivedInstancesQuery.error}
+        isDeletingInstance={deleteRemoteInstanceMutation.isPending}
+        isRestoringInstance={unarchiveRemoteInstanceMutation.isPending}
+        onDeleteInstance={handleDeleteInstance}
+        onRestoreInstance={handleRestoreInstance}
       />
     </Card>
   );
