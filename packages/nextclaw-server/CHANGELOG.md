@@ -1,32 +1,12 @@
 # nextclaw-server
 
-## 0.10.39
-
-### Patch Changes
-
-- Release the codex bridge fix so codex sessions can keep using the codex-sdk runtime with OpenAI-compatible models that only expose chat completions, including DashScope `qwen3-coder-next`.
-- Updated dependencies
-  - @nextclaw/mcp@0.1.35
-
-## 0.10.38
-
-### Patch Changes
-
-- Align bundled Feishu support with the official OpenClaw plugin by vendoring the upstream Feishu plugin into NextClaw, teaching the compat loader to prefer plugin-local OpenClaw SDK resolution, and adding the minimal loader shims needed for the official Feishu tools to register inside NextClaw.
-- Updated dependencies
-  - @nextclaw/openclaw-compat@0.3.20
-  - @nextclaw/mcp@0.1.34
-
 ## 0.10.37
 
 ### Patch Changes
 
-- Add the Phase 1 Feishu platform foundation for NextClaw, including shared Feishu core primitives, richer message conversion, multi-account routing, and the aligned config UI/runtime release chain.
+- Fix Claude NCP runtime model routing by bridging Anthropic Messages to OpenAI-compatible providers, remove the Claude model whitelist concept, and keep the Claude model selector stable when the previously selected model is missing.
 - Updated dependencies
-  - @nextclaw/core@0.10.0
-  - @nextclaw/openclaw-compat@0.3.19
   - @nextclaw/mcp@0.1.33
-  - @nextclaw/runtime@0.2.13
 
 ## 0.10.36
 
