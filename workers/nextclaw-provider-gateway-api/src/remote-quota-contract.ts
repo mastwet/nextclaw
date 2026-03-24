@@ -5,12 +5,12 @@ export const REMOTE_QUOTA_DO_REQUEST_MILLI_UNITS = 1_000;
 export const REMOTE_QUOTA_RELAY_WS_MESSAGE_DO_MILLI_UNITS = 50;
 
 export const DEFAULT_REMOTE_QUOTA_SESSION_REQUESTS_PER_MINUTE = 180;
-export const DEFAULT_REMOTE_QUOTA_INSTANCE_CONNECTIONS = 100;
+export const DEFAULT_REMOTE_QUOTA_INSTANCE_CONNECTIONS = 10_000;
 export const DEFAULT_REMOTE_PLATFORM_DAILY_WORKER_REQUEST_BUDGET = 100_000;
 export const DEFAULT_REMOTE_PLATFORM_DAILY_DO_REQUEST_BUDGET = 100_000;
 export const DEFAULT_REMOTE_PLATFORM_DAILY_RESERVE_PERCENT = 20;
-export const DEFAULT_REMOTE_QUOTA_USER_DAILY_WORKER_REQUEST_UNITS = 1_200;
-export const DEFAULT_REMOTE_QUOTA_USER_DAILY_DO_REQUEST_UNITS = 6_000;
+export const DEFAULT_REMOTE_QUOTA_USER_DAILY_WORKER_REQUEST_UNITS = 20_000;
+export const DEFAULT_REMOTE_QUOTA_USER_DAILY_DO_REQUEST_UNITS = 20_000;
 export const DEFAULT_REMOTE_QUOTA_WS_MESSAGE_LEASE_SIZE = 10;
 
 export type RemoteQuotaOperationCost = {
@@ -118,4 +118,39 @@ export type RemoteQuotaBudgets = {
   platformDoBudgetMilli: number;
   userWorkerBudget: number;
   userDoBudgetMilli: number;
+};
+
+export type RemoteQuotaUsageSummary = {
+  limit: number;
+  used: number;
+  remaining: number;
+};
+
+export type RemoteQuotaPlatformUsageSummary = {
+  configuredLimit: number;
+  enforcedLimit: number;
+  used: number;
+  remaining: number;
+};
+
+export type RemoteQuotaUserSummary = {
+  dayKey: string;
+  resetsAt: string;
+  sessionRequestsPerMinute: number;
+  instanceConnectionsPerInstance: number;
+  activeBrowserConnections: number;
+  workerRequests: RemoteQuotaUsageSummary;
+  durableObjectRequests: RemoteQuotaUsageSummary;
+};
+
+export type RemoteQuotaPlatformSummary = {
+  dayKey: string;
+  resetsAt: string;
+  reservePercent: number;
+  sessionRequestsPerMinute: number;
+  instanceConnectionsPerInstance: number;
+  defaultUserWorkerBudget: number;
+  defaultUserDoBudget: number;
+  workerRequests: RemoteQuotaPlatformUsageSummary;
+  durableObjectRequests: RemoteQuotaPlatformUsageSummary;
 };

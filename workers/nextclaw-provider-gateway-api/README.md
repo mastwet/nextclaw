@@ -73,8 +73,24 @@ pnpm -C workers/nextclaw-provider-gateway-api dev
 - `GET /platform/billing/recharge-intents`
 - `POST /platform/billing/recharge-intents`
 
+### Remote Access
+- `GET /platform/remote/instances`
+- `GET /platform/remote/quota`
+- `POST /platform/remote/instances/register`
+- `POST /platform/remote/instances/:instanceId/open`
+- `GET /platform/remote/instances/:instanceId/shares`
+- `POST /platform/remote/instances/:instanceId/shares`
+- `POST /platform/remote/shares/:grantId/revoke`
+- `GET /platform/remote/devices`
+- `POST /platform/remote/devices/register`
+- `POST /platform/remote/devices/:deviceId/open`
+- `POST /platform/share/:grantToken/open`
+- `GET /platform/remote/open`
+- `GET /platform/remote/connect`
+
 ### 管理后台
 - `GET /platform/admin/overview`
+- `GET /platform/admin/remote/quota`
 - `GET /platform/admin/users`
 - `PATCH /platform/admin/users/:userId`
 - `GET /platform/admin/recharge-intents`

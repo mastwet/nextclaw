@@ -11,6 +11,8 @@ import {
   DEFAULT_REMOTE_QUOTA_USER_DAILY_WORKER_REQUEST_UNITS,
   DEFAULT_REMOTE_QUOTA_WS_MESSAGE_LEASE_SIZE,
   leaseRemoteBrowserMessages,
+  readRemoteQuotaPlatformSummary,
+  readRemoteQuotaUserSummary,
   releaseRemoteBrowserConnection,
   REMOTE_QUOTA_DO_REQUEST_MILLI_UNITS,
   REMOTE_PROXY_REQUEST_COST,
@@ -33,6 +35,15 @@ export class NextclawRemoteQuotaDurableObject {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    if (request.method === "GET") {
+      if (url.pathname === "/summary/user") {
+        return await this.handleUserSummary(url);
+      }
+      if (url.pathname === "/summary/platform") {
+        return await this.handlePlatformSummary();
+      }
+      return new Response("not_found", { status: 404 });
+    }
     if (request.method !== "POST") {
       return new Response("method_not_allowed", { status: 405 });
     }
@@ -50,6 +61,25 @@ export class NextclawRemoteQuotaDurableObject {
       return await this.handleWsMessageLease(request);
     }
     return new Response("not_found", { status: 404 });
+  }
+
+  private async handleUserSummary(url: URL): Promise<Response> {
+    const userId = (url.searchParams.get("userId") ?? "").trim();
+    if (!userId) {
+      return jsonErrorResponse(400, "REMOTE_QUOTA_INVALID_REQUEST", "userId is required.");
+    }
+
+    const nowMs = Date.now();
+    const storedState = await this.readStoredState(nowMs);
+    const config = readRemoteQuotaConfig(this.env);
+    return jsonSummaryResponse(readRemoteQuotaUserSummary(storedState, config, userId, nowMs));
+  }
+
+  private async handlePlatformSummary(): Promise<Response> {
+    const nowMs = Date.now();
+    const storedState = await this.readStoredState(nowMs);
+    const config = readRemoteQuotaConfig(this.env);
+    return jsonSummaryResponse(readRemoteQuotaPlatformSummary(storedState, config, nowMs));
   }
 
   private async handleBrowserConnectionAcquire(request: Request): Promise<Response> {
@@ -139,11 +169,15 @@ export class NextclawRemoteQuotaDurableObject {
     ) => RemoteQuotaDecision<T>
   ): Promise<Response> {
     const nowMs = Date.now();
-    const storedState = (await this.state.storage.get<RemoteQuotaState>(REMOTE_QUOTA_STATE_STORAGE_KEY))
-      ?? createEmptyRemoteQuotaState(nowMs);
+    const storedState = await this.readStoredState(nowMs);
     const decision = mutate(storedState, readRemoteQuotaConfig(this.env), nowMs);
     await this.state.storage.put(REMOTE_QUOTA_STATE_STORAGE_KEY, decision.state);
     return buildQuotaDecisionResponse(decision);
+  }
+
+  private async readStoredState(nowMs: number): Promise<RemoteQuotaState> {
+    return (await this.state.storage.get<RemoteQuotaState>(REMOTE_QUOTA_STATE_STORAGE_KEY))
+      ?? createEmptyRemoteQuotaState(nowMs);
   }
 }
 
@@ -262,4 +296,16 @@ function buildQuotaHeaders(retryAfterSeconds: number): HeadersInit {
     "retry-after": String(retryAfterSeconds),
     "x-nextclaw-degraded": "quota_guard"
   };
+}
+
+function jsonSummaryResponse<T>(data: T): Response {
+  return new Response(JSON.stringify({
+    ok: true,
+    data
+  }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json"
+    }
+  });
 }

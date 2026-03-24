@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   confirmRechargeIntent,
+  fetchAdminRemoteQuotaSummary,
   fetchAdminOverview,
   fetchAdminRechargeIntents,
   fetchAdminUsers,
@@ -9,7 +10,7 @@ import {
   updateAdminUser,
   updateGlobalFreeLimit
 } from '@/api/client';
-import type { AdminOverview, RechargeIntentItem, UserView } from '@/api/types';
+import type { AdminOverview, AdminRemoteQuotaSummary, RechargeIntentItem, UserView } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ type UpdateQuotaPayload = {
 };
 
 type DraftSetter = (updater: (prev: Record<string, string>) => Record<string, string>) => void;
+type UpdateQuotaMutate = (payload: UpdateQuotaPayload, options: { onSuccess?: () => void }) => void;
 
 type OverviewCardProps = {
   overview: AdminOverview | undefined;
@@ -37,6 +39,12 @@ type OverviewCardProps = {
   isSubmitting: boolean;
   onGlobalLimitInputChange: (value: string) => void;
   onSubmit: () => void;
+};
+
+type RemoteQuotaOverviewCardProps = {
+  summary: AdminRemoteQuotaSummary | undefined;
+  isLoading: boolean;
+  errorMessage: string | null;
 };
 
 type UserQuotaManagementCardProps = {
@@ -87,17 +95,18 @@ export function AdminDashboardPage({ token }: Props): JSX.Element {
     queryKey: ['admin-overview'],
     queryFn: async () => await fetchAdminOverview(token)
   });
-
+  const remoteQuotaQuery = useQuery({
+    queryKey: ['admin-remote-quota'],
+    queryFn: async () => await fetchAdminRemoteQuotaSummary(token)
+  });
   const usersQuery = useQuery({
     queryKey: ['admin-users', userSearch, userCursor],
     queryFn: async () => await fetchAdminUsers(token, { limit: pageSize, q: userSearch, cursor: userCursor })
   });
-
   const intentsQuery = useQuery({
     queryKey: ['admin-intents', intentStatus, intentCursor],
     queryFn: async () => await fetchAdminRechargeIntents(token, { limit: pageSize, status: intentStatus, cursor: intentCursor })
   });
-
   const setGlobalLimitMutation = useMutation({
     mutationFn: async () => {
       await updateGlobalFreeLimit(token, Number(globalLimitInput));
@@ -106,7 +115,6 @@ export function AdminDashboardPage({ token }: Props): JSX.Element {
       await queryClient.invalidateQueries({ queryKey: ['admin-overview'] });
     }
   });
-
   const updateQuotaMutation = useMutation({
     mutationFn: async (payload: UpdateQuotaPayload) => {
       await updateAdminUser(token, payload.userId, payload);
@@ -118,7 +126,6 @@ export function AdminDashboardPage({ token }: Props): JSX.Element {
       ]);
     }
   });
-
   const confirmIntentMutation = useMutation({
     mutationFn: async (intentId: string) => {
       await confirmRechargeIntent(token, intentId);
@@ -131,7 +138,6 @@ export function AdminDashboardPage({ token }: Props): JSX.Element {
       ]);
     }
   });
-
   const rejectIntentMutation = useMutation({
     mutationFn: async (intentId: string) => {
       await rejectRechargeIntent(token, intentId);
@@ -140,21 +146,10 @@ export function AdminDashboardPage({ token }: Props): JSX.Element {
       await queryClient.invalidateQueries({ queryKey: ['admin-intents'] });
     }
   });
-
   const users = usersQuery.data?.items ?? [];
   const intents = intentsQuery.data?.items ?? [];
-
   useInitializeQuotaDrafts(users, setFreeLimitDrafts, setPaidDeltaDrafts);
-
-  const handleSaveUserQuota = (user: UserView): void => {
-    const payload = buildUpdateQuotaPayload(user, freeLimitDrafts, paidDeltaDrafts);
-    updateQuotaMutation.mutate(payload, {
-      onSuccess: () => {
-        setPaidDeltaDrafts((prev) => ({ ...prev, [user.id]: '0' }));
-      }
-    });
-  };
-
+  const handleSaveUserQuota = createUserQuotaSaveHandler(freeLimitDrafts, paidDeltaDrafts, updateQuotaMutation.mutate, setPaidDeltaDrafts);
   return (
     <div className="space-y-6">
       <OverviewCard
@@ -164,9 +159,12 @@ export function AdminDashboardPage({ token }: Props): JSX.Element {
         onGlobalLimitInputChange={setGlobalLimitInput}
         onSubmit={() => setGlobalLimitMutation.mutate()}
       />
-
+      <RemoteQuotaOverviewCard
+        summary={remoteQuotaQuery.data}
+        isLoading={remoteQuotaQuery.isLoading}
+        errorMessage={remoteQuotaQuery.error instanceof Error ? remoteQuotaQuery.error.message : null}
+      />
       <GatewayBusinessLoopSection token={token} />
-
       <UserQuotaManagementCard
         users={users}
         searchInput={userSearchInput}
@@ -204,7 +202,6 @@ export function AdminDashboardPage({ token }: Props): JSX.Element {
           setUserCursor(usersQuery.data?.nextCursor ?? null);
         }}
       />
-
       <RechargeReviewCard
         status={intentStatus}
         intents={intents}
@@ -274,6 +271,22 @@ function buildUpdateQuotaPayload(
   return payload;
 }
 
+function createUserQuotaSaveHandler(
+  freeLimitDrafts: Record<string, string>,
+  paidDeltaDrafts: Record<string, string>,
+  mutate: UpdateQuotaMutate,
+  setPaidDeltaDrafts: DraftSetter
+): (user: UserView) => void {
+  return (user) => {
+    const payload = buildUpdateQuotaPayload(user, freeLimitDrafts, paidDeltaDrafts);
+    mutate(payload, {
+      onSuccess: () => {
+        setPaidDeltaDrafts((prev) => ({ ...prev, [user.id]: '0' }));
+      }
+    });
+  };
+}
+
 function OverviewCard({
   overview,
   globalLimitInput,
@@ -313,6 +326,105 @@ function OverviewCard({
       </div>
     </Card>
   );
+}
+
+function RemoteQuotaOverviewCard({
+  summary,
+  isLoading,
+  errorMessage
+}: RemoteQuotaOverviewCardProps): JSX.Element {
+  return (
+    <Card className="space-y-3">
+      <CardTitle>Remote 额度总览</CardTitle>
+      <p className="text-sm text-slate-500">
+        这里展示平台 remote 的总预算、已用量、剩余额度，以及当前默认用户额度。平台预算会先扣除 {summary?.reservePercent ?? 0}% 安全预留后再参与实际放量。
+      </p>
+
+      {isLoading ? <p className="text-sm text-slate-500">加载额度中...</p> : null}
+      {errorMessage ? <p className="text-sm text-rose-600">{errorMessage}</p> : null}
+      {summary ? (
+        <>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <div className="grid gap-3 md:grid-cols-2">
+              <AdminQuotaMetricCard
+                title="平台 Worker 日预算"
+                configuredLimit={summary.workerRequests.configuredLimit}
+                enforcedLimit={summary.workerRequests.enforcedLimit}
+                used={summary.workerRequests.used}
+                remaining={summary.workerRequests.remaining}
+                unitLabel="次"
+              />
+              <AdminQuotaMetricCard
+                title="平台 Durable Object 日预算"
+                configuredLimit={summary.durableObjectRequests.configuredLimit}
+                enforcedLimit={summary.durableObjectRequests.enforcedLimit}
+                used={summary.durableObjectRequests.used}
+                remaining={summary.durableObjectRequests.remaining}
+                unitLabel="请求单位"
+              />
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-900">默认 remote 配置</p>
+              <dl className="mt-3 space-y-3 text-sm">
+                <QuotaMetaRow label="默认用户 Worker 日额度" value={`${formatQuotaNumber(summary.defaultUserWorkerBudget)} 次`} />
+                <QuotaMetaRow label="默认用户 DO 日额度" value={`${formatQuotaNumber(summary.defaultUserDoBudget)} 请求单位`} />
+                <QuotaMetaRow label="每分钟 session 上限" value={`${formatQuotaNumber(summary.sessionRequestsPerMinute)} 次`} />
+                <QuotaMetaRow label="单实例连接上限" value={`${formatQuotaNumber(summary.instanceConnectionsPerInstance)} 个`} />
+                <QuotaMetaRow label="今日重置时间" value={new Date(summary.resetsAt).toLocaleString()} />
+              </dl>
+            </div>
+          </div>
+        </>
+      ) : null}
+    </Card>
+  );
+}
+
+function AdminQuotaMetricCard(props: {
+  title: string;
+  configuredLimit: number;
+  enforcedLimit: number;
+  used: number;
+  remaining: number;
+  unitLabel: string;
+}): JSX.Element {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-sm font-medium text-slate-900">{props.title}</p>
+      <p className="mt-2 text-2xl font-semibold text-slate-950">
+        {formatQuotaNumber(props.used)}
+        <span className="ml-2 text-sm font-medium text-slate-500">/ {formatQuotaNumber(props.enforcedLimit)} {props.unitLabel}</span>
+      </p>
+      <div className="mt-3 space-y-1 text-sm text-slate-500">
+        <p>配置总额度：{formatQuotaNumber(props.configuredLimit)} {props.unitLabel}</p>
+        <p>实际放量额度：{formatQuotaNumber(props.enforcedLimit)} {props.unitLabel}</p>
+        <p>剩余：{formatQuotaNumber(props.remaining)} {props.unitLabel}</p>
+      </div>
+    </div>
+  );
+}
+
+function QuotaMetaRow(props: {
+  label: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-slate-500">{props.label}</dt>
+      <dd className="font-medium text-slate-900">{props.value}</dd>
+    </div>
+  );
+}
+
+function formatQuotaNumber(value: number): string {
+  if (Number.isInteger(value)) {
+    return new Intl.NumberFormat().format(value);
+  }
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(value);
 }
 
 function UserQuotaManagementCard({

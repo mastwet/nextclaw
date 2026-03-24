@@ -1,4 +1,8 @@
-import type { RemoteQuotaError } from "../remote-quota-policy";
+import type {
+  RemoteQuotaError,
+  RemoteQuotaPlatformSummary,
+  RemoteQuotaUserSummary,
+} from "../remote-quota-policy";
 import type { Env } from "../types/platform";
 import { isRecord } from "../utils/platform-utils";
 
@@ -89,6 +93,20 @@ export async function leaseRemoteQuotaBrowserMessages(
   });
 }
 
+export async function readRemoteQuotaUserSummary(
+  env: Env,
+  userId: string
+): Promise<RemoteQuotaStubResult<RemoteQuotaUserSummary>> {
+  const params = new URLSearchParams({ userId });
+  return await callRemoteQuotaStub(env, `/summary/user?${params.toString()}`, undefined, "GET");
+}
+
+export async function readRemoteQuotaPlatformSummary(
+  env: Env
+): Promise<RemoteQuotaStubResult<RemoteQuotaPlatformSummary>> {
+  return await callRemoteQuotaStub(env, "/summary/platform", undefined, "GET");
+}
+
 export function buildRemoteQuotaHttpRejection(error: RemoteQuotaError): Response {
   return new Response(
     JSON.stringify({
@@ -136,17 +154,22 @@ export function buildRemoteQuotaStreamErrorFrame(
 async function callRemoteQuotaStub<T>(
   env: Env,
   path: string,
-  body: Record<string, unknown>
+  body?: Record<string, unknown>,
+  method: "GET" | "POST" = "POST"
 ): Promise<RemoteQuotaStubResult<T>> {
   const stub = env.NEXTCLAW_REMOTE_QUOTA.get(env.NEXTCLAW_REMOTE_QUOTA.idFromName(REMOTE_QUOTA_GUARD_OBJECT_NAME));
   let response: Response;
   try {
     response = await stub.fetch("https://remote-quota.internal" + path, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify(body)
+      method,
+      ...(method === "POST"
+        ? {
+          headers: {
+            "content-type": "application/json"
+          },
+          body: JSON.stringify(body ?? {})
+        }
+        : {})
     });
   } catch (error) {
     return {

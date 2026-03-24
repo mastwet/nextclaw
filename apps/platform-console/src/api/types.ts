@@ -106,6 +106,41 @@ export type RemoteShareGrant = {
   activeSessionCount: number;
 };
 
+export type RemoteQuotaUsageSummary = {
+  limit: number;
+  used: number;
+  remaining: number;
+};
+
+export type RemoteQuotaPlatformUsageSummary = {
+  configuredLimit: number;
+  enforcedLimit: number;
+  used: number;
+  remaining: number;
+};
+
+export type RemoteQuotaSummary = {
+  dayKey: string;
+  resetsAt: string;
+  sessionRequestsPerMinute: number;
+  instanceConnectionsPerInstance: number;
+  activeBrowserConnections: number;
+  workerRequests: RemoteQuotaUsageSummary;
+  durableObjectRequests: RemoteQuotaUsageSummary;
+};
+
+export type AdminRemoteQuotaSummary = {
+  dayKey: string;
+  resetsAt: string;
+  reservePercent: number;
+  sessionRequestsPerMinute: number;
+  instanceConnectionsPerInstance: number;
+  defaultUserWorkerBudget: number;
+  defaultUserDoBudget: number;
+  workerRequests: RemoteQuotaPlatformUsageSummary;
+  durableObjectRequests: RemoteQuotaPlatformUsageSummary;
+};
+
 export type CursorPage<T> = {
   items: T[];
   nextCursor: string | null;

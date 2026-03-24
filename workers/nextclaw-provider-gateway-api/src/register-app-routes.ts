@@ -56,6 +56,7 @@ import {
   revokeRemoteShareGrantHandler,
   remoteConnectorWebSocketHandler,
 } from "./controllers/remote-controller";
+import { adminRemoteQuotaSummaryHandler, remoteQuotaSummaryHandler } from "./controllers/remote-quota-controller";
 import type { Env } from "./types/platform";
 
 function registerPlatformAuthRoutes(app: Hono<{ Bindings: Env }>): void {
@@ -79,6 +80,7 @@ function registerRemoteAccessRoutes(app: Hono<{ Bindings: Env }>): void {
   app.get("/_remote/runtime", remoteBrowserRuntimeHandler);
   app.get("/_remote/ws", remoteBrowserWebSocketHandler);
   app.get("/platform/remote/instances", listRemoteInstancesHandler);
+  app.get("/platform/remote/quota", remoteQuotaSummaryHandler);
   app.post("/platform/remote/instances/register", registerRemoteInstanceHandler);
   app.post("/platform/remote/instances/:instanceId/open", openRemoteInstanceHandler);
   app.get("/platform/remote/instances/:instanceId/shares", listRemoteShareGrantsHandler);
@@ -108,6 +110,7 @@ export function registerAppRoutes(app: Hono<{ Bindings: Env }>): void {
   app.post("/platform/billing/recharge-intents", createRechargeIntentHandler);
 
   app.get("/platform/admin/overview", adminOverviewHandler);
+  app.get("/platform/admin/remote/quota", adminRemoteQuotaSummaryHandler);
   app.get("/platform/admin/profit/overview", adminProfitOverviewHandler);
   app.get("/platform/admin/users", adminUsersHandler);
   app.patch("/platform/admin/users/:userId", patchAdminUserHandler);

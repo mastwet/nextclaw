@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createRemoteShareGrant,
+  fetchRemoteQuotaSummary,
   fetchRemoteInstances,
   fetchRemoteShareGrants,
   openRemoteInstance,
   revokeRemoteShareGrant
 } from '@/api/client';
-import type { RemoteInstance, RemoteShareGrant } from '@/api/types';
+import type { RemoteInstance, RemoteQuotaSummary, RemoteShareGrant } from '@/api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -229,6 +230,121 @@ function BillingComingSoonCard(props: {
   );
 }
 
+function RemoteQuotaCard(props: {
+  locale: LocaleCode;
+  t: Translate;
+  token: string;
+}): JSX.Element {
+  const quotaQuery = useQuery({
+    queryKey: ['remote-quota-summary'],
+    queryFn: async () => await fetchRemoteQuotaSummary(props.token)
+  });
+
+  return (
+    <Card className="rounded-[28px] border-slate-200/80 p-5">
+      <div className="space-y-2">
+        <CardTitle>{props.t('remote.quota.title')}</CardTitle>
+        <p className="text-sm leading-6 text-slate-500">{props.t('remote.quota.description')}</p>
+      </div>
+
+      {quotaQuery.isLoading ? (
+        <p className="mt-4 text-sm text-slate-500">{props.t('remote.quota.messages.loading')}</p>
+      ) : null}
+      {quotaQuery.error ? (
+        <p className="mt-4 text-sm text-rose-600">
+          {quotaQuery.error instanceof Error ? quotaQuery.error.message : props.t('remote.quota.messages.loadFailed')}
+        </p>
+      ) : null}
+      {quotaQuery.data ? <RemoteQuotaSummaryGrid locale={props.locale} t={props.t} summary={quotaQuery.data} /> : null}
+    </Card>
+  );
+}
+
+function RemoteQuotaSummaryGrid(props: {
+  locale: LocaleCode;
+  t: Translate;
+  summary: RemoteQuotaSummary;
+}): JSX.Element {
+  const { summary, t } = props;
+  return (
+    <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <QuotaMetricCard
+          label={t('remote.quota.worker.title')}
+          used={summary.workerRequests.used}
+          limit={summary.workerRequests.limit}
+          subtitle={t('remote.quota.remaining', {
+            value: formatQuotaValue(summary.workerRequests.remaining),
+            unit: t('remote.quota.units.requests')
+          })}
+          unitLabel={t('remote.quota.units.requests')}
+        />
+        <QuotaMetricCard
+          label={t('remote.quota.do.title')}
+          used={summary.durableObjectRequests.used}
+          limit={summary.durableObjectRequests.limit}
+          subtitle={t('remote.quota.remaining', {
+            value: formatQuotaValue(summary.durableObjectRequests.remaining),
+            unit: t('remote.quota.units.requestUnits')
+          })}
+          unitLabel={t('remote.quota.units.requestUnits')}
+        />
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+        <p className="text-sm font-medium text-slate-900">{t('remote.quota.runtime.title')}</p>
+        <dl className="mt-3 space-y-3 text-sm">
+          <QuotaMetaRow label={t('remote.quota.runtime.sessionLimit')} value={formatQuotaValue(summary.sessionRequestsPerMinute)} />
+          <QuotaMetaRow label={t('remote.quota.runtime.activeConnections')} value={formatQuotaValue(summary.activeBrowserConnections)} />
+          <QuotaMetaRow label={t('remote.quota.runtime.instanceConnectionLimit')} value={formatQuotaValue(summary.instanceConnectionsPerInstance)} />
+          <QuotaMetaRow label={t('remote.quota.runtime.resetAt')} value={formatDateTime(props.locale, summary.resetsAt)} />
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function QuotaMetricCard(props: {
+  label: string;
+  used: number;
+  limit: number;
+  subtitle: string;
+  unitLabel: string;
+}): JSX.Element {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+      <p className="text-sm font-medium text-slate-900">{props.label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
+        {formatQuotaValue(props.used)}
+        <span className="ml-2 text-sm font-medium text-slate-500">/ {formatQuotaValue(props.limit)} {props.unitLabel}</span>
+      </p>
+      <p className="mt-2 text-sm text-slate-500">{props.subtitle}</p>
+    </div>
+  );
+}
+
+function QuotaMetaRow(props: {
+  label: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-slate-500">{props.label}</dt>
+      <dd className="font-medium text-slate-900">{props.value}</dd>
+    </div>
+  );
+}
+
+function formatQuotaValue(value: number): string {
+  if (Number.isInteger(value)) {
+    return new Intl.NumberFormat().format(value);
+  }
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(value);
+}
+
 function RemoteInstancesCard(props: {
   locale: LocaleCode;
   t: Translate;
@@ -353,6 +469,7 @@ export function UserDashboardPage({ token }: Props): JSX.Element {
 
   return (
     <div className="space-y-6">
+      <RemoteQuotaCard locale={locale} t={t} token={token} />
       <RemoteInstancesCard locale={locale} t={t} token={token} />
       <BillingComingSoonCard t={t} />
     </div>

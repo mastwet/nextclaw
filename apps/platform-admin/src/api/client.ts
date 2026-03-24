@@ -1,5 +1,6 @@
 import type {
   AdminProfitOverview,
+  AdminRemoteQuotaSummary,
   AdminOverview,
   ApiEnvelope,
   ApiFailure,
@@ -101,6 +102,11 @@ export async function fetchRechargeIntents(token: string): Promise<CursorPage<Re
 
 export async function fetchAdminOverview(token: string): Promise<AdminOverview> {
   const data = await request<ApiEnvelope<AdminOverview>>('/platform/admin/overview', {}, token);
+  return unwrap(data);
+}
+
+export async function fetchAdminRemoteQuotaSummary(token: string): Promise<AdminRemoteQuotaSummary> {
+  const data = await request<ApiEnvelope<AdminRemoteQuotaSummary>>('/platform/admin/remote/quota', {}, token);
   return unwrap(data);
 }
 

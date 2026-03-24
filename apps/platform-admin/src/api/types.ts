@@ -61,6 +61,31 @@ export type AdminOverview = {
   pendingRechargeIntents: number;
 };
 
+export type RemoteQuotaUsageSummary = {
+  limit: number;
+  used: number;
+  remaining: number;
+};
+
+export type RemoteQuotaPlatformUsageSummary = {
+  configuredLimit: number;
+  enforcedLimit: number;
+  used: number;
+  remaining: number;
+};
+
+export type AdminRemoteQuotaSummary = {
+  dayKey: string;
+  resetsAt: string;
+  reservePercent: number;
+  sessionRequestsPerMinute: number;
+  instanceConnectionsPerInstance: number;
+  defaultUserWorkerBudget: number;
+  defaultUserDoBudget: number;
+  workerRequests: RemoteQuotaPlatformUsageSummary;
+  durableObjectRequests: RemoteQuotaPlatformUsageSummary;
+};
+
 export type ProviderAuthType = 'oauth' | 'api_key';
 
 export type ProviderAccountView = {

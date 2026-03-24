@@ -44,6 +44,26 @@ async function assertDashboardFlow(browser) {
     });
   });
 
+  await page.route("**/platform/remote/quota", async (route) => {
+    await fulfillJson(route, {
+      dayKey: "2026-03-25",
+      resetsAt: "2026-03-26T00:00:00.000Z",
+      sessionRequestsPerMinute: 180,
+      instanceConnectionsPerInstance: 10000,
+      activeBrowserConnections: 2,
+      workerRequests: {
+        limit: 20000,
+        used: 12,
+        remaining: 19988
+      },
+      durableObjectRequests: {
+        limit: 20000,
+        used: 12.05,
+        remaining: 19987.95
+      }
+    });
+  });
+
   await page.route("**/platform/remote/instances/inst-1/shares", async (route) => {
     if (route.request().method() === "GET") {
       await fulfillJson(route, { items: [] });
@@ -72,6 +92,12 @@ async function assertDashboardFlow(browser) {
   if (!bodyText.includes("My Instances")) {
     throw new Error("Dashboard did not render the English remote instances section.");
   }
+  if (!bodyText.includes("Remote Quota & Usage")) {
+    throw new Error("Dashboard did not render the remote quota section.");
+  }
+  if (!bodyText.includes("Daily Worker requests")) {
+    throw new Error("Dashboard did not render worker quota metrics.");
+  }
   if (!bodyText.includes("COMING SOON")) {
     throw new Error("Dashboard did not render the English billing coming-soon badge.");
   }
@@ -85,6 +111,9 @@ async function assertDashboardFlow(browser) {
   const zhText = await page.locator("body").innerText();
   if (!zhText.includes("我的实例")) {
     throw new Error("Dashboard did not switch to Chinese.");
+  }
+  if (!zhText.includes("Remote 额度与用量")) {
+    throw new Error("Dashboard did not switch the quota card to Chinese.");
   }
   if (!zhText.includes("即将上线")) {
     throw new Error("Dashboard did not render the Chinese billing badge.");

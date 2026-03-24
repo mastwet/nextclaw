@@ -22,11 +22,14 @@ export {
   type RemoteQuotaError,
   type RemoteQuotaFailure,
   type RemoteQuotaOperationCost,
+  type RemoteQuotaPlatformSummary,
   type RemoteQuotaSessionState,
   type RemoteQuotaState,
   type RemoteQuotaSuccess,
   type RemoteQuotaTicket,
+  type RemoteQuotaUsageSummary,
   type RemoteQuotaUserState,
+  type RemoteQuotaUserSummary,
   type RemoteQuotaWindow,
   type RequestWindowUsage,
 } from "./remote-quota-contract";
@@ -60,6 +63,10 @@ import {
 } from "./remote-quota-state-support";
 
 export { createEmptyRemoteQuotaState } from "./remote-quota-state-support";
+export {
+  readRemoteQuotaPlatformSummary,
+  readRemoteQuotaUserSummary
+} from "./remote-quota-summary-support";
 
 export function acquireRemoteBrowserConnection(
   state: RemoteQuotaState | null | undefined,

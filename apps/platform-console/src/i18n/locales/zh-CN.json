@@ -137,6 +137,32 @@
       "description": "撤销后，已经打开的分享会话也会立即失效。",
       "meta": "创建于 {createdAt}，失效于 {expiresAt}",
       "activeSessions": "当前活跃分享会话：{count}"
+    },
+    "quota": {
+      "title": "Remote 额度与用量",
+      "description": "这里显示你今天的 remote 配额消耗情况，方便直接判断是单会话限流、个人日预算，还是连接数问题。",
+      "remaining": "剩余 {value} {unit}",
+      "units": {
+        "requests": "次",
+        "requestUnits": "请求单位"
+      },
+      "worker": {
+        "title": "每日 Worker 请求"
+      },
+      "do": {
+        "title": "每日 Durable Object 请求"
+      },
+      "runtime": {
+        "title": "运行时限制",
+        "sessionLimit": "单 session 每分钟上限",
+        "activeConnections": "当前活跃浏览器连接",
+        "instanceConnectionLimit": "单实例连接上限",
+        "resetAt": "今日额度重置时间"
+      },
+      "messages": {
+        "loading": "加载额度中...",
+        "loadFailed": "额度加载失败"
+      }
     }
   },
   "billing": {

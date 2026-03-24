@@ -10,6 +10,7 @@ await Promise.all([
   copyFile(join(distDir, "remote-quota-contract.js"), join(distDir, "remote-quota-contract")),
   copyFile(join(distDir, "remote-quota-budget-support.js"), join(distDir, "remote-quota-budget-support")),
   copyFile(join(distDir, "remote-quota-state-support.js"), join(distDir, "remote-quota-state-support")),
+  copyFile(join(distDir, "remote-quota-summary-support.js"), join(distDir, "remote-quota-summary-support")),
   copyFile(join(distDir, "remote-quota-policy.js"), join(distDir, "remote-quota-policy"))
 ]);
 

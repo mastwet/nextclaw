@@ -7,9 +7,11 @@ import type {
   CursorPage,
   EmailCodeSendResult,
   LedgerItem,
+  AdminRemoteQuotaSummary,
   RechargeIntentItem,
   RemoteAccessSession,
   RemoteInstance,
+  RemoteQuotaSummary,
   RemoteShareGrant,
   UserView
 } from '@/api/types';
@@ -141,6 +143,11 @@ export async function fetchRemoteInstances(token: string): Promise<{ items: Remo
   return unwrap(data);
 }
 
+export async function fetchRemoteQuotaSummary(token: string): Promise<RemoteQuotaSummary> {
+  const data = await request<ApiEnvelope<RemoteQuotaSummary>>('/platform/remote/quota', {}, token);
+  return unwrap(data);
+}
+
 export async function openRemoteInstance(token: string, instanceId: string): Promise<RemoteAccessSession> {
   const data = await request<ApiEnvelope<RemoteAccessSession>>(`/platform/remote/instances/${encodeURIComponent(instanceId)}/open`, {
     method: 'POST',
@@ -234,6 +241,11 @@ export async function fetchRechargeIntents(token: string): Promise<CursorPage<Re
 
 export async function fetchAdminOverview(token: string): Promise<AdminOverview> {
   const data = await request<ApiEnvelope<AdminOverview>>('/platform/admin/overview', {}, token);
+  return unwrap(data);
+}
+
+export async function fetchAdminRemoteQuotaSummary(token: string): Promise<AdminRemoteQuotaSummary> {
+  const data = await request<ApiEnvelope<AdminRemoteQuotaSummary>>('/platform/admin/remote/quota', {}, token);
   return unwrap(data);
 }
 

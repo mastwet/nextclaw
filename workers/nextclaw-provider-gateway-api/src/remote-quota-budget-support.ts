@@ -96,7 +96,7 @@ export function resolveWsLeaseBlockingError(
   );
 }
 
-function readDailyBudgets(config: RemoteQuotaConfig): RemoteQuotaBudgets {
+export function readDailyBudgets(config: RemoteQuotaConfig): RemoteQuotaBudgets {
   const effectivePercent = Math.max(1, 100 - config.platformDailyReservePercent);
   return {
     platformWorkerBudget: Math.floor(config.platformDailyWorkerRequestBudget * effectivePercent / 100),
