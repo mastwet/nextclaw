@@ -41,7 +41,10 @@ export function collectInstalledPluginRecords(options: UiRouterOptions): {
   try {
     const pluginReport = buildPluginStatusReport({
       config,
-      workspaceDir: getWorkspacePathFromConfig(config)
+      workspaceDir: getWorkspacePathFromConfig(config),
+      // Marketplace installed view only needs discoverable plugin metadata.
+      // Avoid importing external plugin modules on every page load.
+      mode: "validate"
     });
     discoveredPlugins = pluginReport.plugins;
   } catch {

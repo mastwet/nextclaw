@@ -1,5 +1,6 @@
 import type { Config } from "@nextclaw/core";
 import { getWorkspacePathFromConfig } from "@nextclaw/core";
+import type { PluginLoadOptions } from "./loader.js";
 import type { PluginLogger, PluginRegistry } from "./types.js";
 import { loadOpenClawPlugins } from "./loader.js";
 
@@ -11,6 +12,7 @@ export function buildPluginStatusReport(params: {
   config: Config;
   workspaceDir?: string;
   logger?: PluginLogger;
+  mode?: PluginLoadOptions["mode"];
   reservedToolNames?: string[];
   reservedChannelIds?: string[];
   reservedProviderIds?: string[];
@@ -22,6 +24,7 @@ export function buildPluginStatusReport(params: {
     config: params.config,
     workspaceDir,
     logger: params.logger,
+    mode: params.mode,
     reservedToolNames: params.reservedToolNames,
     reservedChannelIds: params.reservedChannelIds,
     reservedProviderIds: params.reservedProviderIds,
