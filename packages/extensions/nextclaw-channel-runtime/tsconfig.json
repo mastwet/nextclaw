@@ -7,9 +7,6 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@nextclaw/feishu-core": [
-        "../nextclaw-feishu-core/src/index.ts"
-      ],
       "@nextclaw/core": [
         "../../nextclaw-core/src/index.ts"
       ]

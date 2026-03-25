@@ -1,5 +1,12 @@
 # @nextclaw/channel-plugin-qq
 
+## 0.2.16
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/channel-runtime@0.4.2
+
 ## 0.2.15
 
 ### Patch Changes

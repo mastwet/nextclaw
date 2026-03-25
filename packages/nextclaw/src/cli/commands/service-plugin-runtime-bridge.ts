@@ -67,7 +67,8 @@ function resolvePluginRuntimeRequest(ctx: PluginRuntimeDispatchContext) {
   const bodyForAgent = typeof ctx.BodyForAgent === "string" ? ctx.BodyForAgent : "";
   const body = typeof ctx.Body === "string" ? ctx.Body : "";
   const content = (bodyForAgent || body).trim();
-  if (!content) {
+  const attachments = resolvePluginRuntimeAttachments(ctx);
+  if (!content && attachments.length === 0) {
     return null;
   }
 
@@ -85,7 +86,6 @@ function resolvePluginRuntimeRequest(ctx: PluginRuntimeDispatchContext) {
   const agentId = typeof ctx.AgentId === "string" ? ctx.AgentId : undefined;
   const modelOverride = resolveModelOverride(ctx);
   const accountId = typeof ctx.AccountId === "string" && ctx.AccountId.trim().length > 0 ? ctx.AccountId : undefined;
-  const attachments = resolvePluginRuntimeAttachments(ctx);
 
   return {
     content,

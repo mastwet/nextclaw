@@ -1,5 +1,11 @@
 # @nextclaw/channel-runtime
 
+## 0.4.2
+
+### Patch Changes
+
+- Remove the legacy Feishu channel runtime, keep the plugin-based Feishu path as the single ingress implementation, and make plugin runtime image attachments reach the agent even for attachment-only messages.
+
 ## 0.4.1
 
 ### Patch Changes

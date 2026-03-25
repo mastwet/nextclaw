@@ -1,5 +1,22 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.28
+
+### Patch Changes
+
+- Remove the legacy Feishu channel runtime, keep the plugin-based Feishu path as the single ingress implementation, and make plugin runtime image attachments reach the agent even for attachment-only messages.
+- Updated dependencies
+  - @nextclaw/channel-runtime@0.4.2
+  - @nextclaw/channel-plugin-dingtalk@0.2.16
+  - @nextclaw/channel-plugin-discord@0.2.16
+  - @nextclaw/channel-plugin-email@0.2.16
+  - @nextclaw/channel-plugin-mochat@0.2.16
+  - @nextclaw/channel-plugin-qq@0.2.16
+  - @nextclaw/channel-plugin-slack@0.2.16
+  - @nextclaw/channel-plugin-telegram@0.2.16
+  - @nextclaw/channel-plugin-wecom@0.2.16
+  - @nextclaw/channel-plugin-whatsapp@0.2.16
+
 ## 0.3.27
 
 ### Patch Changes

@@ -115,4 +115,45 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
       }),
     );
   });
+
+  it("dispatches attachment-only requests when MediaPaths exist without text", async () => {
+    const processDirect = vi.fn(async () => "ok");
+    installPluginRuntimeBridge({
+      runtimePool: { processDirect } as never,
+      runtimeConfigPath: "/tmp/config.json",
+      pluginChannelBindings: [],
+    });
+
+    const bridge = setPluginRuntimeBridgeMock.mock.calls[0]?.[0] as {
+      dispatchReplyWithBufferedBlockDispatcher: (params: {
+        ctx: Record<string, unknown>;
+        dispatcherOptions: { deliver: (payload: unknown, info: unknown) => Promise<void> };
+      }) => Promise<void>;
+    };
+
+    await bridge.dispatchReplyWithBufferedBlockDispatcher({
+      ctx: {
+        OriginatingChannel: "feishu",
+        OriginatingTo: "oc_chat",
+        MediaPaths: ["/tmp/only-image.png"],
+        MediaTypes: ["image/png"],
+      },
+      dispatcherOptions: {
+        deliver: vi.fn(async () => {}),
+      },
+    });
+
+    expect(processDirect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: "",
+        attachments: [
+          expect.objectContaining({
+            path: "/tmp/only-image.png",
+            mimeType: "image/png",
+            status: "ready",
+          }),
+        ],
+      }),
+    );
+  });
 });

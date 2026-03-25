@@ -1,5 +1,17 @@
 # nextclaw
 
+## 0.15.9
+
+### Patch Changes
+
+- Remove the legacy Feishu channel runtime, keep the plugin-based Feishu path as the single ingress implementation, and make plugin runtime image attachments reach the agent even for attachment-only messages.
+- Updated dependencies
+  - @nextclaw/openclaw-compat@0.3.28
+  - @nextclaw/server@0.10.51
+  - @nextclaw/mcp@0.1.47
+  - @nextclaw/remote@0.1.45
+  - @nextclaw/ncp-mcp@0.1.46
+
 ## 0.15.8
 
 ### Patch Changes

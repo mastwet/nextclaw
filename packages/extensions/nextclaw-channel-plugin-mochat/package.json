@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/channel-plugin-mochat",
-  "version": "0.2.15",
+  "version": "0.2.16",
   "private": false,
   "description": "NextClaw Mochat channel plugin (OpenClaw-compatible)",
   "type": "module",
