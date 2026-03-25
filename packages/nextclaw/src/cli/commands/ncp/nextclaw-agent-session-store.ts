@@ -175,6 +175,17 @@ function buildGenericMessage(params: {
   message: SessionMessage;
 }): NcpMessage {
   const timestamp = ensureIsoTimestamp(params.message.timestamp, new Date().toISOString());
+  const storedParts = readStoredNcpParts(params.message);
+  if (storedParts) {
+    return {
+      id: createMessageId(params.sessionId, params.index, params.role, timestamp),
+      sessionId: params.sessionId,
+      role: params.role,
+      status: "final",
+      timestamp,
+      parts: storedParts,
+    };
+  }
   return {
     id: createMessageId(params.sessionId, params.index, params.role, timestamp),
     sessionId: params.sessionId,

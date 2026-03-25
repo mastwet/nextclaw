@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,14 +8,23 @@ import type { AgentSessionRecord } from "@nextclaw/ncp-toolkit";
 import { NextclawAgentSessionStore } from "./nextclaw-agent-session-store.js";
 
 const tempDirs: string[] = [];
+const originalNextclawHome = process.env.NEXTCLAW_HOME;
 
 function createTempWorkspace(): string {
   const dir = mkdtempSync(join(tmpdir(), "nextclaw-ncp-session-store-"));
   tempDirs.push(dir);
+  const home = join(dir, "home");
+  mkdirSync(home, { recursive: true });
+  process.env.NEXTCLAW_HOME = home;
   return dir;
 }
 
 afterEach(() => {
+  if (originalNextclawHome) {
+    process.env.NEXTCLAW_HOME = originalNextclawHome;
+  } else {
+    delete process.env.NEXTCLAW_HOME;
+  }
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
     if (dir) {
@@ -130,6 +139,55 @@ describe("NextclawAgentSessionStore", () => {
       metadata: {
         reply_to: "legacy-msg-9",
       },
+    });
+  });
+
+  it("preserves user image file parts across save and load", async () => {
+    const workspace = createTempWorkspace();
+    const sessionManager = new SessionManager(workspace);
+    const store = new NextclawAgentSessionStore(sessionManager);
+    const sessionId = `session-${randomUUID()}`;
+
+    const record: AgentSessionRecord = {
+      sessionId,
+      updatedAt: new Date().toISOString(),
+      messages: [
+        {
+          id: "user-image-1",
+          sessionId,
+          role: "user",
+          status: "final",
+          timestamp: new Date().toISOString(),
+          parts: [
+            { type: "text", text: "look at this" },
+            {
+              type: "file",
+              name: "hello.png",
+              mimeType: "image/png",
+              contentBase64: "ZmFrZS1pbWFnZQ==",
+              sizeBytes: 12,
+            },
+          ],
+        },
+      ],
+      metadata: {},
+    };
+
+    await store.saveSession(record);
+    const loaded = await store.getSession(sessionId);
+
+    expect(loaded?.messages[0]).toMatchObject({
+      role: "user",
+      parts: [
+        { type: "text", text: "look at this" },
+        {
+          type: "file",
+          name: "hello.png",
+          mimeType: "image/png",
+          contentBase64: "ZmFrZS1pbWFnZQ==",
+          sizeBytes: 12,
+        },
+      ],
     });
   });
 });

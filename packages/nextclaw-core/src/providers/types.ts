@@ -52,6 +52,7 @@ export type ProviderSpec = {
   displayName?: string;
   modelPrefix?: string;
   defaultModels?: string[];
+  visionModels?: string[];
   litellmPrefix?: string;
   skipPrefixes?: string[];
   envExtras?: Array<[string, string]>;

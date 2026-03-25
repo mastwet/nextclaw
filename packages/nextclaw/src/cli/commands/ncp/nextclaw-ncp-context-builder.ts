@@ -14,15 +14,15 @@ import type {
   NcpContextBuilder,
   NcpContextPrepareOptions,
   NcpLLMApiInput,
+  NcpToolDefinition,
   OpenAIChatMessage,
   OpenAITool,
 } from "@nextclaw/ncp";
 import {
-  ensureIsoTimestamp,
-  extractTextFromNcpMessage,
   normalizeString,
   toLegacyMessages,
 } from "./nextclaw-ncp-message-bridge.js";
+import { buildCurrentTurnState } from "./nextclaw-ncp-current-turn.js";
 import {
   readAccountIdForHints,
   resolveAgentHandoffDepth,
@@ -223,6 +223,23 @@ function filterTools(
   return filtered.length > 0 ? filtered : undefined;
 }
 
+function buildRequestedOpenAiTools(
+  toolDefinitions: ReadonlyArray<NcpToolDefinition>,
+  requestedToolNames: string[],
+): OpenAITool[] | undefined {
+  return filterTools(
+    toolDefinitions.map((tool) => ({
+      type: "function" as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    })),
+    requestedToolNames,
+  );
+}
+
 export class NextclawNcpContextBuilder implements NcpContextBuilder {
   private readonly inputBudgetPruner = new InputBudgetPruner();
 
@@ -244,7 +261,7 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
     if (inboundModel) {
       session.metadata.preferred_model = inboundModel;
     }
-    const effectiveModel =
+    let effectiveModel =
       normalizeOptionalString(session.metadata.preferred_model) ??
       profile.model;
 
@@ -258,12 +275,6 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
     } else if (inboundThinking) {
       session.metadata.preferred_thinking = inboundThinking;
     }
-    const runtimeThinking = resolveThinkingLevel({
-      config,
-      agentId: profile.agentId,
-      model: effectiveModel,
-      sessionThinkingLevel: parseThinkingLevel(session.metadata.preferred_thinking) ?? null,
-    });
 
     const channel =
       normalizeOptionalString(requestMetadata.channel) ??
@@ -279,18 +290,23 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
 
     const requestedSkillNames = resolveRequestedSkillNames(requestMetadata);
     const requestedToolNames = resolveRequestedToolNames(requestMetadata);
-    const currentMessage = appendTimeHintForPrompt(
-      prependRequestedSkills(
-        extractTextFromNcpMessage(input.messages[input.messages.length - 1]),
-        requestedSkillNames,
-      ),
-      new Date(
-        ensureIsoTimestamp(
-          input.messages[input.messages.length - 1]?.timestamp,
-          new Date().toISOString(),
+    const currentTurn = buildCurrentTurnState({
+      input,
+      currentModel: effectiveModel,
+      config,
+      formatPrompt: ({ text, timestamp }) =>
+        appendTimeHintForPrompt(
+          prependRequestedSkills(text, requestedSkillNames),
+          timestamp,
         ),
-      ),
-    );
+    });
+    effectiveModel = currentTurn.effectiveModel;
+    const runtimeThinking = resolveThinkingLevel({
+      config,
+      agentId: profile.agentId,
+      model: effectiveModel,
+      sessionThinkingLevel: parseThinkingLevel(session.metadata.preferred_thinking) ?? null,
+    });
 
     this.options.toolRegistry.prepareForRun({
       sessionId: input.sessionId,
@@ -322,7 +338,8 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
     const sessionMessages = _options?.sessionMessages ?? [];
     const messages = contextBuilder.buildMessages({
       history: toLegacyMessages([...sessionMessages]),
-      currentMessage,
+      currentMessage: currentTurn.currentMessage,
+      attachments: currentTurn.currentAttachments,
       channel,
       chatId,
       sessionKey: input.sessionId,
@@ -336,18 +353,9 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
       contextTokens: profile.contextTokens,
     });
 
-    const openAiToolDefinitions = toolDefinitions.map((tool) => ({
-      type: "function" as const,
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-      },
-    }));
-
     return {
       messages: pruned.messages as OpenAIChatMessage[],
-      tools: filterTools(openAiToolDefinitions, requestedToolNames),
+      tools: buildRequestedOpenAiTools(toolDefinitions, requestedToolNames),
       model: effectiveModel,
       thinkingLevel: runtimeThinking,
     };

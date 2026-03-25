@@ -68,6 +68,7 @@ export const builtinProviderPlugin: ProviderCatalogPlugin = {
       detectByBaseKeyword: "aihubmix",
       defaultApiBase: "https://aihubmix.com/v1",
       defaultModels: ["aihubmix/gpt-5.3-codex", "aihubmix/claude-opus-4.6", "aihubmix/gemini-3.1-pro-preview"],
+      visionModels: ["aihubmix/gemini-3.1-pro-preview", "aihubmix/gpt-5.4"],
       stripModelPrefix: true,
       modelOverrides: [],
       logo: "aihubmix.png"
@@ -106,6 +107,7 @@ export const builtinProviderPlugin: ProviderCatalogPlugin = {
       detectByBaseKeyword: "",
       defaultApiBase: "https://api.openai.com/v1",
       defaultModels: ["openai/gpt-5.3-codex", "openai/gpt-5-mini", "openai/gpt-5-nano"],
+      visionModels: ["openai/gpt-5.4"],
       stripModelPrefix: false,
       modelOverrides: [],
       supportsWireApi: true,
@@ -147,6 +149,7 @@ export const builtinProviderPlugin: ProviderCatalogPlugin = {
       detectByBaseKeyword: "",
       defaultApiBase: "https://generativelanguage.googleapis.com/v1beta/openai",
       defaultModels: ["gemini/gemini-3.1-pro-preview", "gemini/gemini-3-flash-preview"],
+      visionModels: ["gemini/gemini-3.1-pro-preview", "gemini/gemini-3-flash-preview"],
       stripModelPrefix: false,
       modelOverrides: [],
       logo: "gemini.svg"
@@ -212,6 +215,7 @@ export const builtinProviderPlugin: ProviderCatalogPlugin = {
       detectByBaseKeyword: "portal.qwen.ai",
       defaultApiBase: "https://portal.qwen.ai/v1",
       defaultModels: ["qwen-portal/coder-model", "qwen-portal/vision-model"],
+      visionModels: ["qwen-portal/vision-model"],
       stripModelPrefix: false,
       modelOverrides: [],
       auth: {

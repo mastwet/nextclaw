@@ -1,4 +1,4 @@
-import type { SessionMessage } from "@nextclaw/core";
+import type { InboundAttachment, SessionMessage } from "@nextclaw/core";
 import {
   type NcpMessage,
   type NcpMessagePart,
@@ -123,7 +123,7 @@ function serializeToolArgs(args: unknown): string {
 
 function serializeLegacyContent(parts: NcpMessagePart[]): unknown {
   const text = parts
-    .filter((part): part is Extract<NcpMessagePart, { type: "text" }> => part.type === "text")
+    .filter(isTextLikePart)
     .map((part) => part.text)
     .join("");
   if (text.length > 0) {
@@ -141,9 +141,110 @@ export function extractTextFromNcpMessage(message: NcpMessage | undefined): stri
   }
   const normalizedMessage = message.role === "assistant" ? sanitizeAssistantReplyTags(message) : message;
   return normalizedMessage.parts
-    .filter((part): part is Extract<NcpMessagePart, { type: "text" }> => part.type === "text")
+    .filter(isTextLikePart)
     .map((part) => part.text)
     .join("");
+}
+
+function isTextLikePart(part: NcpMessagePart): part is Extract<NcpMessagePart, { type: "text" | "rich-text" }> {
+  return part.type === "text" || part.type === "rich-text";
+}
+
+function guessImageMime(pathOrUrl: string | null): string | null {
+  if (!pathOrUrl) {
+    return null;
+  }
+  const normalized = pathOrUrl.trim().toLowerCase();
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".bmp")) return "image/bmp";
+  if (normalized.endsWith(".tif") || normalized.endsWith(".tiff")) return "image/tiff";
+  return null;
+}
+
+function isRenderableImageFilePart(part: NcpMessagePart): part is Extract<NcpMessagePart, { type: "file" }> {
+  if (part.type !== "file") {
+    return false;
+  }
+  const mimeType = normalizeString(part.mimeType);
+  if (mimeType?.startsWith("image/")) {
+    return true;
+  }
+  return Boolean(guessImageMime(normalizeString(part.url) ?? normalizeString(part.name)));
+}
+
+function resolveImageUrl(part: Extract<NcpMessagePart, { type: "file" }>): string | null {
+  const url = normalizeString(part.url);
+  if (url) {
+    return url;
+  }
+  const mimeType = normalizeString(part.mimeType);
+  const contentBase64 = normalizeString(part.contentBase64);
+  if (!mimeType || !contentBase64) {
+    return null;
+  }
+  return `data:${mimeType};base64,${contentBase64}`;
+}
+
+function buildLegacyUserContent(parts: NcpMessagePart[]): unknown {
+  const blocks: Array<Record<string, unknown>> = [];
+
+  for (const part of parts) {
+    if (isTextLikePart(part) && part.text.length > 0) {
+      blocks.push({ type: "text", text: part.text });
+      continue;
+    }
+    if (!isRenderableImageFilePart(part)) {
+      continue;
+    }
+    const imageUrl = resolveImageUrl(part);
+    if (!imageUrl) {
+      continue;
+    }
+    blocks.push({
+      type: "image_url",
+      image_url: {
+        url: imageUrl,
+      },
+    });
+  }
+
+  if (blocks.length === 0) {
+    return serializeLegacyContent(parts);
+  }
+  const textOnly = blocks.every((part) => part.type === "text");
+  if (textOnly) {
+    return blocks.map((part) => String(part.text ?? "")).join("");
+  }
+  return blocks;
+}
+
+export function extractAttachmentsFromNcpMessage(message: NcpMessage | undefined): InboundAttachment[] {
+  if (!message) {
+    return [];
+  }
+
+  const attachments: InboundAttachment[] = [];
+  for (const part of message.parts) {
+    if (!isRenderableImageFilePart(part)) {
+      continue;
+    }
+    const imageUrl = resolveImageUrl(part);
+    if (!imageUrl) {
+      continue;
+    }
+    attachments.push({
+      name: normalizeString(part.name) ?? undefined,
+      url: imageUrl,
+      mimeType: normalizeString(part.mimeType) ?? guessImageMime(normalizeString(part.url) ?? normalizeString(part.name)) ?? undefined,
+      size: typeof part.sizeBytes === "number" ? part.sizeBytes : undefined,
+      source: "ncp",
+      status: "remote-only",
+    });
+  }
+  return attachments;
 }
 
 export function toLegacyMessages(messages: NcpMessage[]): SessionMessage[] {
@@ -209,9 +310,10 @@ export function toLegacyMessages(messages: NcpMessage[]): SessionMessage[] {
 
     legacyMessages.push({
       role: message.role,
-      content: serializeLegacyContent(message.parts),
+      content: buildLegacyUserContent(message.parts),
       timestamp,
       ncp_message_id: message.id,
+      ncp_parts: structuredClone(message.parts),
     });
   }
 
