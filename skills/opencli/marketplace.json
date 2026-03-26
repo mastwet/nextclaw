@@ -1,0 +1,25 @@
+{
+  "slug": "opencli",
+  "name": "OpenCLI",
+  "summary": "Use local OpenCLI through NextClaw with guided setup, readiness checks, and safe browser or desktop task workflows.",
+  "summaryI18n": {
+    "en": "Use local OpenCLI through NextClaw with guided setup, readiness checks, and safe browser or desktop task workflows.",
+    "zh": "通过 NextClaw 使用本地 OpenCLI，并提供引导式安装、环境检查以及安全的浏览器/桌面任务工作流。"
+  },
+  "description": "Use this skill when the user wants to work through a local OpenCLI setup from inside NextClaw. The skill guides installation, browser extension setup, readiness checks, supported command discovery, and safe execution rules instead of pretending the environment is already ready.",
+  "descriptionI18n": {
+    "en": "Use this skill when the user wants to work through a local OpenCLI setup from inside NextClaw. The skill guides installation, browser extension setup, readiness checks, supported command discovery, and safe execution rules instead of pretending the environment is already ready.",
+    "zh": "当用户希望在 NextClaw 内通过本地 OpenCLI 完成任务时使用此技能。该技能会负责引导安装、浏览器扩展配置、就绪检查、可用命令发现以及安全执行规则，而不是假装环境已经准备就绪。"
+  },
+  "author": "NextClaw",
+  "tags": [
+    "skill",
+    "opencli",
+    "browser-automation",
+    "desktop-automation",
+    "external-tool",
+    "onboarding"
+  ],
+  "sourceRepo": "https://github.com/jackwener/opencli",
+  "homepage": "https://github.com/jackwener/opencli"
+}
