@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { NcpHttpAgentClientEndpoint } from "@nextclaw/ncp-http-agent-client";
 import {
   buildNcpRequestEnvelope,
-  DEFAULT_NCP_IMAGE_ATTACHMENT_ACCEPT,
-  DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES,
-  readFilesAsNcpDraftAttachments,
+  DEFAULT_NCP_ATTACHMENT_MAX_BYTES,
+  uploadFilesAsNcpDraftAttachments,
   useHydratedNcpAgent,
   type NcpDraftAttachment,
 } from "@nextclaw/ncp-react";
@@ -15,6 +14,46 @@ type ChatPanelProps = {
   sessionId: string;
   onRefresh: () => void;
 };
+
+async function uploadDemoAttachments(files: File[]): Promise<NcpDraftAttachment[]> {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  const response = await fetch("/api/ncp/attachments", {
+    method: "POST",
+    body: formData,
+  });
+  const payload = await response.json() as {
+    ok: boolean;
+    data?: {
+      attachments: Array<{
+        id: string;
+        name: string;
+        mimeType: string;
+        sizeBytes: number;
+        attachmentUri: string;
+        url: string;
+      }>;
+    };
+    error?: {
+      message?: string;
+    };
+  };
+  if (!response.ok || !payload.ok || !payload.data) {
+    throw new Error(payload.error?.message || "Failed to upload attachments.");
+  }
+
+  return payload.data.attachments.map((attachment) => ({
+    id: attachment.id,
+    name: attachment.name,
+    mimeType: attachment.mimeType,
+    sizeBytes: attachment.sizeBytes,
+    attachmentUri: attachment.attachmentUri,
+    url: attachment.url,
+  }));
+}
 
 export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
@@ -66,16 +105,20 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
   };
 
   const handleFilesAdd = async (files: File[]) => {
-    const result = await readFilesAsNcpDraftAttachments(files);
+    const result = await uploadFilesAsNcpDraftAttachments(files, {
+      uploadBatch: uploadDemoAttachments,
+    });
     if (result.attachments.length > 0) {
       setAttachments((current) => {
         const seen = new Set<string>();
         const next = [...current, ...result.attachments].filter((attachment) => {
           const signature = [
+            attachment.attachmentUri ?? "",
+            attachment.url ?? "",
             attachment.name,
             attachment.mimeType,
             String(attachment.sizeBytes),
-            attachment.contentBase64,
+            attachment.contentBase64 ?? "",
           ].join(":");
           if (seen.has(signature)) {
             return false;
@@ -90,13 +133,13 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
     if (result.rejected.length > 0) {
       const first = result.rejected[0];
       if (first.reason === "unsupported-type") {
-        setComposerError("Only PNG, JPEG, WEBP, and GIF images are supported.");
+        setComposerError("This file type is not supported in the current upload flow.");
       } else if (first.reason === "too-large") {
         setComposerError(
-          `Images must be ${DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES / (1024 * 1024)} MB or smaller.`,
+          `Files must be ${DEFAULT_NCP_ATTACHMENT_MAX_BYTES / (1024 * 1024)} MB or smaller.`,
         );
       } else {
-        setComposerError("Failed to read the image. Please try again.");
+        setComposerError("Failed to read the file. Please try again.");
       }
     }
   };
@@ -132,7 +175,6 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
       <ChatInput
         value={draft}
         attachments={attachments}
-        attachmentAccept={DEFAULT_NCP_IMAGE_ATTACHMENT_ACCEPT}
         placeholder="Ask for the time, or ask the agent to sleep for 2 seconds."
         isSending={agent.isSending}
         sendDisabled={agent.isSending || agent.isRunning || agent.isHydrating}

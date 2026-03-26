@@ -71,4 +71,37 @@ describe('deriveNcpMessagePartsFromComposer', () => {
       }
     ]);
   });
+
+  it('preserves uploaded attachment references when the attachment has a server uri', () => {
+    const parts = deriveNcpMessagePartsFromComposer(
+      [
+        createChatComposerTokenNode({
+          tokenKind: 'file',
+          tokenKey: 'config',
+          label: 'config.json'
+        })
+      ],
+      [
+        {
+          id: 'config',
+          name: 'config.json',
+          mimeType: 'application/json',
+          sizeBytes: 18,
+          attachmentUri: 'attachment://local/2026/03/26/att_123',
+          url: '/api/ncp/attachments/content?uri=attachment%3A%2F%2Flocal%2F2026%2F03%2F26%2Fatt_123'
+        }
+      ]
+    );
+
+    expect(parts).toEqual([
+      {
+        type: 'file',
+        name: 'config.json',
+        mimeType: 'application/json',
+        attachmentUri: 'attachment://local/2026/03/26/att_123',
+        url: '/api/ncp/attachments/content?uri=attachment%3A%2F%2Flocal%2F2026%2F03%2F26%2Fatt_123',
+        sizeBytes: 18
+      }
+    ]);
+  });
 });

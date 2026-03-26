@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
@@ -58,8 +58,57 @@ class StubNcpAgent implements NcpAgentClientEndpoint, NcpSessionApi {
   };
 
   private readonly listeners = new Set<(event: NcpEndpointEvent) => void>();
+  private readonly attachmentRootDir = createTempDir("nextclaw-ui-ncp-attachments-");
+  private readonly attachments = new Map<
+    string,
+    {
+      id: string;
+      uri: string;
+      storageKey: string;
+      originalName: string;
+      storedName: string;
+      mimeType: string;
+      sizeBytes: number;
+      createdAt: string;
+      sha256: string;
+      filePath: string;
+    }
+  >();
   readonly abortCalls: Array<{ sessionId: string; messageId?: string }> = [];
   readonly sessionTypeListCalls: Array<{ describeMode?: "observation" | "probe" } | undefined> = [];
+  readonly attachmentApi = {
+    saveAttachment: async (input: { fileName: string; mimeType?: string | null; bytes: Uint8Array }) => {
+      const id = `att_${this.attachments.size + 1}`;
+      const storageKey = `2026/03/26/${id}`;
+      const uri = `attachment://local/${storageKey}`;
+      const storedName = input.fileName.replace(/[^\w.-]+/g, "_");
+      const filePath = join(this.attachmentRootDir, storedName);
+      writeFileSync(filePath, Buffer.from(input.bytes));
+      const record = {
+        id,
+        uri,
+        storageKey,
+        originalName: input.fileName,
+        storedName,
+        mimeType: input.mimeType?.trim() || "application/octet-stream",
+        sizeBytes: input.bytes.byteLength,
+        createdAt: "2026-03-26T00:00:00.000Z",
+        sha256: "stub",
+        filePath,
+      };
+      this.attachments.set(uri, record);
+      return record;
+    },
+    statAttachment: async (uri: string) => {
+      const record = this.attachments.get(uri);
+      if (!record) {
+        return null;
+      }
+      const { filePath: _filePath, ...rest } = record;
+      return rest;
+    },
+    resolveContentPath: (uri: string) => this.attachments.get(uri)?.filePath ?? null,
+  };
 
   async start(): Promise<void> {}
 
@@ -172,25 +221,26 @@ class StubNcpAgent implements NcpAgentClientEndpoint, NcpSessionApi {
   }
 }
 
-describe("ncp ui routes", () => {
-  it("mounts parallel ncp agent and session routes", async () => {
-    useIsolatedHome();
-    const configPath = createTempConfigPath();
-    saveConfig(ConfigSchema.parse({}), configPath);
-    const agent = new StubNcpAgent();
-    const streamProvider: NcpHttpAgentStreamProvider = {
-      stream: async function* () {
-        yield {
-          type: NcpEventType.RunFinished,
-          payload: {
-            sessionId: "session-1",
-            messageId: "assistant-message-1",
-            runId: "run-1"
-          }
-        };
-      }
-    };
-    const app = createUiRouter({
+function createTestApp(): { app: ReturnType<typeof createUiRouter>; agent: StubNcpAgent } {
+  useIsolatedHome();
+  const configPath = createTempConfigPath();
+  saveConfig(ConfigSchema.parse({}), configPath);
+  const agent = new StubNcpAgent();
+  const streamProvider: NcpHttpAgentStreamProvider = {
+    stream: async function* () {
+      yield {
+        type: NcpEventType.RunFinished,
+        payload: {
+          sessionId: "session-1",
+          messageId: "assistant-message-1",
+          runId: "run-1"
+        }
+      };
+    }
+  };
+  return {
+    agent,
+    app: createUiRouter({
       configPath,
       publish: () => {},
       ncpAgent: {
@@ -198,110 +248,150 @@ describe("ncp ui routes", () => {
         streamProvider,
         sessionApi: agent,
         listSessionTypes: (params) => agent.listSessionTypes(params),
+        attachmentApi: agent.attachmentApi,
       }
-    });
+    }),
+  };
+}
 
-    const sessionsResponse = await app.request("http://localhost/api/ncp/sessions");
-    expect(sessionsResponse.status).toBe(200);
-    const sessionsPayload = await sessionsResponse.json() as {
-      ok: boolean;
-      data: {
-        total: number;
-        sessions: Array<{ sessionId: string }>;
-      };
+it("mounts parallel ncp agent and session routes", async () => {
+  const { app, agent } = createTestApp();
+
+  const sessionsResponse = await app.request("http://localhost/api/ncp/sessions");
+  expect(sessionsResponse.status).toBe(200);
+  const sessionsPayload = await sessionsResponse.json() as {
+    ok: boolean;
+    data: {
+      total: number;
+      sessions: Array<{ sessionId: string }>;
     };
-    expect(sessionsPayload.ok).toBe(true);
-    expect(sessionsPayload.data.total).toBe(1);
-    expect(sessionsPayload.data.sessions[0]?.sessionId).toBe("session-1");
+  };
+  expect(sessionsPayload.ok).toBe(true);
+  expect(sessionsPayload.data.total).toBe(1);
+  expect(sessionsPayload.data.sessions[0]?.sessionId).toBe("session-1");
 
-    const messagesResponse = await app.request("http://localhost/api/ncp/sessions/session-1/messages");
-    expect(messagesResponse.status).toBe(200);
-    const messagesPayload = await messagesResponse.json() as {
-      ok: boolean;
-      data: {
-        total: number;
-        messages: Array<{ id: string }>;
-      };
+  const messagesResponse = await app.request("http://localhost/api/ncp/sessions/session-1/messages");
+  expect(messagesResponse.status).toBe(200);
+  const messagesPayload = await messagesResponse.json() as {
+    ok: boolean;
+    data: {
+      total: number;
+      messages: Array<{ id: string }>;
     };
-    expect(messagesPayload.ok).toBe(true);
-    expect(messagesPayload.data.total).toBe(1);
-    expect(messagesPayload.data.messages[0]?.id).toBe("msg-1");
+  };
+  expect(messagesPayload.ok).toBe(true);
+  expect(messagesPayload.data.total).toBe(1);
+  expect(messagesPayload.data.messages[0]?.id).toBe("msg-1");
 
-    const sessionTypesResponse = await app.request("http://localhost/api/ncp/session-types");
-    expect(sessionTypesResponse.status).toBe(200);
-    const sessionTypesPayload = await sessionTypesResponse.json() as {
-      ok: boolean;
-      data: {
-        defaultType: string;
-        options: Array<{ value: string; label: string }>;
-      };
+  const sessionTypesResponse = await app.request("http://localhost/api/ncp/session-types");
+  expect(sessionTypesResponse.status).toBe(200);
+  const sessionTypesPayload = await sessionTypesResponse.json() as {
+    ok: boolean;
+    data: {
+      defaultType: string;
+      options: Array<{ value: string; label: string }>;
     };
-    expect(sessionTypesPayload.ok).toBe(true);
-    expect(sessionTypesPayload.data).toEqual({
-      defaultType: "native",
-      options: [
-        { value: "native", label: "Native" },
-        { value: "codex", label: "Codex" },
-      ],
-    });
-    expect(agent.sessionTypeListCalls).toEqual([{ describeMode: "observation" }]);
-
-    const patchResponse = await app.request("http://localhost/api/ncp/sessions/session-1", {
-      method: "PUT",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        preferredModel: "openai/gpt-5",
-        preferredThinking: "medium"
-      })
-    });
-    expect(patchResponse.status).toBe(200);
-    const patchPayload = await patchResponse.json() as {
-      ok: boolean;
-      data: {
-        metadata?: Record<string, unknown>;
-      };
-    };
-    expect(patchPayload.ok).toBe(true);
-    expect(patchPayload.data.metadata).toMatchObject({
-      preferred_model: "openai/gpt-5",
-      preferred_thinking: "medium"
-    });
-
-    const sendResponse = await app.request("http://localhost/api/ncp/agent/send", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        sessionId: "session-1",
-        message: {
-          id: "user-message-1",
-          sessionId: "session-1",
-          role: "user",
-          status: "final",
-          timestamp: "2026-03-17T00:00:00.000Z",
-          parts: [{ type: "text", text: "hello" }]
-        }
-      })
-    });
-    expect(sendResponse.status).toBe(200);
-    expect(sendResponse.headers.get("content-type")).toContain("text/event-stream");
-    const sendText = await sendResponse.text();
-    expect(sendText).toContain("\"type\":\"run.started\"");
-    expect(sendText).toContain("\"type\":\"run.finished\"");
-
-    const abortResponse = await app.request("http://localhost/api/ncp/agent/abort", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        sessionId: "session-1"
-      })
-    });
-    expect(abortResponse.status).toBe(200);
-    expect(agent.abortCalls).toEqual([{ sessionId: "session-1" }]);
+  };
+  expect(sessionTypesPayload.ok).toBe(true);
+  expect(sessionTypesPayload.data).toEqual({
+    defaultType: "native",
+    options: [
+      { value: "native", label: "Native" },
+      { value: "codex", label: "Codex" },
+    ],
   });
+  expect(agent.sessionTypeListCalls).toEqual([{ describeMode: "observation" }]);
+});
+
+it("stores uploaded ncp attachments and serves their content back", async () => {
+  const { app } = createTestApp();
+
+  const formData = new FormData();
+  formData.append("files", new File(['{"hello":"world"}'], "config.json", { type: "application/json" }));
+  const uploadResponse = await app.request("http://localhost/api/ncp/attachments", {
+    method: "POST",
+    body: formData,
+  });
+  expect(uploadResponse.status).toBe(200);
+  const uploadPayload = await uploadResponse.json() as {
+    ok: boolean;
+    data: {
+      attachments: Array<{
+        name: string;
+        attachmentUri: string;
+        url: string;
+      }>;
+    };
+  };
+  expect(uploadPayload.ok).toBe(true);
+  expect(uploadPayload.data.attachments[0]?.name).toBe("config.json");
+  expect(uploadPayload.data.attachments[0]?.attachmentUri).toContain("attachment://local/");
+
+  const contentResponse = await app.request(
+    `http://localhost${uploadPayload.data.attachments[0]?.url}`,
+  );
+  expect(contentResponse.status).toBe(200);
+  expect(await contentResponse.text()).toBe('{"hello":"world"}');
+});
+
+it("proxies ncp send, patch, and abort flows", async () => {
+  const { app, agent } = createTestApp();
+
+  const patchResponse = await app.request("http://localhost/api/ncp/sessions/session-1", {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      preferredModel: "openai/gpt-5",
+      preferredThinking: "medium"
+    })
+  });
+  expect(patchResponse.status).toBe(200);
+  const patchPayload = await patchResponse.json() as {
+    ok: boolean;
+    data: {
+      metadata?: Record<string, unknown>;
+    };
+  };
+  expect(patchPayload.ok).toBe(true);
+  expect(patchPayload.data.metadata).toMatchObject({
+    preferred_model: "openai/gpt-5",
+    preferred_thinking: "medium"
+  });
+
+  const sendResponse = await app.request("http://localhost/api/ncp/agent/send", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      sessionId: "session-1",
+      message: {
+        id: "user-message-1",
+        sessionId: "session-1",
+        role: "user",
+        status: "final",
+        timestamp: "2026-03-17T00:00:00.000Z",
+        parts: [{ type: "text", text: "hello" }]
+      }
+    })
+  });
+  expect(sendResponse.status).toBe(200);
+  expect(sendResponse.headers.get("content-type")).toContain("text/event-stream");
+  const sendText = await sendResponse.text();
+  expect(sendText).toContain("\"type\":\"run.started\"");
+  expect(sendText).toContain("\"type\":\"run.finished\"");
+
+  const abortResponse = await app.request("http://localhost/api/ncp/agent/abort", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      sessionId: "session-1"
+    })
+  });
+  expect(abortResponse.status).toBe(200);
+  expect(agent.abortCalls).toEqual([{ sessionId: "session-1" }]);
 });

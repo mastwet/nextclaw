@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChatInputBar, type ChatInputBarHandle } from '@nextclaw/agent-chat-ui';
 import {
-  DEFAULT_NCP_IMAGE_ATTACHMENT_ACCEPT,
-  DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES,
-  readFilesAsNcpDraftAttachments
+  DEFAULT_NCP_ATTACHMENT_MAX_BYTES,
+  uploadFilesAsNcpDraftAttachments
 } from '@nextclaw/ncp-react';
+import { uploadNcpAttachments } from '@/api/ncp-attachments';
 import {
   buildChatSlashItems,
   buildModelStateHint,
@@ -133,23 +133,25 @@ export function ChatInputBarContainer() {
 
   const showAttachmentError = useCallback((reason: 'unsupported-type' | 'too-large' | 'read-failed') => {
     if (reason === 'unsupported-type') {
-      toast.error(t('chatInputImageUnsupported'));
+      toast.error(t('chatInputAttachmentUnsupported'));
       return;
     }
     if (reason === 'too-large') {
       toast.error(
-        t('chatInputImageTooLarge').replace('{maxMb}', String(DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES / (1024 * 1024)))
+        t('chatInputAttachmentTooLarge').replace('{maxMb}', String(DEFAULT_NCP_ATTACHMENT_MAX_BYTES / (1024 * 1024)))
       );
       return;
     }
-    toast.error(t('chatInputImageReadFailed'));
+    toast.error(t('chatInputAttachmentReadFailed'));
   }, []);
 
   const handleFilesAdd = useCallback(async (files: File[]) => {
     if (!attachmentSupported || files.length === 0) {
       return;
     }
-    const result = await readFilesAsNcpDraftAttachments(files);
+    const result = await uploadFilesAsNcpDraftAttachments(files, {
+      uploadBatch: uploadNcpAttachments,
+    });
     if (result.attachments.length > 0) {
       const insertedAttachments = presenter.chatInputManager.addAttachments?.(result.attachments) ?? [];
       if (insertedAttachments.length > 0) {
@@ -275,7 +277,6 @@ export function ChatInputBarContainer() {
         <input
           ref={fileInputRef}
           type="file"
-          accept={DEFAULT_NCP_IMAGE_ATTACHMENT_ACCEPT}
           multiple
           className="hidden"
           onChange={async (event) => {

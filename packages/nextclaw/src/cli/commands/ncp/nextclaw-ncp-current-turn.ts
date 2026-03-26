@@ -1,4 +1,5 @@
 import type { NcpAgentRunInput, NcpMessage, NcpMessagePart } from "@nextclaw/ncp";
+import type { LocalAttachmentStore } from "@nextclaw/ncp-agent-runtime";
 import {
   buildLegacyUserContent,
   ensureIsoTimestamp,
@@ -109,6 +110,8 @@ export function buildCurrentTurnState(params: {
   input: NcpAgentRunInput;
   currentModel: string;
   formatPrompt: (params: { text: string; timestamp: Date }) => string;
+  attachmentStore?: LocalAttachmentStore | null;
+  attachmentTextMaxBytes?: number;
 }): {
   currentUserContent: unknown;
   effectiveModel: string;
@@ -131,7 +134,10 @@ export function buildCurrentTurnState(params: {
   });
 
   return {
-    currentUserContent: buildLegacyUserContent(currentParts),
+    currentUserContent: buildLegacyUserContent(currentParts, {
+      attachmentStore: params.attachmentStore,
+      attachmentTextMaxBytes: params.attachmentTextMaxBytes,
+    }),
     effectiveModel: params.currentModel,
   };
 }

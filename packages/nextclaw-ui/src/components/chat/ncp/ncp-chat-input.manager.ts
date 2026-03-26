@@ -27,10 +27,12 @@ export class NcpChatInputManager {
 
   private buildAttachmentSignature = (attachment: NcpDraftAttachment): string =>
     [
+      attachment.attachmentUri ?? '',
+      attachment.url ?? '',
       attachment.name,
       attachment.mimeType,
       String(attachment.sizeBytes),
-      attachment.contentBase64,
+      attachment.contentBase64 ?? '',
     ].join(':');
 
   constructor(

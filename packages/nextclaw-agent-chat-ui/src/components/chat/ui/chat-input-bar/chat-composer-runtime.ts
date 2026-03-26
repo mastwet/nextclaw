@@ -257,8 +257,21 @@ export class ChatComposerRuntime {
     if (!this.rootElement) {
       return;
     }
+    const targetSelection = this.selection;
     this.rootElement.focus();
-    this.viewController.restoreSelectionIfFocused(this.rootElement, this.selection);
+    const restoreSelection = () => {
+      if (!this.rootElement) {
+        return;
+      }
+      this.selection = targetSelection;
+      this.selectedRange = targetSelection;
+      this.viewController.restoreSelectionIfFocused(this.rootElement, targetSelection);
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(restoreSelection);
+      return;
+    }
+    restoreSelection();
   };
 
   private readonly requireConfig = (): ChatComposerRuntimeConfig => {

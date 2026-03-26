@@ -104,14 +104,14 @@ export const CHAT_LABELS: Record<string, { zh: string; en: string }> = {
   chatSkillsPickerOfficial: { zh: '官方', en: 'Official' },
   chatSkillsPickerManage: { zh: '管理技能', en: 'Manage Skills' },
   chatInputAttach: { zh: '添加附件', en: 'Attach file' },
-  chatInputImageUnsupported: {
-    zh: '当前仅支持 PNG、JPEG、WEBP、GIF 图片。',
-    en: 'Only PNG, JPEG, WEBP, and GIF images are supported.'
+  chatInputAttachmentUnsupported: {
+    zh: '当前上传流程不支持该文件类型。',
+    en: 'This file type is not supported in the current upload flow.'
   },
-  chatInputImageTooLarge: {
-    zh: '图片不能超过 {maxMb} MB。',
-    en: 'Images must be {maxMb} MB or smaller.'
+  chatInputAttachmentTooLarge: {
+    zh: '文件不能超过 {maxMb} MB。',
+    en: 'Files must be {maxMb} MB or smaller.'
   },
-  chatInputImageReadFailed: { zh: '读取图片失败，请重试。', en: 'Failed to read the image. Please try again.' },
+  chatInputAttachmentReadFailed: { zh: '读取文件失败，请重试。', en: 'Failed to read the file. Please try again.' },
   chatInputAttachComingSoon: { zh: '即将支持', en: 'Coming soon' }
 };

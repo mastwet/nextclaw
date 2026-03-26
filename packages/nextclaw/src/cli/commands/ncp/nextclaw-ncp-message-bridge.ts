@@ -1,4 +1,5 @@
 import type { InboundAttachment, SessionMessage } from "@nextclaw/core";
+import { buildNcpUserContent, type LocalAttachmentStore } from "@nextclaw/ncp-agent-runtime";
 import {
   type NcpMessage,
   type NcpMessagePart,
@@ -188,37 +189,23 @@ function resolveImageUrl(part: Extract<NcpMessagePart, { type: "file" }>): strin
   return `data:${mimeType};base64,${contentBase64}`;
 }
 
-export function buildLegacyUserContent(parts: NcpMessagePart[]): unknown {
-  const blocks: Array<Record<string, unknown>> = [];
+type LegacyContentBuildOptions = {
+  attachmentStore?: LocalAttachmentStore | null;
+  attachmentTextMaxBytes?: number;
+};
 
-  for (const part of parts) {
-    if (isTextLikePart(part) && part.text.length > 0) {
-      blocks.push({ type: "text", text: part.text });
-      continue;
-    }
-    if (!isRenderableImageFilePart(part)) {
-      continue;
-    }
-    const imageUrl = resolveImageUrl(part);
-    if (!imageUrl) {
-      continue;
-    }
-    blocks.push({
-      type: "image_url",
-      image_url: {
-        url: imageUrl,
-      },
-    });
-  }
-
-  if (blocks.length === 0) {
+export function buildLegacyUserContent(
+  parts: NcpMessagePart[],
+  options: LegacyContentBuildOptions = {},
+): unknown {
+  const content = buildNcpUserContent(parts, {
+    attachmentStore: options.attachmentStore,
+    maxTextBytes: options.attachmentTextMaxBytes,
+  });
+  if (content === "") {
     return serializeLegacyContent(parts);
   }
-  const textOnly = blocks.every((part) => part.type === "text");
-  if (textOnly) {
-    return blocks.map((part) => String(part.text ?? "")).join("");
-  }
-  return blocks;
+  return content;
 }
 
 export function extractAttachmentsFromNcpMessage(message: NcpMessage | undefined): InboundAttachment[] {
@@ -247,7 +234,78 @@ export function extractAttachmentsFromNcpMessage(message: NcpMessage | undefined
   return attachments;
 }
 
-export function toLegacyMessages(messages: NcpMessage[]): SessionMessage[] {
+function buildLegacyAssistantMessages(message: NcpMessage, timestamp: string): SessionMessage[] {
+  const textContent = extractTextFromNcpMessage(message);
+  const reasoningContent = message.parts
+    .filter((part): part is Extract<NcpMessagePart, { type: "reasoning" }> => part.type === "reasoning")
+    .map((part) => part.text)
+    .join("");
+  const toolInvocations = message.parts.filter(
+    (part): part is NcpToolInvocationPart => part.type === "tool-invocation"
+  );
+
+  const assistantMessage: SessionMessage = {
+    role: "assistant",
+    content: textContent,
+    timestamp,
+    ncp_message_id: message.id,
+    ncp_parts: structuredClone(message.parts),
+  };
+  if (typeof message.metadata?.reply_to === "string" && message.metadata.reply_to.trim().length > 0) {
+    assistantMessage.reply_to = message.metadata.reply_to.trim();
+  }
+  if (reasoningContent.length > 0) {
+    assistantMessage.reasoning_content = reasoningContent;
+  }
+  if (toolInvocations.length > 0) {
+    assistantMessage.tool_calls = toolInvocations.map((toolInvocation, index) => ({
+      id: toolInvocation.toolCallId ?? `${message.id}:tool:${index}`,
+      type: "function",
+      function: {
+        name: toolInvocation.toolName,
+        arguments: serializeToolArgs(toolInvocation.args),
+      },
+    }));
+  }
+
+  const messages: SessionMessage[] = [assistantMessage];
+  for (const toolInvocation of toolInvocations) {
+    if (toolInvocation.state !== "result") {
+      continue;
+    }
+    messages.push({
+      role: "tool",
+      name: toolInvocation.toolName,
+      tool_call_id: toolInvocation.toolCallId,
+      content:
+        typeof toolInvocation.result === "string"
+          ? toolInvocation.result
+          : JSON.stringify(toolInvocation.result ?? null),
+      timestamp,
+      ncp_message_id: message.id,
+    });
+  }
+  return messages;
+}
+
+function buildLegacyNonAssistantMessage(
+  message: NcpMessage,
+  timestamp: string,
+  options: LegacyContentBuildOptions,
+): SessionMessage {
+  return {
+    role: message.role,
+    content: buildLegacyUserContent(message.parts, options),
+    timestamp,
+    ncp_message_id: message.id,
+    ncp_parts: structuredClone(message.parts),
+  };
+}
+
+export function toLegacyMessages(
+  messages: NcpMessage[],
+  options: LegacyContentBuildOptions = {},
+): SessionMessage[] {
   const legacyMessages: SessionMessage[] = [];
 
   for (const rawMessage of messages) {
@@ -255,66 +313,11 @@ export function toLegacyMessages(messages: NcpMessage[]): SessionMessage[] {
     const timestamp = ensureIsoTimestamp(message.timestamp, new Date().toISOString());
 
     if (message.role === "assistant") {
-      const textContent = extractTextFromNcpMessage(message);
-      const reasoningContent = message.parts
-        .filter((part): part is Extract<NcpMessagePart, { type: "reasoning" }> => part.type === "reasoning")
-        .map((part) => part.text)
-        .join("");
-      const toolInvocations = message.parts.filter(
-        (part): part is NcpToolInvocationPart => part.type === "tool-invocation"
-      );
-
-      const assistantMessage: SessionMessage = {
-        role: "assistant",
-        content: textContent,
-        timestamp,
-        ncp_message_id: message.id,
-        ncp_parts: structuredClone(message.parts),
-      };
-      if (typeof message.metadata?.reply_to === "string" && message.metadata.reply_to.trim().length > 0) {
-        assistantMessage.reply_to = message.metadata.reply_to.trim();
-      }
-      if (reasoningContent.length > 0) {
-        assistantMessage.reasoning_content = reasoningContent;
-      }
-      if (toolInvocations.length > 0) {
-        assistantMessage.tool_calls = toolInvocations.map((toolInvocation, index) => ({
-          id: toolInvocation.toolCallId ?? `${message.id}:tool:${index}`,
-          type: "function",
-          function: {
-            name: toolInvocation.toolName,
-            arguments: serializeToolArgs(toolInvocation.args),
-          },
-        }));
-      }
-      legacyMessages.push(assistantMessage);
-
-      for (const toolInvocation of toolInvocations) {
-        if (toolInvocation.state !== "result") {
-          continue;
-        }
-        legacyMessages.push({
-          role: "tool",
-          name: toolInvocation.toolName,
-          tool_call_id: toolInvocation.toolCallId,
-          content:
-            typeof toolInvocation.result === "string"
-              ? toolInvocation.result
-              : JSON.stringify(toolInvocation.result ?? null),
-          timestamp,
-          ncp_message_id: message.id,
-        });
-      }
+      legacyMessages.push(...buildLegacyAssistantMessages(message, timestamp));
       continue;
     }
 
-    legacyMessages.push({
-      role: message.role,
-      content: buildLegacyUserContent(message.parts),
-      timestamp,
-      ncp_message_id: message.id,
-      ncp_parts: structuredClone(message.parts),
-    });
+    legacyMessages.push(buildLegacyNonAssistantMessage(message, timestamp, options));
   }
 
   return legacyMessages;

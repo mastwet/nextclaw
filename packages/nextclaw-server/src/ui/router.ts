@@ -6,6 +6,7 @@ import { AuthRoutesController } from "./router/auth.controller.js";
 import { ChatRoutesController } from "./router/chat.controller.js";
 import { ConfigRoutesController } from "./router/config.controller.js";
 import { CronRoutesController } from "./router/cron.controller.js";
+import { NcpAttachmentRoutesController } from "./router/ncp-attachment.controller.js";
 import { NcpSessionRoutesController } from "./router/ncp-session.controller.js";
 import {
   McpMarketplaceController,
@@ -72,7 +73,8 @@ function registerSessionRoutes(app: Hono, sessionController: SessionRoutesContro
 function registerNcpRoutes(
   app: Hono,
   options: UiRouterOptions,
-  ncpSessionController: NcpSessionRoutesController
+  ncpSessionController: NcpSessionRoutesController,
+  ncpAttachmentController: NcpAttachmentRoutesController,
 ): void {
   if (!options.ncpAgent) {
     return;
@@ -89,6 +91,8 @@ function registerNcpRoutes(
   app.put("/api/ncp/sessions/:sessionId", ncpSessionController.patchSession);
   app.get("/api/ncp/sessions/:sessionId/messages", ncpSessionController.listSessionMessages);
   app.delete("/api/ncp/sessions/:sessionId", ncpSessionController.deleteSession);
+  app.post("/api/ncp/attachments", ncpAttachmentController.uploadAttachments);
+  app.get("/api/ncp/attachments/content", ncpAttachmentController.getAttachmentContent);
 }
 
 function registerCronRoutes(app: Hono, cronController: CronRoutesController): void {
@@ -125,6 +129,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   const sessionController = new SessionRoutesController(options);
   const cronController = new CronRoutesController(options);
   const ncpSessionController = new NcpSessionRoutesController(options);
+  const ncpAttachmentController = new NcpAttachmentRoutesController(options);
   const remoteController = options.remoteAccess ? new RemoteRoutesController(options.remoteAccess) : null;
   const pluginMarketplaceController = new PluginMarketplaceController(options, marketplaceBaseUrl);
   const skillMarketplaceController = new SkillMarketplaceController(options, marketplaceBaseUrl);
@@ -152,7 +157,7 @@ export function createUiRouter(options: UiRouterOptions): Hono {
   registerConfigRoutes(app, configController);
   registerChatRoutes(app, chatController);
   registerSessionRoutes(app, sessionController);
-  registerNcpRoutes(app, options, ncpSessionController);
+  registerNcpRoutes(app, options, ncpSessionController, ncpAttachmentController);
   registerCronRoutes(app, cronController);
   registerRemoteRoutes(app, remoteController);
 

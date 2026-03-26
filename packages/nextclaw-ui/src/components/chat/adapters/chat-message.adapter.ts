@@ -18,6 +18,7 @@ export type ChatMessagePartSource =
       type: 'file';
       mimeType: string;
       data: string;
+      url?: string;
       name?: string;
     }
   | {
@@ -212,7 +213,10 @@ export function adaptChatMessages(params: {
                     ? params.texts.imageAttachmentLabel
                     : params.texts.fileAttachmentLabel,
               mimeType: part.mimeType,
-              dataUrl: `data:${part.mimeType};base64,${part.data}`,
+              dataUrl:
+                typeof part.url === 'string' && part.url.trim().length > 0
+                  ? part.url.trim()
+                  : `data:${part.mimeType};base64,${part.data}`,
               isImage
             }
           };

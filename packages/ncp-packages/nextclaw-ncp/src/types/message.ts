@@ -40,6 +40,8 @@ export type NcpFilePart = {
   type: "file";
   name?: string;
   mimeType?: string;
+  /** Stable logical attachment reference managed by the hosting app. */
+  attachmentUri?: string;
   /** Remote URL pointing to the file. Mutually exclusive with `contentBase64`. */
   url?: string;
   /** Inline file content encoded as Base64. Mutually exclusive with `url`. */

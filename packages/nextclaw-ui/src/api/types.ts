@@ -259,6 +259,19 @@ export type NcpSessionMessagesView = {
   total: number;
 };
 
+export type NcpAttachmentView = {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  attachmentUri: string;
+  url: string;
+};
+
+export type NcpAttachmentUploadView = {
+  attachments: NcpAttachmentView[];
+};
+
 export type NcpSessionStatusView = NcpSessionStatus;
 
 export type SessionPatchUpdate = {

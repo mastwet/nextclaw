@@ -164,3 +164,30 @@ it("maps file parts into previewable attachment view models", () => {
     },
   });
 });
+
+it("keeps named non-image files as downloadable attachments", () => {
+  const adapted = adapt([
+    {
+      id: "assistant-doc",
+      role: "assistant",
+      parts: [
+        {
+          type: "file",
+          name: "spec.pdf",
+          mimeType: "application/pdf",
+          data: "cGRm",
+        },
+      ],
+    },
+  ] as unknown as ChatMessageSource[]);
+
+  expect(adapted[0]?.parts[0]).toEqual({
+    type: "file",
+    file: {
+      label: "spec.pdf",
+      mimeType: "application/pdf",
+      dataUrl: "data:application/pdf;base64,cGRm",
+      isImage: false,
+    },
+  });
+});

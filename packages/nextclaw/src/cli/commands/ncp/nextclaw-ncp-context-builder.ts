@@ -8,6 +8,7 @@ import {
   type Config,
   type SessionManager,
 } from "@nextclaw/core";
+import type { LocalAttachmentStore } from "@nextclaw/ncp-agent-runtime";
 import type {
   NcpAgentRunInput,
   NcpContextBuilder,
@@ -45,6 +46,8 @@ type NextclawNcpContextBuilderOptions = {
   toolRegistry: NextclawNcpToolRegistry;
   getConfig: () => Config;
   resolveMessageToolHints?: MessageToolHintsResolver;
+  attachmentStore?: LocalAttachmentStore | null;
+  attachmentTextMaxBytes?: number;
 };
 
 type ResolvedAgentProfile = {
@@ -235,6 +238,8 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
           prependRequestedSkills(text, requestedSkillNames),
           timestamp,
         ),
+      attachmentStore: this.options.attachmentStore,
+      attachmentTextMaxBytes: this.options.attachmentTextMaxBytes,
     });
     effectiveModel = currentTurn.effectiveModel;
     const runtimeThinking = resolveThinkingLevel({
@@ -273,7 +278,10 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
     const contextBuilder = new ContextBuilder(profile.workspace, config.agents.context);
     const sessionMessages = _options?.sessionMessages ?? [];
     const messages = contextBuilder.buildMessages({
-      history: toLegacyMessages([...sessionMessages]),
+      history: toLegacyMessages([...sessionMessages], {
+        attachmentStore: this.options.attachmentStore,
+        attachmentTextMaxBytes: this.options.attachmentTextMaxBytes,
+      }),
       currentMessage: "",
       attachments: [],
       channel,

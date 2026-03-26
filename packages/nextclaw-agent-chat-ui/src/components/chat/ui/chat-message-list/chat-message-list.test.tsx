@@ -234,6 +234,43 @@ describe("ChatMessageList", () => {
     expect(container.querySelector("figcaption")).toBeNull();
   });
 
+  it("renders non-image attachments as downloadable cards", () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: "assistant-file",
+            role: "assistant",
+            roleLabel: "Assistant",
+            timestampLabel: "10:08",
+            parts: [
+              {
+                type: "file",
+                file: {
+                  label: "spec.pdf",
+                  mimeType: "application/pdf",
+                  dataUrl: "data:application/pdf;base64,cGRm",
+                  isImage: false,
+                },
+              },
+            ],
+          },
+        ]}
+        isSending={false}
+        hasAssistantDraft={false}
+        texts={{
+          copyCodeLabel: "Copy",
+          copiedCodeLabel: "Copied",
+          typingLabel: "Typing...",
+        }}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: /spec\.pdf.*application\/pdf/i });
+    expect(link.getAttribute("download")).toBe("spec.pdf");
+    expect(link.getAttribute("href")).toBe("data:application/pdf;base64,cGRm");
+  });
+
   it("treats whitespace-only and zero-width markdown drafts as loading instead of visible bubbles", () => {
     render(
       <ChatMessageList

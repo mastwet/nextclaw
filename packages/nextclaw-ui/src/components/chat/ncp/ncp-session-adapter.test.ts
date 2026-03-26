@@ -69,8 +69,10 @@ describe('adaptNcpMessageToUiMessage', () => {
       },
       {
         type: 'file',
+        name: 'sample.png',
         mimeType: 'image/png',
-        data: 'ZmFrZS1pbWFnZQ=='
+        data: 'ZmFrZS1pbWFnZQ==',
+        sizeBytes: 10
       },
       {
         type: 'text',

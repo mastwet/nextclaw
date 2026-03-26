@@ -3,12 +3,13 @@ import {
   type CronService,
   DisposableStore,
   type GatewayController,
+  getDataDir,
   type MessageBus,
   type ProviderManager,
   type SessionManager,
 } from "@nextclaw/core";
 import { McpRegistryService, McpServerLifecycleManager } from "@nextclaw/mcp";
-import { DefaultNcpAgentRuntime } from "@nextclaw/ncp-agent-runtime";
+import { DefaultNcpAgentRuntime, LocalAttachmentStore } from "@nextclaw/ncp-agent-runtime";
 import { McpNcpToolRegistryAdapter } from "@nextclaw/ncp-mcp";
 import {
   type NcpAgentRuntime,
@@ -32,6 +33,7 @@ import {
   UiNcpRuntimeRegistry,
   type UiNcpSessionTypeDescribeParams,
 } from "./ui-ncp-runtime-registry.js";
+import { join } from "node:path";
 
 const CODEX_RUNTIME_KIND = "codex";
 const CODEX_DIRECT_RUNTIME_BACKEND = "codex-sdk";
@@ -154,6 +156,7 @@ async function createMcpRuntimeSupport(getConfig: () => Config): Promise<{
 function createNativeRuntimeFactory(
   params: CreateUiNcpAgentParams,
   mcpToolRegistryAdapter: McpNcpToolRegistryAdapter,
+  attachmentStore: LocalAttachmentStore,
 ): RuntimeFactory {
   return ({
     stateManager,
@@ -195,6 +198,7 @@ function createNativeRuntimeFactory(
         toolRegistry,
         getConfig: params.getConfig,
         resolveMessageToolHints: params.resolveMessageToolHints,
+        attachmentStore,
       }),
       llmApi: new ProviderManagerNcpLLMApi(params.providerManager),
       toolRegistry,
@@ -281,6 +285,7 @@ function createUiNcpAgentHandle(params: {
   refreshPluginRuntimeRegistrations: () => void;
   applyExtensionRegistry: (extensionRegistry?: NextclawExtensionRegistry) => void;
   applyMcpConfig: (config: Config) => Promise<void>;
+  attachmentStore: LocalAttachmentStore;
 }): UiNcpAgentHandle {
   return {
     basePath: "/api/ncp/agent",
@@ -291,6 +296,11 @@ function createUiNcpAgentHandle(params: {
       params.refreshPluginRuntimeRegistrations();
       return params.runtimeRegistry.listSessionTypes(describeParams);
     },
+    attachmentApi: {
+      saveAttachment: (input) => params.attachmentStore.saveAttachment(input),
+      statAttachment: (uri) => params.attachmentStore.statAttachment(uri),
+      resolveContentPath: (uri) => params.attachmentStore.resolveContentPath(uri),
+    },
     applyExtensionRegistry: params.applyExtensionRegistry,
     applyMcpConfig: params.applyMcpConfig,
   };
@@ -300,7 +310,10 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
   const sessionStore = new NextclawAgentSessionStore(params.sessionManager);
   const runtimeRegistry = new UiNcpRuntimeRegistry();
   const { toolRegistryAdapter, applyMcpConfig } = await createMcpRuntimeSupport(params.getConfig);
-  const createNativeRuntime = createNativeRuntimeFactory(params, toolRegistryAdapter);
+  const attachmentStore = new LocalAttachmentStore({
+    rootDir: join(getDataDir(), "attachments"),
+  });
+  const createNativeRuntime = createNativeRuntimeFactory(params, toolRegistryAdapter, attachmentStore);
 
   runtimeRegistry.register({
     kind: "native",
@@ -334,5 +347,6 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
       pluginRuntimeRegistrationController.refreshPluginRuntimeRegistrations,
     applyExtensionRegistry: pluginRuntimeRegistrationController.applyExtensionRegistry,
     applyMcpConfig,
+    attachmentStore,
   });
 }

@@ -1,4 +1,4 @@
-import type { NcpMessage, OpenAIContentPart } from "@nextclaw/ncp";
+import type { NcpMessage } from "@nextclaw/ncp";
 import type {
   NcpContextBuilder,
   NcpContextPrepareOptions,
@@ -9,6 +9,8 @@ import type {
 } from "@nextclaw/ncp";
 import type { NcpAgentRunInput } from "@nextclaw/ncp";
 import type { NcpToolRegistry } from "@nextclaw/ncp";
+import type { LocalAttachmentStore } from "./attachment-store.js";
+import { buildNcpUserContent } from "./user-content.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -20,56 +22,6 @@ function readOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
-}
-
-function isRenderableImagePart(part: NcpMessage["parts"][number]): part is Extract<NcpMessage["parts"][number], { type: "file" }> {
-  return (
-    part.type === "file" &&
-    typeof part.mimeType === "string" &&
-    part.mimeType.startsWith("image/") &&
-    ((typeof part.url === "string" && part.url.trim().length > 0) ||
-      (typeof part.contentBase64 === "string" && part.contentBase64.trim().length > 0))
-  );
-}
-
-function toOpenAIUserContent(parts: NcpMessage["parts"]): string | OpenAIContentPart[] {
-  const content: OpenAIContentPart[] = [];
-
-  for (const part of parts) {
-    if (part.type === "text" && part.text.trim().length > 0) {
-      content.push({ type: "text", text: part.text });
-      continue;
-    }
-    if (part.type === "rich-text" && part.text.trim().length > 0) {
-      content.push({ type: "text", text: part.text });
-      continue;
-    }
-    if (!isRenderableImagePart(part)) {
-      continue;
-    }
-
-    const url =
-      typeof part.url === "string" && part.url.trim().length > 0
-        ? part.url.trim()
-        : `data:${part.mimeType};base64,${part.contentBase64?.trim() ?? ""}`;
-
-    content.push({
-      type: "image_url",
-      image_url: {
-        url,
-      },
-    });
-  }
-
-  if (content.length === 0) {
-    return "";
-  }
-
-  if (content.length === 1 && content[0]?.type === "text") {
-    return content[0].text;
-  }
-
-  return content;
 }
 
 function isTextLikePart(part: NcpMessagePart): part is Extract<NcpMessagePart, { type: "text" | "rich-text" }> {
@@ -106,13 +58,39 @@ function readRequestedToolNames(metadata: Record<string, unknown>): string[] {
   return [...deduped];
 }
 
-function messageToOpenAI(msg: NcpMessage): OpenAIChatMessage[] {
+type DefaultNcpContextBuilderOptions = {
+  toolRegistry?: NcpToolRegistry;
+  attachmentStore?: LocalAttachmentStore | null;
+  attachmentTextMaxBytes?: number;
+};
+
+function isDefaultNcpContextBuilderOptions(
+  value: NcpToolRegistry | DefaultNcpContextBuilderOptions | undefined,
+): value is DefaultNcpContextBuilderOptions {
+  return Boolean(value) && typeof value === "object" && !("getToolDefinitions" in value);
+}
+
+function messageToOpenAI(
+  msg: NcpMessage,
+  options: {
+    attachmentStore?: LocalAttachmentStore | null;
+    attachmentTextMaxBytes?: number;
+  },
+): OpenAIChatMessage[] {
   const role = msg.role as "user" | "assistant" | "system" | "tool";
   const parts = msg.parts ?? [];
 
   if (role === "user" || role === "system") {
     if (role === "user") {
-      return [{ role, content: toOpenAIUserContent(parts) }];
+      return [
+        {
+          role,
+          content: buildNcpUserContent(parts, {
+            attachmentStore: options.attachmentStore,
+            maxTextBytes: options.attachmentTextMaxBytes,
+          }),
+        },
+      ];
     }
     const text = parts.filter(isTextLikePart).map((part) => part.text).join("");
     return [{ role, content: text }];
@@ -185,7 +163,21 @@ function messageToOpenAI(msg: NcpMessage): OpenAIChatMessage[] {
 }
 
 export class DefaultNcpContextBuilder implements NcpContextBuilder {
-  constructor(private readonly toolRegistry?: NcpToolRegistry) {}
+  private readonly toolRegistry?: NcpToolRegistry;
+  private readonly attachmentStore?: LocalAttachmentStore | null;
+  private readonly attachmentTextMaxBytes?: number;
+
+  constructor(toolRegistry?: NcpToolRegistry);
+  constructor(options?: DefaultNcpContextBuilderOptions);
+  constructor(toolRegistryOrOptions?: NcpToolRegistry | DefaultNcpContextBuilderOptions) {
+    if (isDefaultNcpContextBuilderOptions(toolRegistryOrOptions)) {
+      this.toolRegistry = toolRegistryOrOptions.toolRegistry;
+      this.attachmentStore = toolRegistryOrOptions.attachmentStore;
+      this.attachmentTextMaxBytes = toolRegistryOrOptions.attachmentTextMaxBytes;
+      return;
+    }
+    this.toolRegistry = toolRegistryOrOptions;
+  }
 
   prepare = (
     input: NcpAgentRunInput,
@@ -204,11 +196,21 @@ export class DefaultNcpContextBuilder implements NcpContextBuilder {
     }
 
     for (const msg of sessionMessages.slice(-maxMessages)) {
-      messages.push(...messageToOpenAI(msg));
+      messages.push(
+        ...messageToOpenAI(msg, {
+          attachmentStore: this.attachmentStore,
+          attachmentTextMaxBytes: this.attachmentTextMaxBytes,
+        }),
+      );
     }
 
     for (const msg of input.messages) {
-      messages.push(...messageToOpenAI(msg));
+      messages.push(
+        ...messageToOpenAI(msg, {
+          attachmentStore: this.attachmentStore,
+          attachmentTextMaxBytes: this.attachmentTextMaxBytes,
+        }),
+      );
     }
 
     const toolDefinitions = this.toolRegistry?.getToolDefinitions() ?? [];

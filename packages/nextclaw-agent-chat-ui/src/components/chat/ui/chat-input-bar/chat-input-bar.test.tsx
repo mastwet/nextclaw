@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { ChatInputBar, type ChatInputBarHandle } from './chat-input-bar';
 import type { ChatComposerNode, ChatInputBarProps } from '../../view-models/chat-ui.types';
 import { createChatComposerTextNode, createChatComposerTokenNode } from './chat-composer.utils';
@@ -258,7 +258,7 @@ it('forwards pasted files to the attachment handler', () => {
   expect(onFilesAdd).toHaveBeenCalledWith([file]);
 });
 
-it('inserts a file token at the saved caret position', () => {
+it('inserts a file token at the saved caret position', async () => {
   render(<FileTokenInsertionHarness />);
 
   const textbox = screen.getByRole('textbox');
@@ -266,7 +266,11 @@ it('inserts a file token at the saved caret position', () => {
   setCursorOffset(textbox, 2);
   fireEvent.mouseUp(textbox);
 
-  fireEvent.click(screen.getByRole('button', { name: 'Insert image' }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Insert image' }));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+  });
 
   const token = textbox.querySelector('[data-composer-token-key="sample-image"]');
   expect(token).toBeTruthy();
@@ -275,6 +279,10 @@ it('inserts a file token at the saved caret position', () => {
   expect(token?.className).toContain('rounded-lg');
   expect(token?.textContent).toContain('sample.png');
   expect(token?.textContent).not.toContain('PNG');
+
+  const selection = window.getSelection();
+  expect(selection?.anchorNode).toBe(textbox);
+  expect(selection?.anchorOffset).toBe(2);
 });
 
 it('does not commit intermediate IME composition text before composition ends', () => {

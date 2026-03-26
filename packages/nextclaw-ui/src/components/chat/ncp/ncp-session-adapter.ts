@@ -121,8 +121,22 @@ function toUiParts(parts: NcpMessagePart[]): UIMessage['parts'] {
     if (part.type === 'file' && part.contentBase64) {
       uiParts.push({
         type: 'file',
+        ...(part.name ? { name: part.name } : {}),
         mimeType: part.mimeType ?? 'application/octet-stream',
-        data: part.contentBase64
+        data: part.contentBase64,
+        ...(part.url ? { url: part.url } : {}),
+        ...(typeof part.sizeBytes === 'number' ? { sizeBytes: part.sizeBytes } : {})
+      });
+      continue;
+    }
+    if (part.type === 'file' && part.url) {
+      uiParts.push({
+        type: 'file',
+        ...(part.name ? { name: part.name } : {}),
+        mimeType: part.mimeType ?? 'application/octet-stream',
+        data: '',
+        url: part.url,
+        ...(typeof part.sizeBytes === 'number' ? { sizeBytes: part.sizeBytes } : {})
       });
       continue;
     }

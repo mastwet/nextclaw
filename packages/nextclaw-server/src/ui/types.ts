@@ -2,9 +2,11 @@ import type { CronService, ThinkingLevel } from "@nextclaw/core";
 import type { PluginChannelBinding, PluginUiMetadata } from "@nextclaw/openclaw-compat";
 import type { NcpAgentClientEndpoint, NcpMessage, NcpSessionApi, NcpSessionSummary } from "@nextclaw/ncp";
 import type { NcpHttpAgentStreamProvider } from "@nextclaw/ncp-http-agent-server";
+import type { UiNcpStoredAttachmentRecord } from "./ncp-attachment.types.js";
 import type { MarketplaceApiConfig } from "./marketplace.types.js";
 import type { UiRemoteAccessHost } from "./router/types.js";
 export type * from "./marketplace.types.js";
+export type * from "./ncp-attachment.types.js";
 export type ApiError = {
   code: string;
   message: string;
@@ -656,6 +658,16 @@ export type UiNcpAgent = {
   streamProvider?: NcpHttpAgentStreamProvider;
   sessionApi?: NcpSessionApi;
   listSessionTypes?: (params?: SessionTypeDescribeParams) => Promise<ChatSessionTypesView> | ChatSessionTypesView;
+  attachmentApi?: {
+    saveAttachment: (input: {
+      fileName: string;
+      mimeType?: string | null;
+      bytes: Uint8Array;
+      createdAt?: Date;
+    }) => Promise<UiNcpStoredAttachmentRecord>;
+    statAttachment: (uri: string) => Promise<UiNcpStoredAttachmentRecord | null> | UiNcpStoredAttachmentRecord | null;
+    resolveContentPath: (uri: string) => string | null;
+  };
   basePath?: string;
 };
 

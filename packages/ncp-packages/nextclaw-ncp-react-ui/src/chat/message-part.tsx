@@ -23,23 +23,34 @@ export function MessagePart({ part }: { part: NcpMessagePart }) {
     );
   }
 
-  if (part.type === "file" && part.contentBase64) {
-    const dataUrl = `data:${part.mimeType ?? "application/octet-stream"};base64,${part.contentBase64}`;
+  if (part.type === "file" && (part.contentBase64 || part.url)) {
+    const dataUrl =
+      part.url?.trim() ||
+      `data:${part.mimeType ?? "application/octet-stream"};base64,${part.contentBase64 ?? ""}`;
     const isImage = (part.mimeType ?? "").startsWith("image/");
+    if (isImage) {
+      return (
+        <img
+          className="part-file-image"
+          src={dataUrl}
+          alt={part.name ?? "attachment"}
+        />
+      );
+    }
+
     return (
-      <div className="part-file">
-        {isImage ? (
-          <img
-            className="part-file-image"
-            src={dataUrl}
-            alt={part.name ?? "attachment"}
-          />
-        ) : null}
+      <a
+        className="part-file"
+        href={dataUrl}
+        download={part.name ?? "attachment"}
+        target="_blank"
+        rel="noreferrer"
+      >
         <div className="part-file-meta">
           <div>{part.name ?? "attachment"}</div>
           <div className="ncp-ui-muted">{part.mimeType ?? "application/octet-stream"}</div>
         </div>
-      </div>
+      </a>
     );
   }
 

@@ -10,14 +10,18 @@ export const DEFAULT_NCP_IMAGE_ATTACHMENT_MIME_TYPES = [
   "image/gif",
 ] as const;
 
-export const DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+export const DEFAULT_NCP_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+export const DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES = DEFAULT_NCP_ATTACHMENT_MAX_BYTES;
+export const DEFAULT_NCP_FALLBACK_ATTACHMENT_MIME_TYPE = "application/octet-stream";
 
 export type NcpDraftAttachment = {
   id: string;
   name: string;
   mimeType: string;
-  contentBase64: string;
   sizeBytes: number;
+  attachmentUri?: string;
+  url?: string;
+  contentBase64?: string;
 };
 
 export type NcpRejectedAttachment = {
@@ -30,6 +34,10 @@ export type NcpRejectedAttachment = {
 export type ReadNcpDraftAttachmentsOptions = {
   acceptedMimeTypes?: readonly string[];
   maxBytes?: number;
+};
+
+export type UploadNcpDraftAttachmentsOptions = ReadNcpDraftAttachmentsOptions & {
+  uploadBatch: (files: File[]) => Promise<NcpDraftAttachment[]>;
 };
 
 export type ReadNcpDraftAttachmentsResult = {
@@ -61,7 +69,53 @@ function toBase64Content(dataUrl: string): string {
   return commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
 }
 
+function normalizeAttachmentMimeType(file: File): string {
+  const mimeType = file.type.trim().toLowerCase();
+  return mimeType.length > 0 ? mimeType : DEFAULT_NCP_FALLBACK_ATTACHMENT_MIME_TYPE;
+}
+
+function validateAttachmentFile(
+  file: File,
+  options: ReadNcpDraftAttachmentsOptions,
+): { ok: true; mimeType: string } | { ok: false; rejected: NcpRejectedAttachment } {
+  const acceptedMimeTypes =
+    options.acceptedMimeTypes && options.acceptedMimeTypes.length > 0
+      ? new Set(options.acceptedMimeTypes.map((mimeType) => mimeType.trim().toLowerCase()))
+      : null;
+  const maxBytes = options.maxBytes ?? DEFAULT_NCP_ATTACHMENT_MAX_BYTES;
+  const mimeType = normalizeAttachmentMimeType(file);
+  if (acceptedMimeTypes && !acceptedMimeTypes.has(mimeType)) {
+    return {
+      ok: false,
+      rejected: {
+        fileName: file.name,
+        mimeType,
+        sizeBytes: file.size,
+        reason: "unsupported-type",
+      },
+    };
+  }
+  if (file.size > maxBytes) {
+    return {
+      ok: false,
+      rejected: {
+        fileName: file.name,
+        mimeType,
+        sizeBytes: file.size,
+        reason: "too-large",
+      },
+    };
+  }
+  return { ok: true, mimeType };
+}
+
 export function buildNcpImageAttachmentDataUrl(attachment: NcpDraftAttachment): string {
+  if (attachment.url?.trim()) {
+    return attachment.url.trim();
+  }
+  if (!attachment.contentBase64?.trim()) {
+    throw new Error(`Attachment ${attachment.name} does not have image content.`);
+  }
   return `data:${attachment.mimeType};base64,${attachment.contentBase64}`;
 }
 
@@ -85,7 +139,13 @@ export function buildNcpRequestEnvelope(params: {
             type: "file" as const,
             name: attachment.name,
             mimeType: attachment.mimeType,
-            contentBase64: attachment.contentBase64,
+            ...(attachment.attachmentUri?.trim()
+              ? { attachmentUri: attachment.attachmentUri.trim() }
+              : {}),
+            ...(attachment.url?.trim() ? { url: attachment.url.trim() } : {}),
+            ...(attachment.contentBase64?.trim()
+              ? { contentBase64: attachment.contentBase64.trim() }
+              : {}),
             sizeBytes: attachment.sizeBytes,
           })),
         ];
@@ -116,31 +176,13 @@ export async function readFilesAsNcpDraftAttachments(
   files: Iterable<File>,
   options: ReadNcpDraftAttachmentsOptions = {},
 ): Promise<ReadNcpDraftAttachmentsResult> {
-  const acceptedMimeTypes = new Set(
-    options.acceptedMimeTypes ?? DEFAULT_NCP_IMAGE_ATTACHMENT_MIME_TYPES,
-  );
-  const maxBytes = options.maxBytes ?? DEFAULT_NCP_IMAGE_ATTACHMENT_MAX_BYTES;
   const attachments: NcpDraftAttachment[] = [];
   const rejected: NcpRejectedAttachment[] = [];
 
   for (const file of files) {
-    const mimeType = file.type.trim().toLowerCase();
-    if (!acceptedMimeTypes.has(mimeType)) {
-      rejected.push({
-        fileName: file.name,
-        mimeType,
-        sizeBytes: file.size,
-        reason: "unsupported-type",
-      });
-      continue;
-    }
-    if (file.size > maxBytes) {
-      rejected.push({
-        fileName: file.name,
-        mimeType,
-        sizeBytes: file.size,
-        reason: "too-large",
-      });
+    const validation = validateAttachmentFile(file, options);
+    if (!validation.ok) {
+      rejected.push(validation.rejected);
       continue;
     }
 
@@ -149,14 +191,14 @@ export async function readFilesAsNcpDraftAttachments(
       attachments.push({
         id: createAttachmentId(),
         name: file.name,
-        mimeType,
+        mimeType: validation.mimeType,
         contentBase64: toBase64Content(dataUrl),
         sizeBytes: file.size,
       });
     } catch {
       rejected.push({
         fileName: file.name,
-        mimeType,
+        mimeType: validation.mimeType,
         sizeBytes: file.size,
         reason: "read-failed",
       });
@@ -164,4 +206,46 @@ export async function readFilesAsNcpDraftAttachments(
   }
 
   return { attachments, rejected };
+}
+
+export async function uploadFilesAsNcpDraftAttachments(
+  files: Iterable<File>,
+  options: UploadNcpDraftAttachmentsOptions,
+): Promise<ReadNcpDraftAttachmentsResult> {
+  const validFiles: File[] = [];
+  const rejected: NcpRejectedAttachment[] = [];
+
+  for (const file of files) {
+    const validation = validateAttachmentFile(file, options);
+    if (!validation.ok) {
+      rejected.push(validation.rejected);
+      continue;
+    }
+    validFiles.push(file);
+  }
+
+  if (validFiles.length === 0) {
+    return { attachments: [], rejected };
+  }
+
+  try {
+    const attachments = await options.uploadBatch(validFiles);
+    return {
+      attachments,
+      rejected,
+    };
+  } catch {
+    rejected.push(
+      ...validFiles.map((file) => ({
+        fileName: file.name,
+        mimeType: normalizeAttachmentMimeType(file),
+        sizeBytes: file.size,
+        reason: "read-failed" as const,
+      })),
+    );
+    return {
+      attachments: [],
+      rejected,
+    };
+  }
 }

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfigSchema, SessionManager } from "@nextclaw/core";
+import { LocalAttachmentStore } from "@nextclaw/ncp-agent-runtime";
 import { NextclawNcpContextBuilder } from "./nextclaw-ncp-context-builder.js";
 
 const tempWorkspaces: string[] = [];
@@ -16,6 +17,12 @@ function createWorkspace(): { workspace: string; home: string } {
   mkdirSync(home, { recursive: true });
   process.env.NEXTCLAW_HOME = home;
   return { workspace, home };
+}
+
+function createAttachmentStore(home: string): LocalAttachmentStore {
+  return new LocalAttachmentStore({
+    rootDir: join(home, "attachments"),
+  });
 }
 
 afterEach(() => {
@@ -33,8 +40,7 @@ afterEach(() => {
   }
 });
 
-describe("NextclawNcpContextBuilder tool catalog", () => {
-  it("injects runtime tool definitions into the system prompt", () => {
+it("injects runtime tool definitions into the system prompt", () => {
     const { workspace } = createWorkspace();
     const config = ConfigSchema.parse({
       agents: {
@@ -90,9 +96,9 @@ describe("NextclawNcpContextBuilder tool catalog", () => {
     expect(systemMessage?.role).toBe("system");
     expect(String(systemMessage?.content)).toContain("- feishu_doc: Feishu document operations");
     expect(prepareForRun).toHaveBeenCalledTimes(1);
-  });
+});
 
-  it("keeps current-turn text and image parts in composer order", () => {
+it("keeps current-turn text and image parts in composer order", () => {
     const { workspace } = createWorkspace();
     const config = ConfigSchema.parse({
       agents: {
@@ -166,9 +172,9 @@ describe("NextclawNcpContextBuilder tool catalog", () => {
       ],
     });
     expect(prepared.model).toBe("dashscope/qwen3.5-plus");
-  });
+});
 
-  it("keeps historical image context without changing the selected model", () => {
+it("keeps historical image context without changing the selected model", () => {
     const { workspace } = createWorkspace();
     const config = ConfigSchema.parse({
       agents: {
@@ -257,5 +263,79 @@ describe("NextclawNcpContextBuilder tool catalog", () => {
       role: "user",
       content: "what is in that image?",
     });
-  });
+});
+
+it("injects uploaded text attachments into current-turn content", async () => {
+    const { workspace, home } = createWorkspace();
+    const config = ConfigSchema.parse({
+      agents: {
+        defaults: {
+          workspace,
+          model: "dashscope/qwen3.5-plus",
+          contextTokens: 200000,
+          maxToolIterations: 8,
+        },
+      },
+      providers: {
+        openai: {
+          enabled: true,
+          apiKey: "test-openai-key",
+          models: ["gpt-5.4"],
+        },
+      },
+    });
+    const attachmentStore = createAttachmentStore(home);
+    const record = await attachmentStore.saveAttachment({
+      fileName: "config.json",
+      mimeType: "application/json",
+      bytes: Buffer.from('{"route":"native"}', "utf8"),
+    });
+    const builder = new NextclawNcpContextBuilder({
+      sessionManager: new SessionManager(workspace),
+      toolRegistry: {
+        prepareForRun: vi.fn(),
+        getToolDefinitions: () => [],
+      } as never,
+      getConfig: () => config,
+      attachmentStore,
+    });
+
+    const sessionId = `session-${randomUUID()}`;
+    const prepared = builder.prepare({
+      sessionId,
+      messages: [
+        {
+          id: "user-attachment-1",
+          sessionId,
+          role: "user",
+          status: "final",
+          timestamp: new Date("2026-03-25T10:00:00.000Z").toISOString(),
+          parts: [
+            { type: "text", text: "read this json" },
+            {
+              type: "file",
+              name: "config.json",
+              mimeType: "application/json",
+              attachmentUri: record.uri,
+              sizeBytes: record.sizeBytes,
+            },
+          ],
+        },
+      ],
+      metadata: {},
+    } as never);
+
+    expect(prepared.messages.at(-1)).toEqual({
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: "read this json",
+        },
+        {
+          type: "text",
+          text: '[Attachment: config.json]\n[MIME: application/json]\n{"route":"native"}',
+        },
+      ],
+    });
 });

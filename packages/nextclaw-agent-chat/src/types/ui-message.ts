@@ -67,8 +67,11 @@ export type SourceUIPart = {
 
 export type FileUIPart = {
   type: 'file';
+  name?: string;
   mimeType: string;
   data: string;
+  url?: string;
+  sizeBytes?: number;
 };
 
 export type StepStartUIPart = {
