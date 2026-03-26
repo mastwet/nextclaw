@@ -272,6 +272,9 @@ it('inserts a file token at the saved caret position', () => {
   expect(token).toBeTruthy();
   expect(token?.previousSibling?.textContent).toBe('He');
   expect(token?.nextSibling?.textContent).toBe('llo');
+  expect(token?.className).toContain('rounded-lg');
+  expect(token?.textContent).toContain('sample.png');
+  expect(token?.textContent).not.toContain('PNG');
 });
 
 it('does not commit intermediate IME composition text before composition ends', () => {

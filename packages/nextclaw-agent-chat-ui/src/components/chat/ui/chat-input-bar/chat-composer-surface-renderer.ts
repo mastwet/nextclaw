@@ -62,31 +62,9 @@ export class ChatComposerSurfaceRenderer {
     element.append(this.createTokenIcon(node.tokenKind));
 
     const label = document.createElement('span');
-    label.className = node.tokenKind === 'file' ? 'min-w-0 flex-1 truncate text-[12px] font-medium text-slate-800' : 'truncate';
+    label.className = node.tokenKind === 'file' ? 'min-w-0 flex-1 truncate text-[12px] font-medium text-slate-700' : 'truncate';
     label.textContent = node.label;
     element.append(label);
-
-    if (node.tokenKind === 'file') {
-      const badge = document.createElement('span');
-      badge.className = [
-        'hidden',
-        'shrink-0',
-        'rounded-md',
-        'border',
-        'border-sky-100',
-        'bg-sky-50',
-        'px-1.5',
-        'py-0.5',
-        'text-[9px]',
-        'font-semibold',
-        'uppercase',
-        'tracking-[0.12em]',
-        'text-sky-700',
-        'sm:inline-flex'
-      ].join(' ');
-      badge.textContent = this.resolveFileBadgeLabel(node.label);
-      element.append(badge);
-    }
 
     return element;
   };
@@ -99,21 +77,19 @@ export class ChatComposerSurfaceRenderer {
       return [
         'mx-[2px]',
         'inline-flex',
-        'h-8',
-        'max-w-[min(100%,19rem)]',
+        'h-7',
+        'max-w-[min(100%,17rem)]',
         'items-center',
-        'gap-2',
-        'rounded-xl',
+        'gap-1.5',
+        'rounded-lg',
         'border',
         'px-2',
-        'pr-2.5',
         'align-baseline',
-        'shadow-[0_1px_2px_rgba(15,23,42,0.06)]',
         'transition-[border-color,background-color,box-shadow,color]',
         'duration-150',
         isSelected
-          ? 'border-sky-300 bg-sky-50 text-slate-900 shadow-[0_0_0_3px_rgba(14,165,233,0.14)]'
-          : 'border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.98))] text-slate-700'
+          ? 'border-slate-300 bg-slate-100 text-slate-800 shadow-[0_0_0_2px_rgba(148,163,184,0.14)]'
+          : 'border-slate-200/80 bg-slate-50 text-slate-700'
       ].join(' ');
     }
 
@@ -140,7 +116,7 @@ export class ChatComposerSurfaceRenderer {
   private readonly createTokenIcon = (tokenKind: 'skill' | 'file'): HTMLElement => {
     const wrapper = document.createElement('span');
     wrapper.className = tokenKind === 'file'
-      ? 'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700'
+      ? 'inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 ring-1 ring-black/5'
       : 'inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center text-primary/70';
     wrapper.append(tokenKind === 'file' ? this.createFileIcon() : this.createSkillIcon());
     return wrapper;
@@ -161,11 +137,6 @@ export class ChatComposerSurfaceRenderer {
       { tag: 'path', attrs: { d: 'm4.75 10 2.25-2.5 1.75 1.75 1.25-1.25 2 2' } },
       { tag: 'path', attrs: { d: 'M9.75 6.25h.01' } }
     ]);
-  };
-
-  private readonly resolveFileBadgeLabel = (label: string): string => {
-    const match = /\.([a-z0-9]+)$/i.exec(label.trim());
-    return match?.[1]?.slice(0, 4).toUpperCase() || 'IMG';
   };
 
   private readonly createSvgIcon = (
