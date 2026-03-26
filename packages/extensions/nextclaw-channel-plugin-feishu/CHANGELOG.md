@@ -1,5 +1,11 @@
 # @nextclaw/channel-plugin-feishu
 
+## 0.2.20
+
+### Patch Changes
+
+- Fix Feishu immediate feedback by triggering reply-start acknowledgements through the runtime bridge and using a visible receipt reaction instead of a streaming placeholder.
+
 ## 0.2.19
 
 ### Patch Changes

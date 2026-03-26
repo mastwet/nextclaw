@@ -1,5 +1,15 @@
 # nextclaw
 
+## 0.15.13
+
+### Patch Changes
+
+- Fix Feishu immediate feedback by triggering reply-start acknowledgements through the runtime bridge and using a visible receipt reaction instead of a streaming placeholder.
+- Updated dependencies
+  - @nextclaw/openclaw-compat@0.3.31
+  - @nextclaw/server@0.10.55
+  - @nextclaw/remote@0.1.49
+
 ## 0.15.12
 
 ### Patch Changes

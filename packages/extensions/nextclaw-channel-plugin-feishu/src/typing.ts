@@ -3,10 +3,9 @@ import { resolveFeishuAccount } from "./accounts.js";
 import { createFeishuClient } from "./client.js";
 import { getFeishuRuntime } from "./runtime.js";
 
-// Feishu emoji types for typing indicator
-// See: https://open.feishu.cn/document/server-docs/im-v1/message-reaction/emojis-introduce
-// Full list: https://github.com/go-lark/lark/blob/main/emoji.go
-const TYPING_EMOJI = "Typing"; // Typing indicator emoji
+// Feishu's Typing reaction is not consistently surfaced to users, so use a
+// visible acknowledgement reaction for immediate feedback on receipt.
+const TYPING_EMOJI = "THUMBSUP";
 
 /**
  * Feishu API error codes that indicate the caller should back off.
@@ -163,6 +162,10 @@ export async function removeTypingIndicator(params: {
   accountId?: string;
   runtime?: RuntimeEnv;
 }): Promise<void> {
+  // Keep the acknowledgement reaction visible after the reply completes.
+  if (TYPING_EMOJI !== "Typing") {
+    return;
+  }
   const { cfg, state, accountId, runtime } = params;
   if (!state.reactionId) {
     return;

@@ -370,6 +370,7 @@ export type PluginReplyDispatchParams = {
   dispatcherOptions: {
     deliver: (replyPayload: { text?: string }, info: { kind: string }) => Promise<void> | void;
     onError?: (error: unknown) => void;
+    onReplyStart?: () => Promise<void> | void;
   };
 };
 

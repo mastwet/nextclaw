@@ -156,4 +156,47 @@ describe("installPluginRuntimeBridge media attachment forwarding", () => {
       }),
     );
   });
+
+  it("triggers onReplyStart before runtime processing", async () => {
+    const callOrder: string[] = [];
+    const processDirect = vi.fn(async () => {
+      callOrder.push("processDirect");
+      return "ok";
+    });
+    const onReplyStart = vi.fn(async () => {
+      callOrder.push("onReplyStart");
+    });
+
+    installPluginRuntimeBridge({
+      runtimePool: { processDirect } as never,
+      runtimeConfigPath: "/tmp/config.json",
+      pluginChannelBindings: [],
+    });
+
+    const bridge = setPluginRuntimeBridgeMock.mock.calls[0]?.[0] as {
+      dispatchReplyWithBufferedBlockDispatcher: (params: {
+        ctx: Record<string, unknown>;
+        dispatcherOptions: {
+          deliver: (payload: unknown, info: unknown) => Promise<void>;
+          onReplyStart?: () => Promise<void> | void;
+        };
+      }) => Promise<void>;
+    };
+
+    await bridge.dispatchReplyWithBufferedBlockDispatcher({
+      ctx: {
+        Body: "hello",
+        OriginatingChannel: "feishu",
+        OriginatingTo: "oc_chat",
+      },
+      dispatcherOptions: {
+        onReplyStart,
+        deliver: vi.fn(async () => {}),
+      },
+    });
+
+    expect(onReplyStart).toHaveBeenCalledTimes(1);
+    expect(processDirect).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(["onReplyStart", "processDirect"]);
+  });
 });

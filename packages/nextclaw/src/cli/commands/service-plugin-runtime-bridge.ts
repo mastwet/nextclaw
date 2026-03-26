@@ -50,6 +50,7 @@ export function installPluginRuntimeBridge(params: InstallPluginRuntimeBridgePar
       }
 
       try {
+        await dispatcherOptions.onReplyStart?.();
         const response = await runtimePool.processDirect(request);
         const replyText = typeof response === "string" ? response : String(response ?? "");
         if (replyText.trim()) {
