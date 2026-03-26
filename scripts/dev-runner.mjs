@@ -57,6 +57,8 @@ const firstPartyPluginDir = resolve(rootDir, "packages/extensions");
 const DEFAULT_BACKEND_PORT = 18792;
 const DEFAULT_FRONTEND_PORT = 5174;
 const PORT_SCAN_LIMIT = 20;
+const BACKEND_READY_TIMEOUT_MS = 30_000;
+const BACKEND_READY_POLL_MS = 100;
 
 const binName = process.platform === "win32" ? (name) => `${name}.cmd` : (name) => name;
 const backendBin = resolve(backendDir, "node_modules/.bin", binName("tsx"));
@@ -187,9 +189,25 @@ const spawnProcess = (label, cmd, args, cwd, extraEnv = {}) => {
       }
     }
   });
+
+  return child;
 };
 
-spawnProcess(
+async function waitForBackendReady(child, port, timeoutMs) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (typeof child.exitCode === "number") {
+      throw new Error(`[dev:backend] exited before accepting connections on port ${port}.`);
+    }
+    if (await isPortOccupied(port, "127.0.0.1")) {
+      return;
+    }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, BACKEND_READY_POLL_MS));
+  }
+  throw new Error(`[dev:backend] timed out waiting for port ${port} to accept connections after ${timeoutMs}ms.`);
+}
+
+const backendProcess = spawnProcess(
   "backend",
   backendBin,
   [
@@ -212,12 +230,14 @@ spawnProcess(
   }
 );
 
+await waitForBackendReady(backendProcess, backendPort, BACKEND_READY_TIMEOUT_MS);
+
 spawnProcess(
   "frontend",
   frontendBin,
   ["--host", "127.0.0.1", "--port", String(frontendPort), "--strictPort"],
   frontendDir,
-  { VITE_API_BASE: `http://127.0.0.1:${backendPort}` }
+  { VITE_DEV_PROXY_API_BASE: `http://127.0.0.1:${backendPort}` }
 );
 
 const stopAll = (signal) => {

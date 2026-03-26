@@ -34,6 +34,19 @@ const defaultLogger: PluginLogger = {
   debug: (message: string) => console.debug(message)
 };
 
+const STARTUP_TRACE_ENABLED = process.env.NEXTCLAW_STARTUP_TRACE === "1";
+
+function logPluginStartupTrace(step: string, fields?: Record<string, string | number | boolean | undefined>): void {
+  if (!STARTUP_TRACE_ENABLED) {
+    return;
+  }
+  const suffix = Object.entries(fields ?? {})
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(" ");
+  console.log(`[startup-trace] ${step}${suffix ? ` ${suffix}` : ""}`);
+}
+
 function resolvePackageRootFromEntry(entryFile: string): string {
   let cursor = path.dirname(entryFile);
   for (let i = 0; i < 8; i += 1) {
@@ -86,6 +99,7 @@ function appendBundledChannelPlugins(params: {
   const require = createRequire(import.meta.url);
 
   for (const packageName of BUNDLED_CHANNEL_PLUGIN_PACKAGES) {
+    const packageStartedAt = Date.now();
     const resolvedEntry = resolveBundledPluginEntry(
       require,
       packageName,
@@ -182,6 +196,11 @@ function appendBundledChannelPlugins(params: {
     }
 
     params.registry.plugins.push(record);
+    logPluginStartupTrace("plugin.loader.bundled_plugin", {
+      package: packageName,
+      plugin_id: pluginId,
+      duration_ms: Date.now() - packageStartedAt
+    });
   }
 }
 
@@ -190,7 +209,9 @@ function loadExternalPluginModule(candidateSource: string, pluginRoot: string): 
   return pluginJiti(candidateSource) as OpenClawPluginModule;
 }
 
+
 export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry {
+  const startedAt = Date.now();
   const loadExternalPlugins = process.env.NEXTCLAW_ENABLE_OPENCLAW_PLUGINS !== "0";
 
   const logger = options.logger ?? defaultLogger;
@@ -261,6 +282,7 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
   );
 
   for (const candidate of filteredCandidates) {
+    const candidateStartedAt = Date.now();
     const manifest = manifestByRoot.get(candidate.rootDir);
     if (!manifest) {
       continue;
@@ -357,7 +379,13 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
 
     let moduleExport: OpenClawPluginModule | null = null;
     try {
+      const moduleLoadStartedAt = Date.now();
       moduleExport = loadExternalPluginModule(candidate.source, candidate.rootDir);
+      logPluginStartupTrace("plugin.loader.external_module_loaded", {
+        plugin_id: pluginId,
+        duration_ms: Date.now() - moduleLoadStartedAt,
+        source: candidate.source
+      });
     } catch (err) {
       record.status = "error";
       record.error = `failed to load plugin: ${String(err)}`;
@@ -413,6 +441,11 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
       register,
       pluginConfig: validatedConfig.value
     });
+    logPluginStartupTrace("plugin.loader.external_plugin_registered", {
+      plugin_id: pluginId,
+      duration_ms: Date.now() - candidateStartedAt,
+      source: candidate.source
+    });
 
     if (!registerResult.ok) {
       record.status = "error";
@@ -431,6 +464,11 @@ export function loadOpenClawPlugins(options: PluginLoadOptions): PluginRegistry 
     registry.plugins.push(record);
     seenIds.set(pluginId, candidate.origin);
   }
+
+  logPluginStartupTrace("plugin.loader.total", {
+    duration_ms: Date.now() - startedAt,
+    plugin_count: registry.plugins.length
+  });
 
   return registry;
 }

@@ -23,11 +23,11 @@ describe('auth status bootstrap retry policy', () => {
   });
 
   it('stops retrying after the bootstrap retry budget is exhausted', () => {
-    expect(shouldRetryAuthStatusBootstrap(19, new Error('Failed to fetch'))).toBe(true);
-    expect(shouldRetryAuthStatusBootstrap(20, new Error('Failed to fetch'))).toBe(false);
+    expect(shouldRetryAuthStatusBootstrap(39, new Error('Failed to fetch'))).toBe(true);
+    expect(shouldRetryAuthStatusBootstrap(40, new Error('Failed to fetch'))).toBe(false);
   });
 
   it('keeps the retry delay short and predictable', () => {
-    expect(AUTH_STATUS_BOOTSTRAP_RETRY_DELAY_MS).toBe(500);
+    expect(AUTH_STATUS_BOOTSTRAP_RETRY_DELAY_MS).toBe(250);
   });
 });

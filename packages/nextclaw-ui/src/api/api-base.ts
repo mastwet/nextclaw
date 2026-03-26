@@ -10,7 +10,3 @@ export const API_BASE = (() => {
   }
   return DEFAULT_API_BASE;
 })();
-
-if (import.meta.env.DEV && !import.meta.env.VITE_API_BASE) {
-  console.warn('VITE_API_BASE is not set; falling back to window origin.');
-}

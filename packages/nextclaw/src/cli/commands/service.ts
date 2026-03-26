@@ -45,14 +45,12 @@ import {
 } from "./service-startup-support.js";
 import { consumeRestartSentinel, formatRestartSentinelMessage, parseSessionKey } from "../restart-sentinel.js";
 import { resolveCliSubcommandEntry } from "./cli-subcommand-launch.js";
-import {
-  writeInitialManagedServiceState,
-  writeReadyManagedServiceState
-} from "./service-remote-runtime.js";
+import { writeInitialManagedServiceState, writeReadyManagedServiceState } from "./service-remote-runtime.js";
 import { createRemoteAccessHost } from "./service-remote-access.js";
 import { type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
 import { createGatewayShellContext, createGatewayStartupContext } from "./service-gateway-context.js";
 import { runGatewayRuntimeLoop, startDeferredGatewayStartup, startUiShell } from "./service-gateway-startup.js";
+import { waitForUiShellGraceWindow } from "./service-ui-shell-grace.js";
 import { logStartupTrace, measureStartupAsync, measureStartupSync } from "../startup-trace.js";
 
 export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service-marketplace-helpers.js";
@@ -140,6 +138,7 @@ export class ServiceCommands {
       })
     );
 
+    await waitForUiShellGraceWindow(uiStartup);
     await waitForNextTick();
     const gateway = measureStartupSync("service.create_gateway_startup_context", () =>
       createGatewayStartupContext({

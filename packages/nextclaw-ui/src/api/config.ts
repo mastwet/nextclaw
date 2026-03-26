@@ -37,8 +37,8 @@ import type {
 } from './types';
 
 // GET /api/auth/status
-export async function fetchAuthStatus(): Promise<AuthStatusView> {
-  const response = await api.get<AuthStatusView>('/api/auth/status', { timeoutMs: 5_000 });
+export async function fetchAuthStatus(options: { timeoutMs?: number } = {}): Promise<AuthStatusView> {
+  const response = await api.get<AuthStatusView>('/api/auth/status', { timeoutMs: options.timeoutMs ?? 5_000 });
   if (!response.ok) {
     throw new Error(response.error.message);
   }

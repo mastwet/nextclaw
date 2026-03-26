@@ -3,10 +3,13 @@ import { Command } from "commander";
 import { APP_NAME, APP_TAGLINE } from "@nextclaw/core";
 import { registerRemoteCommands } from "@nextclaw/remote";
 import { CliRuntime, LOGO } from "./runtime.js";
+import { logStartupTrace, measureStartupSync } from "./startup-trace.js";
 import { getPackageVersion } from "./utils.js";
 
+logStartupTrace("cli.index.module_loaded");
+
 const program = new Command();
-const runtime = new CliRuntime({ logo: LOGO });
+const runtime = measureStartupSync("cli.runtime.construct", () => new CliRuntime({ logo: LOGO }));
 
 program
   .name(APP_NAME)

@@ -3,10 +3,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { AccountPanel } from '@/account/components/account-panel';
 import { appQueryClient } from '@/app-query-client';
 import { LoginPage } from '@/components/auth/login-page';
-import { Button } from '@/components/ui/button';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useAuthStatus } from '@/hooks/use-auth';
-import { t } from '@/lib/i18n';
+import { isTransientAuthStatusBootstrapError, useAuthStatus } from '@/hooks/use-auth';
 import { useRealtimeQueryBridge } from '@/hooks/use-realtime-query-bridge';
 import { AppPresenterProvider } from '@/presenter/app-presenter-context';
 import { Toaster } from 'sonner';
@@ -31,29 +29,6 @@ function RouteFallback() {
 
 function LazyRoute({ children }: { children: JSX.Element }) {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
-}
-
-function AuthBootstrapErrorState(props: {
-  message: string;
-  retrying: boolean;
-  onRetry: () => void;
-}) {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-secondary px-6 py-10">
-      <div className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-8 shadow-card">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-500">{t('authBrand')}</p>
-        <h1 className="mt-3 text-2xl font-semibold text-gray-900">{t('authStatusLoadFailed')}</h1>
-        <p className="mt-3 text-sm leading-6 text-gray-600">
-          {props.message}
-        </p>
-        <div className="mt-6 flex gap-3">
-          <Button onClick={props.onRetry} disabled={props.retrying}>
-            {t('authRetryStatus')}
-          </Button>
-        </div>
-      </div>
-    </main>
-  );
 }
 
 function ProtectedApp() {
@@ -95,21 +70,11 @@ function ProtectedApp() {
 
 function AuthGate() {
   const authStatus = useAuthStatus();
+  const isTransientBootstrapFailure =
+    authStatus.isError && isTransientAuthStatusBootstrapError(authStatus.error);
 
-  if (authStatus.isLoading && !authStatus.isError) {
-    return <RouteFallback />;
-  }
-
-  if (authStatus.isError) {
-    return (
-      <AuthBootstrapErrorState
-        message={authStatus.error instanceof Error ? authStatus.error.message : t('authStatusLoadFailed')}
-        retrying={authStatus.isRefetching}
-        onRetry={() => {
-          void authStatus.refetch();
-        }}
-      />
-    );
+  if ((authStatus.isLoading && !authStatus.isError) || isTransientBootstrapFailure || authStatus.isError) {
+    return <ProtectedApp />;
   }
 
   if (authStatus.data?.enabled && !authStatus.data.authenticated) {

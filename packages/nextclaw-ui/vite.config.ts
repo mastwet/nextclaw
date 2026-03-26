@@ -2,8 +2,8 @@ import { defineConfig, splitVendorChunkPlugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-const apiBase = process.env.VITE_API_BASE ?? 'http://127.0.0.1:18792';
-const wsBase = apiBase.replace(/^http/i, 'ws');
+const devProxyApiBase = process.env.VITE_DEV_PROXY_API_BASE ?? 'http://127.0.0.1:18792';
+const devProxyWsBase = devProxyApiBase.replace(/^http/i, 'ws');
 
 export default defineConfig({
   plugins: [react(), splitVendorChunkPlugin()],
@@ -20,11 +20,11 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: apiBase,
+        target: devProxyApiBase,
         changeOrigin: true
       },
       '/ws': {
-        target: wsBase,
+        target: devProxyWsBase,
         ws: true
       }
     }

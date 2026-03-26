@@ -11,6 +11,7 @@ import { resolveChannelConfigView } from "./channel-config-view.js";
 import { loadPluginRegistry, logPluginDiagnostics, toExtensionRegistry, type NextclawExtensionRegistry } from "./plugins.js";
 import { createCronJobHandler } from "./service-cron-job-handler.js";
 import { createManagedRemoteModuleForUi } from "./service-remote-runtime.js";
+import { measureStartupSync } from "../startup-trace.js";
 
 const {
   ChannelManager,
@@ -51,7 +52,40 @@ export type GatewayStartupContext = {
   applyLiveConfigReload: () => Promise<void>;
 };
 
+export type GatewayShellContext = Pick<
+  GatewayStartupContext,
+  "runtimeConfigPath" | "config" | "workspace" | "cron" | "uiConfig" | "uiStaticDir" | "remoteModule"
+>;
+
+export function createGatewayShellContext(params: {
+  uiOverrides?: Partial<Config["ui"]>;
+  uiStaticDir?: string | null;
+}): GatewayShellContext {
+  const runtimeConfigPath = getConfigPath();
+  const config = resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath });
+  const workspace = getWorkspacePath(config.agents.defaults.workspace);
+  const cronStorePath = join(getDataDir(), "cron", "jobs.json");
+  const cron = new CronService(cronStorePath);
+  const uiConfig = resolveUiConfig(config, params.uiOverrides);
+  const uiStaticDir = params.uiStaticDir === undefined ? resolveUiStaticDir() : params.uiStaticDir;
+  const remoteModule = createManagedRemoteModuleForUi({
+    loadConfig: () => resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath }),
+    uiConfig,
+  });
+
+  return {
+    runtimeConfigPath,
+    config,
+    workspace,
+    cron,
+    uiConfig,
+    uiStaticDir,
+    remoteModule,
+  };
+}
+
 export function createGatewayStartupContext(params: {
+  shellContext?: GatewayShellContext;
   uiOverrides?: Partial<Config["ui"]>;
   allowMissingProvider?: boolean;
   uiStaticDir?: string | null;
@@ -60,12 +94,29 @@ export function createGatewayStartupContext(params: {
   requestRestart: (params: RequestRestartParams) => Promise<void>;
 }): GatewayStartupContext {
   const state = {} as GatewayStartupContext;
-  state.runtimeConfigPath = getConfigPath();
-  state.config = resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath });
-  state.workspace = getWorkspacePath(state.config.agents.defaults.workspace);
-  state.pluginRegistry = loadPluginRegistry(state.config, state.workspace);
-  state.pluginChannelBindings = getPluginChannelBindings(state.pluginRegistry);
-  state.extensionRegistry = toExtensionRegistry(state.pluginRegistry);
+  const shellContext = params.shellContext ?? createGatewayShellContext({
+    uiOverrides: params.uiOverrides,
+    uiStaticDir: params.uiStaticDir,
+  });
+  state.runtimeConfigPath = shellContext.runtimeConfigPath;
+  state.config = shellContext.config;
+  state.workspace = shellContext.workspace;
+  state.cron = shellContext.cron;
+  state.uiConfig = shellContext.uiConfig;
+  state.uiStaticDir = shellContext.uiStaticDir;
+  state.remoteModule = shellContext.remoteModule;
+  state.pluginRegistry = measureStartupSync(
+    "service.gateway_context.load_plugin_registry",
+    () => loadPluginRegistry(state.config, state.workspace)
+  );
+  state.pluginChannelBindings = measureStartupSync(
+    "service.gateway_context.get_plugin_channel_bindings",
+    () => getPluginChannelBindings(state.pluginRegistry)
+  );
+  state.extensionRegistry = measureStartupSync(
+    "service.gateway_context.to_extension_registry",
+    () => toExtensionRegistry(state.pluginRegistry)
+  );
   logPluginDiagnostics(state.pluginRegistry);
 
   state.bus = new MessageBus();
@@ -73,19 +124,17 @@ export function createGatewayStartupContext(params: {
     params.allowMissingProvider === true
       ? params.makeProvider(state.config, { allowMissing: true })
       : params.makeProvider(state.config);
-  state.providerManager = new ProviderManager({
-    defaultProvider: provider ?? params.makeMissingProvider(state.config),
-    config: state.config,
-  });
-  state.sessionManager = new SessionManager(state.workspace);
-  const cronStorePath = join(getDataDir(), "cron", "jobs.json");
-  state.cron = new CronService(cronStorePath);
-  state.uiConfig = resolveUiConfig(state.config, params.uiOverrides);
-  state.uiStaticDir = params.uiStaticDir === undefined ? resolveUiStaticDir() : params.uiStaticDir;
-  state.remoteModule = createManagedRemoteModuleForUi({
-    loadConfig: () => resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath }),
-    uiConfig: state.uiConfig,
-  });
+  state.providerManager = measureStartupSync(
+    "service.gateway_context.provider_manager",
+    () => new ProviderManager({
+      defaultProvider: provider ?? params.makeMissingProvider(state.config),
+      config: state.config,
+    })
+  );
+  state.sessionManager = measureStartupSync(
+    "service.gateway_context.session_manager",
+    () => new SessionManager(state.workspace)
+  );
 
   if (!provider) {
     console.warn(
@@ -99,66 +148,75 @@ export function createGatewayStartupContext(params: {
     state.sessionManager,
     state.extensionRegistry.channels,
   );
-  state.reloader = new ConfigReloader({
-    initialConfig: state.config,
-    channels,
-    bus: state.bus,
-    sessionManager: state.sessionManager,
-    providerManager: state.providerManager,
-    makeProvider: (nextConfig) =>
-      params.makeProvider(nextConfig, { allowMissing: true }) ?? params.makeMissingProvider(nextConfig),
-    loadConfig: () => resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath }),
-    resolveChannelConfig: (nextConfig) => resolveChannelConfigView(nextConfig, state.pluginChannelBindings),
-    getExtensionChannels: () => state.extensionRegistry.channels,
-    onRestartRequired: (paths) => {
-      void params.requestRestart({
-        reason: `config reload requires restart: ${paths.join(", ")}`,
-        manualMessage: `Config changes require restart: ${paths.join(", ")}`,
-        strategy: "background-service-or-manual",
-      });
-    },
-  });
+  state.reloader = measureStartupSync(
+    "service.gateway_context.config_reloader",
+    () => new ConfigReloader({
+      initialConfig: state.config,
+      channels,
+      bus: state.bus,
+      sessionManager: state.sessionManager,
+      providerManager: state.providerManager,
+      makeProvider: (nextConfig) =>
+        params.makeProvider(nextConfig, { allowMissing: true }) ?? params.makeMissingProvider(nextConfig),
+      loadConfig: () => resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath }),
+      resolveChannelConfig: (nextConfig) => resolveChannelConfigView(nextConfig, state.pluginChannelBindings),
+      getExtensionChannels: () => state.extensionRegistry.channels,
+      onRestartRequired: (paths) => {
+        void params.requestRestart({
+          reason: `config reload requires restart: ${paths.join(", ")}`,
+          manualMessage: `Config changes require restart: ${paths.join(", ")}`,
+          strategy: "background-service-or-manual",
+        });
+      },
+    })
+  );
   state.applyLiveConfigReload = async () => {
     await state.reloader.applyReloadPlan(resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath }));
   };
 
-  state.gatewayController = new GatewayControllerImpl({
-    reloader: state.reloader,
-    cron: state.cron,
-    sessionManager: state.sessionManager,
-    getConfigPath,
-    saveConfig,
-    requestRestart: async (options) => {
-      await params.requestRestart({
-        reason: options?.reason ?? "gateway tool restart",
-        manualMessage: "Restart the gateway to apply changes.",
-        strategy: "background-service-or-exit",
-        delayMs: options?.delayMs,
-        silentOnServiceRestart: true,
-      });
-    },
-  });
+  state.gatewayController = measureStartupSync(
+    "service.gateway_context.gateway_controller",
+    () => new GatewayControllerImpl({
+      reloader: state.reloader,
+      cron: state.cron,
+      sessionManager: state.sessionManager,
+      getConfigPath,
+      saveConfig,
+      requestRestart: async (options) => {
+        await params.requestRestart({
+          reason: options?.reason ?? "gateway tool restart",
+          manualMessage: "Restart the gateway to apply changes.",
+          strategy: "background-service-or-exit",
+          delayMs: options?.delayMs,
+          silentOnServiceRestart: true,
+        });
+      },
+    })
+  );
 
-  state.runtimePool = new GatewayAgentRuntimePool({
-    bus: state.bus,
-    providerManager: state.providerManager,
-    sessionManager: state.sessionManager,
-    config: state.config,
-    cronService: state.cron,
-    restrictToWorkspace: state.config.tools.restrictToWorkspace,
-    searchConfig: state.config.search,
-    execConfig: state.config.tools.exec,
-    contextConfig: state.config.agents.context,
-    gatewayController: state.gatewayController,
-    extensionRegistry: state.extensionRegistry,
-    resolveMessageToolHints: ({ channel, accountId }) =>
-      resolvePluginChannelMessageToolHints({
-        registry: state.pluginRegistry,
-        channel,
-        cfg: resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath }),
-        accountId,
-      }),
-  });
+  state.runtimePool = measureStartupSync(
+    "service.gateway_context.runtime_pool",
+    () => new GatewayAgentRuntimePool({
+      bus: state.bus,
+      providerManager: state.providerManager,
+      sessionManager: state.sessionManager,
+      config: state.config,
+      cronService: state.cron,
+      restrictToWorkspace: state.config.tools.restrictToWorkspace,
+      searchConfig: state.config.search,
+      execConfig: state.config.tools.exec,
+      contextConfig: state.config.agents.context,
+      gatewayController: state.gatewayController,
+      extensionRegistry: state.extensionRegistry,
+      resolveMessageToolHints: ({ channel, accountId }) =>
+        resolvePluginChannelMessageToolHints({
+          registry: state.pluginRegistry,
+          channel,
+          cfg: resolveConfigSecrets(loadConfig(), { configPath: state.runtimeConfigPath }),
+          accountId,
+        }),
+    })
+  );
 
   state.cron.onJob = createCronJobHandler({ runtimePool: state.runtimePool, bus: state.bus });
 

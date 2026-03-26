@@ -28,6 +28,7 @@ import { spawn } from "node:child_process";
 import { RestartCoordinator, type RestartStrategy } from "./restart-coordinator.js";
 import { initializeConfigIfMissing } from "./runtime-config-init.js";
 import { writeRestartSentinel } from "./restart-sentinel.js";
+import { logStartupTrace, measureStartupSync } from "./startup-trace.js";
 import { installMarketplaceSkill, publishMarketplaceSkill } from "./skills/marketplace.js";
 import { runSelfUpdate } from "./update/runner.js";
 import { clearServiceState, getPackageVersion, isProcessRunning, printAgentResponse, prompt, readServiceState } from "./utils.js";
@@ -110,38 +111,39 @@ export class CliRuntime {
   readonly remote: RemoteRuntimeActions;
   private diagnosticsCommands: DiagnosticsCommands;
   constructor(options: { logo?: string } = {}) {
+    logStartupTrace("cli.runtime.constructor.begin");
     this.logo = options.logo ?? LOGO;
-    this.workspaceManager = new WorkspaceManager(this.logo);
+    this.workspaceManager = measureStartupSync("cli.runtime.workspace_manager", () => new WorkspaceManager(this.logo));
 
-    this.serviceCommands = new ServiceCommands({
+    this.serviceCommands = measureStartupSync("cli.runtime.service_commands", () => new ServiceCommands({
       requestRestart: (params) => this.requestRestart(params),
-    });
-    this.configCommands = new ConfigCommands({
+    }));
+    this.configCommands = measureStartupSync("cli.runtime.config_commands", () => new ConfigCommands({
       requestRestart: (params) => this.requestRestart(params),
-    });
-    this.mcpCommands = new McpCommands();
-    this.secretsCommands = new SecretsCommands({
+    }));
+    this.mcpCommands = measureStartupSync("cli.runtime.mcp_commands", () => new McpCommands());
+    this.secretsCommands = measureStartupSync("cli.runtime.secrets_commands", () => new SecretsCommands({
       requestRestart: (params) => this.requestRestart(params),
-    });
-    this.pluginCommands = new PluginCommands();
-    this.channelCommands = new ChannelCommands({
+    }));
+    this.pluginCommands = measureStartupSync("cli.runtime.plugin_commands", () => new PluginCommands());
+    this.channelCommands = measureStartupSync("cli.runtime.channel_commands", () => new ChannelCommands({
       logo: this.logo,
       getBridgeDir: () => this.workspaceManager.getBridgeDir(),
       requestRestart: (params) => this.requestRestart(params),
-    });
-    this.cronCommands = new CronCommands();
-    this.platformAuthCommands = new PlatformAuthCommands();
-    this.remoteCommands = new RemoteCommands();
-    this.remote = new RemoteRuntimeActions({
+    }));
+    this.cronCommands = measureStartupSync("cli.runtime.cron_commands", () => new CronCommands());
+    this.platformAuthCommands = measureStartupSync("cli.runtime.platform_auth_commands", () => new PlatformAuthCommands());
+    this.remoteCommands = measureStartupSync("cli.runtime.remote_commands", () => new RemoteCommands());
+    this.remote = measureStartupSync("cli.runtime.remote_runtime_actions", () => new RemoteRuntimeActions({
       appName: APP_NAME,
       initAuto: (source) => this.init({ source, auto: true }),
       remoteCommands: this.remoteCommands,
       restartBackgroundService: (reason) => this.restartBackgroundService(reason),
       hasRunningManagedService: hasRunningNextclawManagedService
-    });
-    this.diagnosticsCommands = new DiagnosticsCommands({ logo: this.logo });
+    }));
+    this.diagnosticsCommands = measureStartupSync("cli.runtime.diagnostics_commands", () => new DiagnosticsCommands({ logo: this.logo }));
 
-    this.restartCoordinator = new RestartCoordinator({
+    this.restartCoordinator = measureStartupSync("cli.runtime.restart_coordinator", () => new RestartCoordinator({
       readServiceState,
       isProcessRunning,
       currentPid: () => process.pid,
@@ -149,7 +151,8 @@ export class CliRuntime {
         this.restartBackgroundService(reason),
       scheduleProcessExit: (delayMs, reason) =>
         this.scheduleProcessExit(delayMs, reason),
-    });
+    }));
+    logStartupTrace("cli.runtime.constructor.end");
   }
 
   get version(): string {

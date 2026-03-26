@@ -1,41 +1,73 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { I18nProvider } from '@/components/providers/I18nProvider';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import AppContent from '@/App';
 
 const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
-  useAuthStatus: vi.fn()
+  useAuthStatus: vi.fn(),
+  isTransientAuthStatusBootstrapError: vi.fn()
 }));
 
 vi.mock('@/hooks/use-auth', () => ({
-  useAuthStatus: mocks.useAuthStatus
+  useAuthStatus: mocks.useAuthStatus,
+  isTransientAuthStatusBootstrapError: mocks.isTransientAuthStatusBootstrapError
 }));
 
 describe('App auth bootstrap', () => {
+  function renderApp() {
+    return render(
+      <ThemeProvider>
+        <I18nProvider>
+          <MemoryRouter initialEntries={['/chat']}>
+            <AppContent />
+          </MemoryRouter>
+        </I18nProvider>
+      </ThemeProvider>
+    );
+  }
+
   beforeEach(() => {
     mocks.refetch.mockReset();
     mocks.useAuthStatus.mockReset();
+    mocks.isTransientAuthStatusBootstrapError.mockReset();
+    mocks.isTransientAuthStatusBootstrapError.mockReturnValue(false);
+    vi.useRealTimers();
   });
 
-  it('shows an actionable error state instead of staying blank when auth bootstrap fails', async () => {
-    const user = userEvent.setup();
+  it('does not block the app shell for transient bootstrap failures', () => {
+    mocks.isTransientAuthStatusBootstrapError.mockReturnValue(true);
     mocks.useAuthStatus.mockReturnValue({
       isLoading: false,
       isError: true,
       isRefetching: false,
-      error: new Error('Timed out waiting for remote request response after 5000ms: GET /api/auth/status'),
+      error: new Error('Failed to fetch'),
       refetch: mocks.refetch,
       data: undefined
     });
 
-    render(<AppContent />);
+    renderApp();
 
-    expect(screen.getByRole('heading', { name: /load authentication status/i })).toBeTruthy();
-    expect(screen.getByText('Timed out waiting for remote request response after 5000ms: GET /api/auth/status')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: /waiting for the local ui service to start/i })).toBeNull();
+    expect(screen.queryByText('Failed to fetch')).toBeNull();
+  });
 
-    await user.click(screen.getByRole('button', { name: /retry/i }));
+  it('does not block the app shell for stable auth bootstrap failures', async () => {
+    mocks.useAuthStatus.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      isRefetching: false,
+      error: new Error('Authentication required.'),
+      refetch: mocks.refetch,
+      data: undefined
+    });
 
-    expect(mocks.refetch).toHaveBeenCalledTimes(1);
+    renderApp();
+
+    expect(screen.queryByRole('heading', { name: /load authentication status/i })).toBeNull();
+    expect(screen.queryByText('Authentication required.')).toBeNull();
   });
 });

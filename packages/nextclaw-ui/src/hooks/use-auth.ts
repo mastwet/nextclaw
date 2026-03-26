@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import {
   fetchAuthStatus,
   loginAuth,
@@ -7,11 +8,13 @@ import {
   updateAuthEnabled,
   updateAuthPassword
 } from '@/api/config';
+import type { AuthStatusView } from '@/api/types';
 import { toast } from 'sonner';
 import { t } from '@/lib/i18n';
 
-const AUTH_STATUS_BOOTSTRAP_MAX_RETRIES = 20;
-export const AUTH_STATUS_BOOTSTRAP_RETRY_DELAY_MS = 500;
+const AUTH_STATUS_BOOTSTRAP_MAX_RETRIES = 40;
+const AUTH_STATUS_BOOTSTRAP_TIMEOUT_MS = 400;
+export const AUTH_STATUS_BOOTSTRAP_RETRY_DELAY_MS = 250;
 
 export function isTransientAuthStatusBootstrapError(error: unknown): boolean {
   if (!(error instanceof Error)) {
@@ -40,14 +43,23 @@ export function shouldRetryAuthStatusBootstrap(failureCount: number, error: unkn
 }
 
 export function useAuthStatus() {
-  return useQuery({
+  const [bootstrapSettled, setBootstrapSettled] = useState(false);
+  const query = useQuery<AuthStatusView>({
     queryKey: ['auth-status'],
-    queryFn: fetchAuthStatus,
+    queryFn: () => fetchAuthStatus({ timeoutMs: bootstrapSettled ? 5_000 : AUTH_STATUS_BOOTSTRAP_TIMEOUT_MS }),
     staleTime: 5_000,
     retry: shouldRetryAuthStatusBootstrap,
     retryDelay: AUTH_STATUS_BOOTSTRAP_RETRY_DELAY_MS,
     refetchOnWindowFocus: true
   });
+
+  useEffect(() => {
+    if (query.isSuccess && !bootstrapSettled) {
+      setBootstrapSettled(true);
+    }
+  }, [bootstrapSettled, query.isSuccess]);
+
+  return query;
 }
 
 function invalidateProtectedQueries(queryClient: ReturnType<typeof useQueryClient>): Promise<unknown[]> {
