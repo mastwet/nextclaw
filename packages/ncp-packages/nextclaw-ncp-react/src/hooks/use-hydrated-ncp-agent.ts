@@ -34,6 +34,14 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+function resolveSessionHydratingState(params: {
+  sessionId: string;
+  hydratedSessionId: string | null;
+  isHydrating: boolean;
+}): boolean {
+  return params.isHydrating || params.hydratedSessionId !== params.sessionId;
+}
+
 export function useHydratedNcpAgent({
   sessionId,
   client,
@@ -44,6 +52,7 @@ export function useHydratedNcpAgent({
   const runtime = useNcpAgentRuntime({ sessionId, client, manager });
   const [isHydrating, setIsHydrating] = useState(true);
   const [hydrateError, setHydrateError] = useState<Error | null>(null);
+  const [hydratedSessionId, setHydratedSessionId] = useState<string | null>(null);
   const loadStateRef = useRef<LoadState>({ requestId: 0, controller: null });
 
   const reloadSeed = useCallback(async () => {
@@ -80,6 +89,7 @@ export function useHydratedNcpAgent({
             : null,
       });
       setHydrateError(null);
+      setHydratedSessionId(sessionId);
       setIsHydrating(false);
 
       if (seed.status === "running" && autoResumeRunningSession) {
@@ -95,6 +105,7 @@ export function useHydratedNcpAgent({
         return;
       }
       setHydrateError(toError(error));
+      setHydratedSessionId(sessionId);
       setIsHydrating(false);
     } finally {
       if (loadStateRef.current.controller === controller) {
@@ -114,7 +125,11 @@ export function useHydratedNcpAgent({
 
   return {
     ...runtime,
-    isHydrating,
+    isHydrating: resolveSessionHydratingState({
+      sessionId,
+      hydratedSessionId,
+      isHydrating,
+    }),
     hydrateError,
     reloadSeed,
   };
