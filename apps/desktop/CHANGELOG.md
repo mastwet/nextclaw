@@ -1,5 +1,14 @@
 # @nextclaw/desktop
 
+## 0.0.96
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/server@0.11.0
+  - nextclaw@0.16.0
+  - @nextclaw/openclaw-compat@0.3.34
+
 ## 0.0.95
 
 ### Patch Changes

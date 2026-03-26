@@ -1,5 +1,5 @@
 import type { InboundAttachment, SessionMessage } from "@nextclaw/core";
-import { buildNcpUserContent, type LocalAttachmentStore } from "@nextclaw/ncp-agent-runtime";
+import { buildNcpUserContent, type LocalAssetStore } from "@nextclaw/ncp-agent-runtime";
 import {
   type NcpMessage,
   type NcpMessagePart,
@@ -190,8 +190,7 @@ function resolveImageUrl(part: Extract<NcpMessagePart, { type: "file" }>): strin
 }
 
 type LegacyContentBuildOptions = {
-  attachmentStore?: LocalAttachmentStore | null;
-  attachmentTextMaxBytes?: number;
+  assetStore?: LocalAssetStore | null;
 };
 
 export function buildLegacyUserContent(
@@ -199,8 +198,7 @@ export function buildLegacyUserContent(
   options: LegacyContentBuildOptions = {},
 ): unknown {
   const content = buildNcpUserContent(parts, {
-    attachmentStore: options.attachmentStore,
-    maxTextBytes: options.attachmentTextMaxBytes,
+    assetStore: options.assetStore,
   });
   if (content === "") {
     return serializeLegacyContent(parts);

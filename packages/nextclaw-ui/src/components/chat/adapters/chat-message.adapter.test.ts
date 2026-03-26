@@ -191,3 +191,42 @@ it("keeps named non-image files as downloadable attachments", () => {
     },
   });
 });
+
+it("renders asset tool results as previewable files", () => {
+  const adapted = adapt([
+    {
+      id: "assistant-asset",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-invocation",
+          toolInvocation: {
+            status: ToolInvocationStatus.RESULT,
+            toolCallId: "call-asset-1",
+            toolName: "asset_put",
+            args: { path: "/tmp/output.png" },
+            result: {
+              ok: true,
+              asset: {
+                uri: "asset://store/2026/03/27/asset_1",
+                name: "output.png",
+                mimeType: "image/png",
+                url: "/api/ncp/assets/content?uri=asset%3A%2F%2Fstore%2F2026%2F03%2F27%2Fasset_1",
+              },
+            },
+          },
+        },
+      ],
+    },
+  ] as unknown as ChatMessageSource[]);
+
+  expect(adapted[0]?.parts[0]).toEqual({
+    type: "file",
+    file: {
+      label: "output.png",
+      mimeType: "image/png",
+      dataUrl: "/api/ncp/assets/content?uri=asset%3A%2F%2Fstore%2F2026%2F03%2F27%2Fasset_1",
+      isImage: true,
+    },
+  });
+});

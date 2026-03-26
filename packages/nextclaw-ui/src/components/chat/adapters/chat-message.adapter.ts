@@ -76,6 +76,58 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function readOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function extractAssetFileView(
+  value: unknown,
+  texts: ChatMessageAdapterTexts
+):
+  | {
+      type: 'file';
+      file: {
+        label: string;
+        mimeType: string;
+        dataUrl: string;
+        isImage: boolean;
+      };
+    }
+  | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const assetCandidate = isRecord(value.asset)
+    ? value.asset
+    : Array.isArray(value.assets) && value.assets.length > 0 && isRecord(value.assets[0])
+      ? value.assets[0]
+      : null;
+  if (!assetCandidate) {
+    return null;
+  }
+  const url = readOptionalString(assetCandidate.url);
+  const mimeType = readOptionalString(assetCandidate.mimeType) ?? 'application/octet-stream';
+  if (!url) {
+    return null;
+  }
+  const label =
+    readOptionalString(assetCandidate.name) ??
+    (mimeType.startsWith('image/') ? texts.imageAttachmentLabel : texts.fileAttachmentLabel);
+  return {
+    type: 'file',
+    file: {
+      label,
+      mimeType,
+      dataUrl: url,
+      isImage: mimeType.startsWith('image/')
+    }
+  };
+}
+
 function isTextPart(part: ChatMessagePartSource): part is Extract<ChatMessagePartSource, { type: 'text' }> {
   return part.type === 'text' && typeof part.text === 'string';
 }
@@ -223,6 +275,10 @@ export function adaptChatMessages(params: {
         }
         if (isToolInvocationPart(part)) {
           const invocation = part.toolInvocation;
+          const assetFileView = extractAssetFileView(invocation.result, params.texts);
+          if (assetFileView) {
+            return assetFileView;
+          }
           const detail = summarizeToolArgs(invocation.parsedArgs ?? invocation.args);
           const rawResult =
             typeof invocation.error === 'string' && invocation.error.trim()

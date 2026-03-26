@@ -1,16 +1,11 @@
 import * as NextclawCore from "@nextclaw/core";
 import {
-  getPluginChannelBindings,
   getPluginUiMetadataFromRegistry,
   resolvePluginChannelMessageToolHints,
   setPluginRuntimeBridge,
   startPluginChannelGateways,
-  stopPluginChannelGateways,
-  type PluginChannelBinding,
-  type PluginUiMetadata
+  stopPluginChannelGateways
 } from "@nextclaw/openclaw-compat";
-import type { RemoteServiceModule } from "@nextclaw/remote";
-import { startUiServer, type UiServerEvent } from "@nextclaw/server";
 import { appendFileSync, closeSync, cpSync, existsSync, mkdirSync, openSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -18,8 +13,7 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { createServer as createNetServer } from "node:net";
 import chokidar from "chokidar";
-import { GatewayControllerImpl } from "../gateway/controller.js";
-import { ConfigReloader } from "../config-reloader.js";
+import type { ConfigReloader } from "../config-reloader.js";
 import { MissingProvider } from "../missing-provider.js";
 import {
   buildServeArgs,
@@ -37,56 +31,40 @@ import {
   resolvePublicIp,
   waitForExit
 } from "../utils.js";
-import {
-  loadPluginRegistry,
-  logPluginDiagnostics,
-  type NextclawExtensionRegistry,
-  toExtensionRegistry,
-} from "./plugins.js";
-import { resolveChannelConfigView } from "./channel-config-view.js";
+import type { RequestRestartParams } from "../types.js";
 import { ServiceMarketplaceInstaller } from "./service-marketplace-installer.js";
-import { createCronJobHandler } from "./service-cron-job-handler.js";
 import { installPluginRuntimeBridge } from "./service-plugin-runtime-bridge.js";
-import { createServiceUiChatRuntime } from "./service-ui-chat-runtime.js";
 import { reloadServicePlugins } from "./service-plugin-reload.js";
 import {
   logPluginGatewayDiagnostics,
   pluginGatewayLogger,
   startGatewaySupportServices
 } from "./service-startup-support.js";
-import type { RequestRestartParams } from "../types.js";
 import { consumeRestartSentinel, formatRestartSentinelMessage, parseSessionKey } from "../restart-sentinel.js";
-import { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
 import { resolveCliSubcommandEntry } from "./cli-subcommand-launch.js";
-import { createUiNcpAgent, type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
 import {
-  createManagedRemoteModuleForUi,
   writeInitialManagedServiceState,
   writeReadyManagedServiceState
 } from "./service-remote-runtime.js";
 import { createRemoteAccessHost } from "./service-remote-access.js";
-import { UiChatRunCoordinator } from "./ui-chat-run-coordinator.js";
+import { type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
+import { createGatewayStartupContext } from "./service-gateway-context.js";
+import { runGatewayRuntimeLoop, startDeferredGatewayStartup, startUiShell } from "./service-gateway-startup.js";
 
 export { buildMarketplaceSkillInstallArgs, pickUserFacingCommandSummary } from "./service-marketplace-helpers.js";
 export { resolveCliSubcommandEntry };
 
 const {
   APP_NAME,
-  ChannelManager,
-  CronService,
   getApiBase,
   getConfigPath,
-  getDataDir,
   getProvider,
   getProviderName,
   getWorkspacePath,
-  HeartbeatService,
   LiteLLMProvider,
   loadConfig,
   MessageBus,
-  ProviderManager,
   resolveConfigSecrets,
-  saveConfig,
   SessionManager,
   parseAgentScopedSessionKey
 } = NextclawCore;
@@ -105,7 +83,6 @@ type SkillsLoaderInstance = {
   listSkills: (filterUnavailable?: boolean) => SkillInfo[];
 };
 type SkillsLoaderConstructor = new (workspace: string, builtinSkillsDir?: string) => SkillsLoaderInstance;
-
 function createSkillsLoader(workspace: string): SkillsLoaderInstance | null {
   const ctor = (NextclawCore as { SkillsLoader?: SkillsLoaderConstructor }).SkillsLoader;
   if (!ctor) {
@@ -124,93 +101,22 @@ export class ServiceCommands {
   ): Promise<void> {
     this.applyLiveConfigReload = null;
     this.liveUiNcpAgent = null;
-    const runtimeConfigPath = getConfigPath();
-    const config = resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath });
-    const workspace = getWorkspacePath(config.agents.defaults.workspace);
-    let pluginRegistry = loadPluginRegistry(config, workspace);
-    let pluginChannelBindings = getPluginChannelBindings(pluginRegistry);
-    let extensionRegistry = toExtensionRegistry(pluginRegistry);
-    logPluginDiagnostics(pluginRegistry);
-    const bus = new MessageBus();
-    const provider =
-      options.allowMissingProvider === true ? this.makeProvider(config, { allowMissing: true }) : this.makeProvider(config);
-    const providerManager = new ProviderManager({
-      defaultProvider: provider ?? this.makeMissingProvider(config),
-      config
+    const gateway = createGatewayStartupContext({
+      uiOverrides: options.uiOverrides,
+      allowMissingProvider: options.allowMissingProvider,
+      uiStaticDir: options.uiStaticDir,
+      makeProvider: (config, providerOptions) =>
+        providerOptions?.allowMissing === true
+          ? this.makeProvider(config, { allowMissing: true })
+          : this.makeProvider(config),
+      makeMissingProvider: (config) => this.makeMissingProvider(config),
+      requestRestart: (params) => this.deps.requestRestart(params)
     });
-    const sessionManager = new SessionManager(workspace);
+    this.applyLiveConfigReload = gateway.applyLiveConfigReload;
+    let { pluginRegistry, pluginChannelBindings, extensionRegistry } = gateway;
     let pluginGatewayHandles: Awaited<ReturnType<typeof startPluginChannelGateways>>["handles"] = [];
-    const cronStorePath = join(getDataDir(), "cron", "jobs.json");
-    const cron = new CronService(cronStorePath);
-    const uiConfig = resolveUiConfig(config, options.uiOverrides);
-    const uiStaticDir = options.uiStaticDir === undefined ? resolveUiStaticDir() : options.uiStaticDir;
-    const remoteModule = createManagedRemoteModuleForUi({
-      loadConfig: () => resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath }),
-      uiConfig
-    });
-    if (!provider) {
-      console.warn("Warning: No API key configured. The gateway is running, but agent replies are disabled until provider config is set.");
-    }
-    const channels = new ChannelManager(resolveChannelConfigView(config, pluginChannelBindings), bus, sessionManager, extensionRegistry.channels);
-    const reloader = new ConfigReloader({
-      initialConfig: config,
-      channels,
-      bus,
-      sessionManager,
-      providerManager,
-      makeProvider: (nextConfig) => this.makeProvider(nextConfig, { allowMissing: true }) ?? this.makeMissingProvider(nextConfig),
-      loadConfig: () => resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath }),
-      resolveChannelConfig: (nextConfig) => resolveChannelConfigView(nextConfig, pluginChannelBindings),
-      getExtensionChannels: () => extensionRegistry.channels,
-      onRestartRequired: (paths) => {
-        void this.deps.requestRestart({
-          reason: `config reload requires restart: ${paths.join(", ")}`,
-          manualMessage: `Config changes require restart: ${paths.join(", ")}`,
-          strategy: "background-service-or-manual"
-        });
-      }
-    });
-    this.applyLiveConfigReload = async () => { await reloader.applyReloadPlan(resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath })); };
-    const gatewayController = new GatewayControllerImpl({
-      reloader,
-      cron,
-      sessionManager,
-      getConfigPath,
-      saveConfig,
-      requestRestart: async (options) => {
-        await this.deps.requestRestart({
-          reason: options?.reason ?? "gateway tool restart",
-          manualMessage: "Restart the gateway to apply changes.",
-          strategy: "background-service-or-exit",
-          delayMs: options?.delayMs,
-          silentOnServiceRestart: true
-        });
-      }
-    });
-
-    const runtimePool = new GatewayAgentRuntimePool({
-      bus,
-      providerManager,
-      sessionManager,
-      config,
-      cronService: cron,
-      restrictToWorkspace: config.tools.restrictToWorkspace,
-      searchConfig: config.search,
-      execConfig: config.tools.exec,
-      contextConfig: config.agents.context,
-      gatewayController,
-      extensionRegistry,
-      resolveMessageToolHints: ({ channel, accountId }) =>
-        resolvePluginChannelMessageToolHints({
-          registry: pluginRegistry,
-          channel,
-          cfg: resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath }),
-          accountId
-        })
-    });
-
-    reloader.setApplyAgentRuntimeConfig((nextConfig) => runtimePool.applyRuntimeConfig(nextConfig));
-    reloader.setReloadPlugins(async ({ config: nextConfig, changedPaths }) => {
+    gateway.reloader.setApplyAgentRuntimeConfig((nextConfig) => gateway.runtimePool.applyRuntimeConfig(nextConfig));
+    gateway.reloader.setReloadPlugins(async ({ config: nextConfig, changedPaths }) => {
       const result = await reloadServicePlugins({
         nextConfig,
         changedPaths,
@@ -225,85 +131,115 @@ export class ServiceCommands {
       extensionRegistry = result.extensionRegistry;
       pluginChannelBindings = result.pluginChannelBindings;
       pluginGatewayHandles = result.pluginGatewayHandles;
-      runtimePool.applyExtensionRegistry(result.extensionRegistry);
+      gateway.runtimePool.applyExtensionRegistry(result.extensionRegistry);
       this.liveUiNcpAgent?.applyExtensionRegistry?.(result.extensionRegistry);
-      runtimePool.applyRuntimeConfig(nextConfig);
+      gateway.runtimePool.applyRuntimeConfig(nextConfig);
       if (result.restartChannels) {
         console.log("Config reload: plugin channel gateways restarted.");
       }
       return { restartChannels: result.restartChannels };
     });
-    reloader.setReloadMcp(async ({ config: nextConfig }) => { await this.liveUiNcpAgent?.applyMcpConfig?.(nextConfig); });
+    gateway.reloader.setReloadMcp(async ({ config: nextConfig }) => { await this.liveUiNcpAgent?.applyMcpConfig?.(nextConfig); });
 
     installPluginRuntimeBridge({
-      runtimePool,
-      runtimeConfigPath,
+      runtimePool: gateway.runtimePool,
+      runtimeConfigPath: gateway.runtimeConfigPath,
       pluginChannelBindings
     });
-
-    cron.onJob = createCronJobHandler({ runtimePool, bus });
-
-    const heartbeat = new HeartbeatService(
-      workspace,
-      async (promptText) =>
-        runtimePool.processDirect({ content: promptText, sessionKey: "heartbeat", agentId: runtimePool.primaryAgentId }),
-      30 * 60,
-      true
-    );
-    if (reloader.getChannels().enabledChannels.length) {
-      console.log(`✓ Channels enabled: ${reloader.getChannels().enabledChannels.join(", ")}`);
+    if (gateway.reloader.getChannels().enabledChannels.length) {
+      console.log(`✓ Channels enabled: ${gateway.reloader.getChannels().enabledChannels.join(", ")}`);
     } else {
       console.log("Warning: No channels enabled");
     }
 
-    await this.startUiIfEnabled(
-      uiConfig,
-      uiStaticDir,
-      cron,
-      runtimePool,
-      sessionManager,
-      providerManager,
-      bus,
-      gatewayController,
-      () => resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath }),
-      () => extensionRegistry,
-      ({ channel, accountId }) =>
-        resolvePluginChannelMessageToolHints({
-          registry: pluginRegistry,
-          channel,
-          cfg: resolveConfigSecrets(loadConfig(), { configPath: runtimeConfigPath }),
-          accountId,
-        }),
-      () => pluginChannelBindings,
-      () => getPluginUiMetadataFromRegistry(pluginRegistry),
-      remoteModule
-    );
+    const marketplaceInstaller = new ServiceMarketplaceInstaller({
+      applyLiveConfigReload: this.applyLiveConfigReload ?? undefined,
+      runCliSubcommand: (args) => this.runCliSubcommand(args),
+      installBuiltinSkill: (slug, force) => this.installBuiltinMarketplaceSkill(slug, force)
+    }).createInstaller();
+    const remoteAccess = createRemoteAccessHost({
+      serviceCommands: this,
+      requestRestart: this.deps.requestRestart,
+      uiConfig: gateway.uiConfig,
+      remoteModule: gateway.remoteModule
+    });
+    const uiStartup = await startUiShell({
+      uiConfig: gateway.uiConfig,
+      uiStaticDir: gateway.uiStaticDir,
+      cronService: gateway.cron,
+      runtimePool: gateway.runtimePool,
+      sessionManager: gateway.sessionManager,
+      bus: gateway.bus,
+      getConfig: () => resolveConfigSecrets(loadConfig(), { configPath: gateway.runtimeConfigPath }),
+      configPath: getConfigPath(),
+      productVersion: getPackageVersion(),
+      getPluginChannelBindings: () => pluginChannelBindings,
+      getPluginUiMetadata: () => getPluginUiMetadataFromRegistry(pluginRegistry),
+      marketplace: {
+        apiBaseUrl: process.env.NEXTCLAW_MARKETPLACE_API_BASE,
+        installer: marketplaceInstaller
+      },
+      remoteAccess,
+      openBrowserWindow: gateway.uiConfig.open,
+      applyLiveConfigReload: this.applyLiveConfigReload ?? undefined
+    });
     await startGatewaySupportServices({
-      cronJobs: cron.status().jobs,
-      remoteModule,
-      watchConfigFile: () => this.watchConfigFile(reloader),
-      startCron: () => cron.start(),
-      startHeartbeat: () => heartbeat.start()
+      cronJobs: gateway.cron.status().jobs,
+      remoteModule: gateway.remoteModule,
+      watchConfigFile: () => this.watchConfigFile(gateway.reloader),
+      startCron: () => gateway.cron.start(),
+      startHeartbeat: () => gateway.heartbeat.start()
     });
 
-    try {
-      const startedPluginGateways = await startPluginChannelGateways({
-        registry: pluginRegistry,
-        config, logger: pluginGatewayLogger
-      });
-      pluginGatewayHandles = startedPluginGateways.handles;
-      logPluginGatewayDiagnostics(startedPluginGateways.diagnostics);
-
-      await reloader.getChannels().startAll();
-      await this.wakeFromRestartSentinel({ bus, sessionManager });
-      await runtimePool.run();
-    } finally {
+    await runGatewayRuntimeLoop({
+      runtimePool: gateway.runtimePool,
+      startDeferredStartup: () =>
+        startDeferredGatewayStartup({
+        uiStartup,
+        bus: gateway.bus,
+        sessionManager: gateway.sessionManager,
+        providerManager: gateway.providerManager,
+        cronService: gateway.cron,
+        gatewayController: gateway.gatewayController,
+        getConfig: () => resolveConfigSecrets(loadConfig(), { configPath: gateway.runtimeConfigPath }),
+        getExtensionRegistry: () => extensionRegistry,
+        resolveMessageToolHints: ({ channel, accountId }) => resolvePluginChannelMessageToolHints({
+          registry: pluginRegistry,
+          channel,
+          cfg: resolveConfigSecrets(loadConfig(), { configPath: gateway.runtimeConfigPath }),
+          accountId,
+        }),
+        startPluginGateways: async () => {
+          const startedPluginGateways = await startPluginChannelGateways({
+            registry: pluginRegistry,
+            config: gateway.config,
+            logger: pluginGatewayLogger
+          });
+          pluginGatewayHandles = startedPluginGateways.handles;
+          logPluginGatewayDiagnostics(startedPluginGateways.diagnostics);
+        },
+        startChannels: async () => {
+          await gateway.reloader.getChannels().startAll();
+        },
+        wakeFromRestartSentinel: async () => {
+          await this.wakeFromRestartSentinel({ bus: gateway.bus, sessionManager: gateway.sessionManager });
+        },
+        onNcpAgentReady: (ncpAgent) => {
+          this.liveUiNcpAgent = ncpAgent;
+        }
+      }),
+      onDeferredStartupError: (error) => {
+        console.error(`Deferred startup failed: ${error instanceof Error ? error.message : String(error)}`);
+      },
+      cleanup: async () => {
       this.applyLiveConfigReload = null;
       this.liveUiNcpAgent = null;
-      await remoteModule?.stop();
+      await uiStartup?.deferredNcpAgent.close();
+      await gateway.remoteModule?.stop();
       await stopPluginChannelGateways(pluginGatewayHandles);
       setPluginRuntimeBridge(null);
-    }
+      }
+    });
   }
 
   private normalizeOptionalString(value: unknown): string | undefined {
@@ -1025,99 +961,6 @@ export class ServiceCommands {
     console.log("Service controls:");
     console.log(`  - Check status: ${APP_NAME} status`);
     console.log(`  - If you need to stop the service, run: ${APP_NAME} stop`);
-  }
-
-  private async startUiIfEnabled(
-    uiConfig: Config["ui"],
-    uiStaticDir: string | null,
-    cronService: NextclawCore.CronService,
-    runtimePool: GatewayAgentRuntimePool,
-    sessionManager: SessionManager,
-    providerManager: NextclawCore.ProviderManager,
-    bus: MessageBus,
-    gatewayController: GatewayControllerImpl,
-    getConfig: () => Config,
-    getExtensionRegistry: () => NextclawExtensionRegistry | undefined,
-    resolveMessageToolHints: (params: { channel: string; accountId?: string | null }) => string[],
-    getPluginChannelBindings: () => PluginChannelBinding[],
-    getPluginUiMetadata: () => PluginUiMetadata[],
-    remoteModule: RemoteServiceModule | null
-  ): Promise<void> {
-    if (!uiConfig.enabled) {
-      return;
-    }
-    let publishUiEvent: ((event: UiServerEvent) => void) | null = null;
-    runtimePool.setSystemSessionUpdatedHandler(({ sessionKey, message }) => {
-      if (!publishUiEvent) {
-        return;
-      }
-      const isUiRoute = message.chatId.startsWith("ui:");
-      if (!isUiRoute) {
-        return;
-      }
-      publishUiEvent({
-        type: "session.updated",
-        payload: {
-          sessionKey
-        }
-      });
-    });
-    const runCoordinator = new UiChatRunCoordinator({
-      runtimePool,
-      sessionManager,
-      onRunUpdated: (run) => {
-        publishUiEvent?.({ type: "run.updated", payload: { run } });
-      }
-    });
-    const ncpAgent = await createUiNcpAgent({
-      bus,
-      providerManager,
-      sessionManager,
-      cronService,
-      gatewayController,
-      getConfig,
-      getExtensionRegistry,
-      resolveMessageToolHints: ({ channel, accountId }) => resolveMessageToolHints({ channel, accountId }),
-    });
-    this.liveUiNcpAgent = ncpAgent;
-    const marketplaceInstaller = new ServiceMarketplaceInstaller({
-      applyLiveConfigReload: this.applyLiveConfigReload ?? undefined, runCliSubcommand: (args) => this.runCliSubcommand(args),
-      installBuiltinSkill: (slug, force) => this.installBuiltinMarketplaceSkill(slug, force)
-    }).createInstaller();
-    const remoteAccess = createRemoteAccessHost({
-      serviceCommands: this,
-      requestRestart: this.deps.requestRestart,
-      uiConfig,
-      remoteModule
-    });
-    const uiServer = startUiServer({
-      host: uiConfig.host,
-      port: uiConfig.port,
-      configPath: getConfigPath(),
-      productVersion: getPackageVersion(),
-      staticDir: uiStaticDir ?? undefined,
-      applyLiveConfigReload: this.applyLiveConfigReload ?? undefined,
-      cronService,
-      marketplace: {
-        apiBaseUrl: process.env.NEXTCLAW_MARKETPLACE_API_BASE,
-        installer: marketplaceInstaller
-      },
-      remoteAccess,
-      getPluginChannelBindings,
-      getPluginUiMetadata,
-      ncpAgent,
-      chatRuntime: createServiceUiChatRuntime({ runtimePool, runCoordinator })
-    });
-    publishUiEvent = uiServer.publish;
-    const uiUrl = `http://${uiServer.host}:${uiServer.port}`;
-    console.log(`✓ UI API: ${uiUrl}/api`);
-    if (uiStaticDir) {
-      console.log(`✓ UI frontend: ${uiUrl}`);
-    }
-    void this.printPublicUiUrls(uiServer.host, uiServer.port);
-    if (uiConfig.open) {
-      openBrowser(uiUrl);
-    }
   }
 
   private installBuiltinMarketplaceSkill(

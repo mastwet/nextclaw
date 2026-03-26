@@ -59,13 +59,13 @@ class StubNcpAgent implements NcpAgentClientEndpoint, NcpSessionApi {
 
   private readonly listeners = new Set<(event: NcpEndpointEvent) => void>();
   private readonly attachmentRootDir = createTempDir("nextclaw-ui-ncp-attachments-");
-  private readonly attachments = new Map<
+  private readonly assets = new Map<
     string,
     {
       id: string;
       uri: string;
       storageKey: string;
-      originalName: string;
+      fileName: string;
       storedName: string;
       mimeType: string;
       sizeBytes: number;
@@ -76,11 +76,11 @@ class StubNcpAgent implements NcpAgentClientEndpoint, NcpSessionApi {
   >();
   readonly abortCalls: Array<{ sessionId: string; messageId?: string }> = [];
   readonly sessionTypeListCalls: Array<{ describeMode?: "observation" | "probe" } | undefined> = [];
-  readonly attachmentApi = {
-    saveAttachment: async (input: { fileName: string; mimeType?: string | null; bytes: Uint8Array }) => {
-      const id = `att_${this.attachments.size + 1}`;
+  readonly assetApi = {
+    put: async (input: { fileName: string; mimeType?: string | null; bytes: Uint8Array }) => {
+      const id = `asset_${this.assets.size + 1}`;
       const storageKey = `2026/03/26/${id}`;
-      const uri = `attachment://local/${storageKey}`;
+      const uri = `asset://store/${storageKey}`;
       const storedName = input.fileName.replace(/[^\w.-]+/g, "_");
       const filePath = join(this.attachmentRootDir, storedName);
       writeFileSync(filePath, Buffer.from(input.bytes));
@@ -88,7 +88,7 @@ class StubNcpAgent implements NcpAgentClientEndpoint, NcpSessionApi {
         id,
         uri,
         storageKey,
-        originalName: input.fileName,
+        fileName: input.fileName,
         storedName,
         mimeType: input.mimeType?.trim() || "application/octet-stream",
         sizeBytes: input.bytes.byteLength,
@@ -96,11 +96,11 @@ class StubNcpAgent implements NcpAgentClientEndpoint, NcpSessionApi {
         sha256: "stub",
         filePath,
       };
-      this.attachments.set(uri, record);
+      this.assets.set(uri, record);
       return record;
     },
-    statAttachment: async (uri: string) => {
-      const record = this.attachments.get(uri);
+    stat: async (uri: string) => {
+      const record = this.assets.get(uri);
       if (!record) {
         return null;
       }
@@ -108,7 +108,7 @@ class StubNcpAgent implements NcpAgentClientEndpoint, NcpSessionApi {
       void filePath;
       return rest;
     },
-    resolveContentPath: (uri: string) => this.attachments.get(uri)?.filePath ?? null,
+    resolveContentPath: (uri: string) => this.assets.get(uri)?.filePath ?? null,
   };
 
   async start(): Promise<void> {}
@@ -249,7 +249,7 @@ function createTestApp(): { app: ReturnType<typeof createUiRouter>; agent: StubN
         streamProvider,
         sessionApi: agent,
         listSessionTypes: (params) => agent.listSessionTypes(params),
-        attachmentApi: agent.attachmentApi,
+        assetApi: agent.assetApi,
       }
     }),
   };
@@ -304,12 +304,12 @@ it("mounts parallel ncp agent and session routes", async () => {
   expect(agent.sessionTypeListCalls).toEqual([{ describeMode: "observation" }]);
 });
 
-it("stores uploaded ncp attachments and serves their content back", async () => {
+it("stores uploaded ncp assets and serves their content back", async () => {
   const { app } = createTestApp();
 
   const formData = new FormData();
   formData.append("files", new File(['{"hello":"world"}'], "config.json", { type: "application/json" }));
-  const uploadResponse = await app.request("http://localhost/api/ncp/attachments", {
+  const uploadResponse = await app.request("http://localhost/api/ncp/assets", {
     method: "POST",
     body: formData,
   });
@@ -317,19 +317,19 @@ it("stores uploaded ncp attachments and serves their content back", async () => 
   const uploadPayload = await uploadResponse.json() as {
     ok: boolean;
     data: {
-      attachments: Array<{
+      assets: Array<{
         name: string;
-        attachmentUri: string;
+        assetUri: string;
         url: string;
       }>;
     };
   };
   expect(uploadPayload.ok).toBe(true);
-  expect(uploadPayload.data.attachments[0]?.name).toBe("config.json");
-  expect(uploadPayload.data.attachments[0]?.attachmentUri).toContain("attachment://local/");
+  expect(uploadPayload.data.assets[0]?.name).toBe("config.json");
+  expect(uploadPayload.data.assets[0]?.assetUri).toContain("asset://store/");
 
   const contentResponse = await app.request(
-    `http://localhost${uploadPayload.data.attachments[0]?.url}`,
+    `http://localhost${uploadPayload.data.assets[0]?.url}`,
   );
   expect(contentResponse.status).toBe(200);
   expect(await contentResponse.text()).toBe('{"hello":"world"}');

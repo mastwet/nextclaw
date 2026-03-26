@@ -9,7 +9,7 @@ import type {
 } from "@nextclaw/ncp";
 import type { NcpAgentRunInput } from "@nextclaw/ncp";
 import type { NcpToolRegistry } from "@nextclaw/ncp";
-import type { LocalAttachmentStore } from "./attachment-store.js";
+import type { LocalAssetStore } from "./asset-store.js";
 import { buildNcpUserContent } from "./user-content.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,8 +60,7 @@ function readRequestedToolNames(metadata: Record<string, unknown>): string[] {
 
 type DefaultNcpContextBuilderOptions = {
   toolRegistry?: NcpToolRegistry;
-  attachmentStore?: LocalAttachmentStore | null;
-  attachmentTextMaxBytes?: number;
+  assetStore?: LocalAssetStore | null;
 };
 
 function isDefaultNcpContextBuilderOptions(
@@ -73,8 +72,7 @@ function isDefaultNcpContextBuilderOptions(
 function messageToOpenAI(
   msg: NcpMessage,
   options: {
-    attachmentStore?: LocalAttachmentStore | null;
-    attachmentTextMaxBytes?: number;
+    assetStore?: LocalAssetStore | null;
   },
 ): OpenAIChatMessage[] {
   const role = msg.role as "user" | "assistant" | "system" | "tool";
@@ -86,8 +84,7 @@ function messageToOpenAI(
         {
           role,
           content: buildNcpUserContent(parts, {
-            attachmentStore: options.attachmentStore,
-            maxTextBytes: options.attachmentTextMaxBytes,
+            assetStore: options.assetStore,
           }),
         },
       ];
@@ -164,16 +161,14 @@ function messageToOpenAI(
 
 export class DefaultNcpContextBuilder implements NcpContextBuilder {
   private readonly toolRegistry?: NcpToolRegistry;
-  private readonly attachmentStore?: LocalAttachmentStore | null;
-  private readonly attachmentTextMaxBytes?: number;
+  private readonly assetStore?: LocalAssetStore | null;
 
   constructor(toolRegistry?: NcpToolRegistry);
   constructor(options?: DefaultNcpContextBuilderOptions);
   constructor(toolRegistryOrOptions?: NcpToolRegistry | DefaultNcpContextBuilderOptions) {
     if (isDefaultNcpContextBuilderOptions(toolRegistryOrOptions)) {
       this.toolRegistry = toolRegistryOrOptions.toolRegistry;
-      this.attachmentStore = toolRegistryOrOptions.attachmentStore;
-      this.attachmentTextMaxBytes = toolRegistryOrOptions.attachmentTextMaxBytes;
+      this.assetStore = toolRegistryOrOptions.assetStore;
       return;
     }
     this.toolRegistry = toolRegistryOrOptions;
@@ -198,8 +193,7 @@ export class DefaultNcpContextBuilder implements NcpContextBuilder {
     for (const msg of sessionMessages.slice(-maxMessages)) {
       messages.push(
         ...messageToOpenAI(msg, {
-          attachmentStore: this.attachmentStore,
-          attachmentTextMaxBytes: this.attachmentTextMaxBytes,
+          assetStore: this.assetStore,
         }),
       );
     }
@@ -207,8 +201,7 @@ export class DefaultNcpContextBuilder implements NcpContextBuilder {
     for (const msg of input.messages) {
       messages.push(
         ...messageToOpenAI(msg, {
-          attachmentStore: this.attachmentStore,
-          attachmentTextMaxBytes: this.attachmentTextMaxBytes,
+          assetStore: this.assetStore,
         }),
       );
     }

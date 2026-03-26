@@ -1,44 +1,44 @@
 import { readFile } from "node:fs/promises";
 import type { Context } from "hono";
-import type { UiNcpAttachmentUploadView, UiNcpAttachmentView } from "../types.js";
+import type { UiNcpAssetPutView, UiNcpAssetView } from "../types.js";
 import { err, ok } from "./response.js";
 import type { UiRouterOptions } from "./types.js";
 
-const ATTACHMENT_CONTENT_BASE_PATH = "/api/ncp/attachments/content";
+const ASSET_CONTENT_BASE_PATH = "/api/ncp/assets/content";
 
-function buildAttachmentContentUrl(attachmentUri: string): string {
-  const query = new URLSearchParams({ uri: attachmentUri });
-  return `${ATTACHMENT_CONTENT_BASE_PATH}?${query.toString()}`;
+function buildAssetContentUrl(assetUri: string): string {
+  const query = new URLSearchParams({ uri: assetUri });
+  return `${ASSET_CONTENT_BASE_PATH}?${query.toString()}`;
 }
 
 function encodeContentDispositionFileName(fileName: string): string {
   return encodeURIComponent(fileName).replace(/\*/g, "%2A");
 }
 
-function toAttachmentView(record: {
+function toAssetView(record: {
   id: string;
   uri: string;
-  originalName: string;
+  fileName: string;
   mimeType: string;
   sizeBytes: number;
-}): UiNcpAttachmentView {
+}): UiNcpAssetView {
   return {
     id: record.id,
-    name: record.originalName,
+    name: record.fileName,
     mimeType: record.mimeType,
     sizeBytes: record.sizeBytes,
-    attachmentUri: record.uri,
-    url: buildAttachmentContentUrl(record.uri),
+    assetUri: record.uri,
+    url: buildAssetContentUrl(record.uri),
   };
 }
 
-export class NcpAttachmentRoutesController {
+export class NcpAssetRoutesController {
   constructor(private readonly options: UiRouterOptions) {}
 
-  readonly uploadAttachments = async (c: Context) => {
-    const attachmentApi = this.options.ncpAgent?.attachmentApi;
-    if (!attachmentApi) {
-      return c.json(err("NOT_AVAILABLE", "ncp attachment api unavailable"), 503);
+  readonly putAssets = async (c: Context) => {
+    const assetApi = this.options.ncpAgent?.assetApi;
+    if (!assetApi) {
+      return c.json(err("NOT_AVAILABLE", "ncp asset api unavailable"), 503);
     }
 
     let formData: FormData;
@@ -68,35 +68,35 @@ export class NcpAttachmentRoutesController {
       return c.json(err("INVALID_BODY", "no files provided"), 400);
     }
 
-    const attachments: UiNcpAttachmentView[] = [];
+    const assets: UiNcpAssetView[] = [];
     for (const file of files) {
-      const record = await attachmentApi.saveAttachment({
+      const record = await assetApi.put({
         fileName: file.name,
         mimeType: file.type || null,
         bytes: new Uint8Array(await file.arrayBuffer()),
       });
-      attachments.push(toAttachmentView(record));
+      assets.push(toAssetView(record));
     }
 
-    const payload: UiNcpAttachmentUploadView = { attachments };
+    const payload: UiNcpAssetPutView = { assets };
     return c.json(ok(payload));
   };
 
-  readonly getAttachmentContent = async (c: Context): Promise<Response> => {
-    const attachmentApi = this.options.ncpAgent?.attachmentApi;
-    if (!attachmentApi) {
-      return c.json(err("NOT_AVAILABLE", "ncp attachment api unavailable"), 503);
+  readonly getAssetContent = async (c: Context): Promise<Response> => {
+    const assetApi = this.options.ncpAgent?.assetApi;
+    if (!assetApi) {
+      return c.json(err("NOT_AVAILABLE", "ncp asset api unavailable"), 503);
     }
 
     const uri = c.req.query("uri")?.trim();
     if (!uri) {
-      return c.json(err("INVALID_URI", "attachment uri is required"), 400);
+      return c.json(err("INVALID_URI", "asset uri is required"), 400);
     }
 
-    const record = await attachmentApi.statAttachment(uri);
-    const contentPath = attachmentApi.resolveContentPath(uri);
+    const record = await assetApi.stat(uri);
+    const contentPath = assetApi.resolveContentPath(uri);
     if (!record || !contentPath) {
-      return c.json(err("NOT_FOUND", `attachment not found: ${uri}`), 404);
+      return c.json(err("NOT_FOUND", `asset not found: ${uri}`), 404);
     }
 
     const body = await readFile(contentPath);
@@ -104,7 +104,7 @@ export class NcpAttachmentRoutesController {
       headers: {
         "content-length": String(body.byteLength),
         "content-type": record.mimeType || "application/octet-stream",
-        "content-disposition": `inline; filename*=UTF-8''${encodeContentDispositionFileName(record.originalName)}`,
+        "content-disposition": `inline; filename*=UTF-8''${encodeContentDispositionFileName(record.fileName)}`,
       },
     });
   };

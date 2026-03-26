@@ -1,8 +1,8 @@
-export type UiNcpStoredAttachmentRecord = {
+export type UiNcpStoredAssetRecord = {
   id: string;
   uri: string;
   storageKey: string;
-  originalName: string;
+  fileName: string;
   storedName: string;
   mimeType: string;
   sizeBytes: number;
@@ -10,15 +10,15 @@ export type UiNcpStoredAttachmentRecord = {
   sha256: string;
 };
 
-export type UiNcpAttachmentView = {
+export type UiNcpAssetView = {
   id: string;
   name: string;
   mimeType: string;
   sizeBytes: number;
-  attachmentUri: string;
+  assetUri: string;
   url: string;
 };
 
-export type UiNcpAttachmentUploadView = {
-  attachments: UiNcpAttachmentView[];
+export type UiNcpAssetPutView = {
+  assets: UiNcpAssetView[];
 };

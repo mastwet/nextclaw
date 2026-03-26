@@ -108,7 +108,7 @@ export function deriveNcpMessagePartsFromComposer(
       type: 'file',
       name: attachment.name,
       mimeType: attachment.mimeType,
-      ...(attachment.attachmentUri ? { attachmentUri: attachment.attachmentUri } : {}),
+      ...(attachment.assetUri ? { assetUri: attachment.assetUri } : {}),
       ...(attachment.url ? { url: attachment.url } : {}),
       ...(attachment.contentBase64 ? { contentBase64: attachment.contentBase64 } : {}),
       sizeBytes: attachment.sizeBytes

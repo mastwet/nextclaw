@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, expect, it, vi } from "vitest";
 import { ConfigSchema, SessionManager } from "@nextclaw/core";
-import { LocalAttachmentStore } from "@nextclaw/ncp-agent-runtime";
+import { LocalAssetStore } from "@nextclaw/ncp-agent-runtime";
 import { NextclawNcpContextBuilder } from "./nextclaw-ncp-context-builder.js";
 
 const tempWorkspaces: string[] = [];
@@ -19,9 +19,9 @@ function createWorkspace(): { workspace: string; home: string } {
   return { workspace, home };
 }
 
-function createAttachmentStore(home: string): LocalAttachmentStore {
-  return new LocalAttachmentStore({
-    rootDir: join(home, "attachments"),
+function createAssetStore(home: string): LocalAssetStore {
+  return new LocalAssetStore({
+    rootDir: join(home, "assets"),
   });
 }
 
@@ -98,7 +98,7 @@ it("injects runtime tool definitions into the system prompt", () => {
     expect(prepareForRun).toHaveBeenCalledTimes(1);
 });
 
-it("keeps current-turn text and image parts in composer order", () => {
+it("keeps current-turn text and asset reference parts in composer order", () => {
     const { workspace } = createWorkspace();
     const config = ConfigSchema.parse({
       agents: {
@@ -160,10 +160,13 @@ it("keeps current-turn text and image parts in composer order", () => {
           text: "before ",
         },
         {
-          type: "image_url",
-          image_url: {
-            url: "data:image/png;base64,ZmFrZS1pbWFnZQ==",
-          },
+          type: "text",
+          text: [
+            "[Asset: sample.png]",
+            "[MIME: image/png]",
+            "[Size Bytes: 10]",
+            "[Instruction: This file is not embedded in the prompt. If you need to inspect or transform it, use asset_export to copy it to a normal file path first.]",
+          ].join("\n"),
         },
         {
           type: "text",
@@ -174,7 +177,7 @@ it("keeps current-turn text and image parts in composer order", () => {
     expect(prepared.model).toBe("dashscope/qwen3.5-plus");
 });
 
-it("keeps historical image context without changing the selected model", () => {
+it("keeps historical asset references without changing the selected model", () => {
     const { workspace } = createWorkspace();
     const config = ConfigSchema.parse({
       agents: {
@@ -251,10 +254,13 @@ it("keeps historical image context without changing the selected model", () => {
             text: "remember this image",
           },
           {
-            type: "image_url",
-            image_url: {
-              url: "data:image/png;base64,ZmFrZS1pbWFnZQ==",
-            },
+            type: "text",
+            text: [
+              "[Asset: sample.png]",
+              "[MIME: image/png]",
+              "[Size Bytes: 10]",
+              "[Instruction: This file is not embedded in the prompt. If you need to inspect or transform it, use asset_export to copy it to a normal file path first.]",
+            ].join("\n"),
           },
         ],
       }),
@@ -265,7 +271,7 @@ it("keeps historical image context without changing the selected model", () => {
     });
 });
 
-it("injects uploaded text attachments into current-turn content", async () => {
+it("references uploaded assets in current-turn content", async () => {
     const { workspace, home } = createWorkspace();
     const config = ConfigSchema.parse({
       agents: {
@@ -284,8 +290,8 @@ it("injects uploaded text attachments into current-turn content", async () => {
         },
       },
     });
-    const attachmentStore = createAttachmentStore(home);
-    const record = await attachmentStore.saveAttachment({
+    const assetStore = createAssetStore(home);
+    const record = await assetStore.putBytes({
       fileName: "config.json",
       mimeType: "application/json",
       bytes: Buffer.from('{"route":"native"}', "utf8"),
@@ -297,7 +303,7 @@ it("injects uploaded text attachments into current-turn content", async () => {
         getToolDefinitions: () => [],
       } as never,
       getConfig: () => config,
-      attachmentStore,
+      assetStore,
     });
 
     const sessionId = `session-${randomUUID()}`;
@@ -316,7 +322,7 @@ it("injects uploaded text attachments into current-turn content", async () => {
               type: "file",
               name: "config.json",
               mimeType: "application/json",
-              attachmentUri: record.uri,
+              assetUri: record.uri,
               sizeBytes: record.sizeBytes,
             },
           ],
@@ -334,7 +340,13 @@ it("injects uploaded text attachments into current-turn content", async () => {
         },
         {
           type: "text",
-          text: '[Attachment: config.json]\n[MIME: application/json]\n{"route":"native"}',
+          text: [
+            "[Asset: config.json]",
+            "[MIME: application/json]",
+            `[Asset URI: ${record.uri}]`,
+            `[Size Bytes: ${record.sizeBytes}]`,
+            "[Instruction: This file is not embedded in the prompt. If you need to inspect or transform it, use asset_export to copy it to a normal file path first.]",
+          ].join("\n"),
         },
       ],
     });

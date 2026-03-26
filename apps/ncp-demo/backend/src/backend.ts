@@ -2,7 +2,7 @@ import {
   DefaultNcpAgentRuntime,
   DefaultNcpContextBuilder,
   DefaultNcpToolRegistry,
-  LocalAttachmentStore,
+  LocalAssetStore,
 } from "@nextclaw/ncp-agent-runtime";
 import {
   DefaultNcpAgentBackend,
@@ -15,15 +15,15 @@ import { FileAgentSessionStore } from "./stores/file-agent-session-store.js";
 
 export function createDemoBackend(): {
   backend: DefaultNcpAgentBackend;
-  attachmentStore: LocalAttachmentStore;
+  assetStore: LocalAssetStore;
 } {
   const llmApi = createLlmApi();
   const storeDir = resolveStoreDir(process.env.NCP_DEMO_STORE_DIR);
-  const attachmentStore = new LocalAttachmentStore({
-    rootDir: join(storeDir, "attachments"),
+  const assetStore = new LocalAssetStore({
+    rootDir: join(storeDir, "assets"),
   });
   return {
-    attachmentStore,
+    assetStore,
     backend: new DefaultNcpAgentBackend({
       endpointId: "ncp-demo-agent",
       sessionStore: new FileAgentSessionStore({ baseDir: storeDir }),
@@ -35,7 +35,7 @@ export function createDemoBackend(): {
         return new DefaultNcpAgentRuntime({
           contextBuilder: new DefaultNcpContextBuilder({
             toolRegistry,
-            attachmentStore,
+            assetStore,
           }),
           llmApi,
           toolRegistry,

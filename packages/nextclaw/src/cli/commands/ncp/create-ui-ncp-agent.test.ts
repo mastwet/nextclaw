@@ -117,59 +117,48 @@ describe("createUiNcpAgent session types availability", () => {
 });
 
 describe("createUiNcpAgent session types supported models", () => {
-  it("exposes codex supported models from configured providers", async () => {
-    const workspace = createTempWorkspace();
-    const config = ConfigSchema.parse({
-      agents: {
-        defaults: {
-          workspace,
-          model: "dashscope/qwen3-coder-next",
-          contextTokens: 200000,
-          maxToolIterations: 8,
-        },
-      },
-      providers: {
-        dashscope: {
-          enabled: true,
-          apiKey: "test-dashscope-key",
-          apiBase: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-          models: ["qwen3-coder-next"],
-        },
-      },
-      plugins: {
-        load: {
-          paths: ["../extensions/nextclaw-ncp-runtime-plugin-codex-sdk"],
-        },
-        entries: {
-          "nextclaw-ncp-runtime-plugin-codex-sdk": {
-            enabled: true,
-            config: {},
-          },
-        },
-      },
-    });
-    const extensionRegistry = createCodexExtensionRegistryFromSource(config);
-
-    const ncpAgent = await createUiNcpAgent({
-      bus: new MessageBus(),
-      providerManager: new RecordingProviderManager() as unknown as ProviderManager,
-      sessionManager: new SessionManager(workspace),
-      getConfig: () => config,
-      getExtensionRegistry: () => extensionRegistry,
-    });
-
-    const sessionTypes = await ncpAgent.listSessionTypes?.();
-    expect(sessionTypes?.options).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          value: "codex",
-          label: "Codex",
-          ready: true,
-          recommendedModel: "dashscope/qwen3-coder-next",
-          supportedModels: expect.arrayContaining(["dashscope/qwen3-coder-next"]),
-        }),
-      ]),
+  it("does not expose a codex supported model whitelist by default", async () => {
+    const codexOption = await getCodexSessionTypeOption({});
+    expect(codexOption?.supportedModels).toBeUndefined();
+    expect(codexOption).toEqual(
+      expect.objectContaining({
+        value: "codex",
+        label: "Codex",
+        ready: true,
+        recommendedModel: "dashscope/qwen3-coder-next",
+      }),
     );
+  });
+
+  it("exposes codex supported models when an explicit allowlist is configured", async () => {
+    const codexOption = await getCodexSessionTypeOption({
+      supportedModels: ["openai/gpt-5.4", "dashscope/qwen3-coder-next"],
+    });
+    expect(codexOption).toEqual(
+      expect.objectContaining({
+        value: "codex",
+        label: "Codex",
+        ready: true,
+        recommendedModel: "dashscope/qwen3-coder-next",
+        supportedModels: ["openai/gpt-5.4", "dashscope/qwen3-coder-next"],
+      }),
+    );
+  });
+
+  it.each([
+    { name: "wildcard", supportedModels: ["*"] },
+    { name: "missing config", supportedModels: undefined },
+  ])("treats codex supportedModels $name as unrestricted", async ({ supportedModels }) => {
+    const codexOption = await getCodexSessionTypeOption({
+      ...(supportedModels ? { supportedModels } : {}),
+    });
+    expect(codexOption).toEqual(
+      expect.objectContaining({
+        value: "codex",
+        recommendedModel: "dashscope/qwen3-coder-next",
+      }),
+    );
+    expect(codexOption?.supportedModels).toBeUndefined();
   });
 });
 
@@ -777,6 +766,53 @@ function createCodexExtensionRegistryFromSource(config: Config): NextclawExtensi
     diagnostics: [],
     ncpAgentRuntimes,
   };
+}
+
+async function getCodexSessionTypeOption(
+  pluginConfig: Record<string, unknown>,
+): Promise<Awaited<ReturnType<NonNullable<Awaited<ReturnType<typeof createUiNcpAgent>>["listSessionTypes"]>>>["options"][number] | undefined> {
+  const workspace = createTempWorkspace();
+  const config = ConfigSchema.parse({
+    agents: {
+      defaults: {
+        workspace,
+        model: "dashscope/qwen3-coder-next",
+        contextTokens: 200000,
+        maxToolIterations: 8,
+      },
+    },
+    providers: {
+      dashscope: {
+        enabled: true,
+        apiKey: "test-dashscope-key",
+        apiBase: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        models: ["qwen3-coder-next"],
+      },
+    },
+    plugins: {
+      load: {
+        paths: ["../extensions/nextclaw-ncp-runtime-plugin-codex-sdk"],
+      },
+      entries: {
+        "nextclaw-ncp-runtime-plugin-codex-sdk": {
+          enabled: true,
+          config: pluginConfig,
+        },
+      },
+    },
+  });
+  const extensionRegistry = createCodexExtensionRegistryFromSource(config);
+
+  const ncpAgent = await createUiNcpAgent({
+    bus: new MessageBus(),
+    providerManager: new RecordingProviderManager() as unknown as ProviderManager,
+    sessionManager: new SessionManager(workspace),
+    getConfig: () => config,
+    getExtensionRegistry: () => extensionRegistry,
+  });
+
+  const sessionTypes = await ncpAgent.listSessionTypes?.();
+  return sessionTypes?.options.find((option) => option.value === "codex");
 }
 
 function createEnvelope(params: {

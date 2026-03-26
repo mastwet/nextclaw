@@ -35,38 +35,27 @@ function dedupeStrings(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
-function resolveConfiguredCodexModels(params: {
-  config: Config;
-  pluginConfig: Record<string, unknown>;
-}): string[] {
-  const explicitSupportedModels = readStringArray(params.pluginConfig.supportedModels);
-  if (explicitSupportedModels) {
-    return dedupeStrings(explicitSupportedModels);
+function resolveConfiguredCodexModels(
+  pluginConfig: Record<string, unknown>,
+): string[] | undefined {
+  const explicitSupportedModels = readStringArray(pluginConfig.supportedModels);
+  if (!explicitSupportedModels) {
+    return undefined;
   }
-
-  const configuredProviders =
-    params.config.providers && typeof params.config.providers === "object" && !Array.isArray(params.config.providers)
-      ? (params.config.providers as Record<string, { models?: string[] | null }>)
-      : {};
-  const configuredModels = Object.entries(configuredProviders).flatMap(([providerName, provider]) =>
-    (provider.models ?? [])
-      .map((modelName) => readString(modelName))
-      .filter((modelName): modelName is string => Boolean(modelName))
-      .map((modelName) => `${providerName}/${modelName}`),
-  );
-
-  const fallbackModel = readString(params.pluginConfig.model) ?? params.config.agents.defaults.model;
-  const fallbackModels = fallbackModel ? [fallbackModel] : [];
-  return dedupeStrings(configuredModels.length > 0 ? configuredModels : fallbackModels);
+  const normalizedModels = dedupeStrings(explicitSupportedModels);
+  if (normalizedModels.includes("*")) {
+    return undefined;
+  }
+  return normalizedModels;
 }
 
 function resolveRecommendedCodexModel(params: {
   config: Config;
   pluginConfig: Record<string, unknown>;
-  supportedModels: string[];
+  supportedModels?: string[];
 }): string | null {
   const configuredModel = readString(params.pluginConfig.model) ?? params.config.agents.defaults.model;
-  if (params.supportedModels.includes(configuredModel)) {
+  if (!params.supportedModels || params.supportedModels.includes(configuredModel)) {
     return configuredModel;
   }
   return params.supportedModels[0] ?? configuredModel ?? null;
@@ -77,12 +66,11 @@ export function createDescribeCodexSessionType(params: {
   pluginConfig: Record<string, unknown>;
 }): () => SessionTypeDescriptor {
   return () => {
-    const supportedModels = resolveConfiguredCodexModels(params);
-    return {
+    const supportedModels = resolveConfiguredCodexModels(params.pluginConfig);
+    const descriptor: SessionTypeDescriptor = {
       ready: true,
       reason: null,
       reasonMessage: null,
-      supportedModels,
       recommendedModel: resolveRecommendedCodexModel({
         config: params.config,
         pluginConfig: params.pluginConfig,
@@ -90,5 +78,9 @@ export function createDescribeCodexSessionType(params: {
       }),
       cta: null,
     };
+    if (supportedModels) {
+      descriptor.supportedModels = supportedModels;
+    }
+    return descriptor;
   };
 }

@@ -259,17 +259,17 @@ export type NcpSessionMessagesView = {
   total: number;
 };
 
-export type NcpAttachmentView = {
+export type NcpAssetView = {
   id: string;
   name: string;
   mimeType: string;
   sizeBytes: number;
-  attachmentUri: string;
+  assetUri: string;
   url: string;
 };
 
-export type NcpAttachmentUploadView = {
-  attachments: NcpAttachmentView[];
+export type NcpAssetPutView = {
+  assets: NcpAssetView[];
 };
 
 export type NcpSessionStatusView = NcpSessionStatus;

@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { buildAttachmentContentPath } from "@nextclaw/ncp-agent-runtime";
+import { buildAssetContentPath } from "@nextclaw/ncp-agent-runtime";
 import { createAgentClientFromServer } from "@nextclaw/ncp-toolkit";
 import { mountNcpHttpAgentRoutes } from "@nextclaw/ncp-http-agent-server";
 import { Hono } from "hono";
@@ -10,7 +10,7 @@ import { createDemoBackend } from "./backend.js";
 const port = parsePort(process.env.NCP_DEMO_PORT, 3197);
 const host = "127.0.0.1";
 
-const { backend, attachmentStore } = createDemoBackend();
+const { backend, assetStore } = createDemoBackend();
 const agentClient = createAgentClientFromServer(backend);
 
 const app = new Hono();
@@ -49,7 +49,7 @@ app.delete("/demo/sessions/:sessionId", async (c) => {
   return c.json({ ok: true });
 });
 
-app.post("/api/ncp/attachments", async (c) => {
+app.post("/api/ncp/assets", async (c) => {
   const formData = await c.req.raw.formData();
   const files = Array.from(formData.values()).reduce<
     Array<{
@@ -71,39 +71,39 @@ app.post("/api/ncp/attachments", async (c) => {
     return c.json({ ok: false, error: { code: "INVALID_BODY", message: "no files provided" } }, 400);
   }
 
-  const attachments = [];
+  const assets = [];
   for (const file of files) {
-    const record = await attachmentStore.saveAttachment({
+    const record = await assetStore.putBytes({
       fileName: file.name,
       mimeType: file.type || null,
       bytes: new Uint8Array(await file.arrayBuffer()),
     });
-    attachments.push({
+    assets.push({
       id: record.id,
-      name: record.originalName,
+      name: record.fileName,
       mimeType: record.mimeType,
       sizeBytes: record.sizeBytes,
-      attachmentUri: record.uri,
-      url: buildAttachmentContentPath({
-        basePath: "/api/ncp/attachments/content",
-        attachmentUri: record.uri,
+      assetUri: record.uri,
+      url: buildAssetContentPath({
+        basePath: "/api/ncp/assets/content",
+        assetUri: record.uri,
       }),
     });
   }
 
-  return c.json({ ok: true, data: { attachments } });
+  return c.json({ ok: true, data: { assets } });
 });
 
-app.get("/api/ncp/attachments/content", async (c) => {
+app.get("/api/ncp/assets/content", async (c) => {
   const uri = c.req.query("uri")?.trim();
   if (!uri) {
-    return c.json({ ok: false, error: { code: "INVALID_URI", message: "attachment uri is required" } }, 400);
+    return c.json({ ok: false, error: { code: "INVALID_URI", message: "asset uri is required" } }, 400);
   }
 
-  const record = await attachmentStore.statAttachment(uri);
-  const contentPath = attachmentStore.resolveContentPath(uri);
+  const record = await assetStore.statRecord(uri);
+  const contentPath = assetStore.resolveContentPath(uri);
   if (!record || !contentPath) {
-    return c.json({ ok: false, error: { code: "NOT_FOUND", message: `attachment not found: ${uri}` } }, 404);
+    return c.json({ ok: false, error: { code: "NOT_FOUND", message: `asset not found: ${uri}` } }, 404);
   }
 
   const body = await readFile(contentPath);
@@ -111,7 +111,7 @@ app.get("/api/ncp/attachments/content", async (c) => {
     headers: {
       "content-length": String(body.byteLength),
       "content-type": record.mimeType,
-      "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(record.originalName)}`,
+      "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(record.fileName)}`,
     },
   });
 });

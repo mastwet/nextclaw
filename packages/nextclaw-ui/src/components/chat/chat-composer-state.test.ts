@@ -87,8 +87,8 @@ describe('deriveNcpMessagePartsFromComposer', () => {
           name: 'config.json',
           mimeType: 'application/json',
           sizeBytes: 18,
-          attachmentUri: 'attachment://local/2026/03/26/att_123',
-          url: '/api/ncp/attachments/content?uri=attachment%3A%2F%2Flocal%2F2026%2F03%2F26%2Fatt_123'
+          assetUri: 'asset://store/2026/03/26/asset_123',
+          url: '/api/ncp/assets/content?uri=asset%3A%2F%2Fstore%2F2026%2F03%2F26%2Fasset_123'
         }
       ]
     );
@@ -98,8 +98,8 @@ describe('deriveNcpMessagePartsFromComposer', () => {
         type: 'file',
         name: 'config.json',
         mimeType: 'application/json',
-        attachmentUri: 'attachment://local/2026/03/26/att_123',
-        url: '/api/ncp/attachments/content?uri=attachment%3A%2F%2Flocal%2F2026%2F03%2F26%2Fatt_123',
+        assetUri: 'asset://store/2026/03/26/asset_123',
+        url: '/api/ncp/assets/content?uri=asset%3A%2F%2Fstore%2F2026%2F03%2F26%2Fasset_123',
         sizeBytes: 18
       }
     ]);

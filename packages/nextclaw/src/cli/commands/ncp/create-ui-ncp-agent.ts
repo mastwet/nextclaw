@@ -9,7 +9,7 @@ import {
   type SessionManager,
 } from "@nextclaw/core";
 import { McpRegistryService, McpServerLifecycleManager } from "@nextclaw/mcp";
-import { DefaultNcpAgentRuntime, LocalAttachmentStore } from "@nextclaw/ncp-agent-runtime";
+import { DefaultNcpAgentRuntime, LocalAssetStore } from "@nextclaw/ncp-agent-runtime";
 import { McpNcpToolRegistryAdapter } from "@nextclaw/ncp-mcp";
 import {
   type NcpAgentRuntime,
@@ -25,6 +25,7 @@ import {
 } from "@nextclaw/ncp-toolkit";
 import type { UiNcpAgent } from "@nextclaw/server";
 import type { NextclawExtensionRegistry } from "../plugins.js";
+import { createAssetTools } from "./ncp-asset-tools.js";
 import { NextclawNcpContextBuilder } from "./nextclaw-ncp-context-builder.js";
 import { NextclawAgentSessionStore } from "./nextclaw-agent-session-store.js";
 import { NextclawNcpToolRegistry } from "./nextclaw-ncp-tool-registry.js";
@@ -156,7 +157,7 @@ async function createMcpRuntimeSupport(getConfig: () => Config): Promise<{
 function createNativeRuntimeFactory(
   params: CreateUiNcpAgentParams,
   mcpToolRegistryAdapter: McpNcpToolRegistryAdapter,
-  attachmentStore: LocalAttachmentStore,
+  assetStore: LocalAssetStore,
 ): RuntimeFactory {
   return ({
     stateManager,
@@ -187,10 +188,14 @@ function createNativeRuntimeFactory(
       gatewayController: params.gatewayController,
       getConfig: params.getConfig,
       getExtensionRegistry: params.getExtensionRegistry,
-      getAdditionalTools: (context) =>
-        mcpToolRegistryAdapter.listToolsForRun({
+      getAdditionalTools: (context) => [
+        ...createAssetTools({
+          assetStore,
+        }),
+        ...mcpToolRegistryAdapter.listToolsForRun({
           agentId: context.agentId,
         }),
+      ],
     });
     return new DefaultNcpAgentRuntime({
       contextBuilder: new NextclawNcpContextBuilder({
@@ -198,7 +203,7 @@ function createNativeRuntimeFactory(
         toolRegistry,
         getConfig: params.getConfig,
         resolveMessageToolHints: params.resolveMessageToolHints,
-        attachmentStore,
+        assetStore,
       }),
       llmApi: new ProviderManagerNcpLLMApi(params.providerManager),
       toolRegistry,
@@ -285,7 +290,7 @@ function createUiNcpAgentHandle(params: {
   refreshPluginRuntimeRegistrations: () => void;
   applyExtensionRegistry: (extensionRegistry?: NextclawExtensionRegistry) => void;
   applyMcpConfig: (config: Config) => Promise<void>;
-  attachmentStore: LocalAttachmentStore;
+  assetStore: LocalAssetStore;
 }): UiNcpAgentHandle {
   return {
     basePath: "/api/ncp/agent",
@@ -296,10 +301,16 @@ function createUiNcpAgentHandle(params: {
       params.refreshPluginRuntimeRegistrations();
       return params.runtimeRegistry.listSessionTypes(describeParams);
     },
-    attachmentApi: {
-      saveAttachment: (input) => params.attachmentStore.saveAttachment(input),
-      statAttachment: (uri) => params.attachmentStore.statAttachment(uri),
-      resolveContentPath: (uri) => params.attachmentStore.resolveContentPath(uri),
+    assetApi: {
+      put: (input) =>
+        params.assetStore.putBytes({
+          fileName: input.fileName,
+          mimeType: input.mimeType,
+          bytes: input.bytes,
+          createdAt: input.createdAt,
+        }),
+      stat: (uri) => params.assetStore.statRecord(uri),
+      resolveContentPath: (uri) => params.assetStore.resolveContentPath(uri),
     },
     applyExtensionRegistry: params.applyExtensionRegistry,
     applyMcpConfig: params.applyMcpConfig,
@@ -310,10 +321,10 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
   const sessionStore = new NextclawAgentSessionStore(params.sessionManager);
   const runtimeRegistry = new UiNcpRuntimeRegistry();
   const { toolRegistryAdapter, applyMcpConfig } = await createMcpRuntimeSupport(params.getConfig);
-  const attachmentStore = new LocalAttachmentStore({
-    rootDir: join(getDataDir(), "attachments"),
+  const assetStore = new LocalAssetStore({
+    rootDir: join(getDataDir(), "assets"),
   });
-  const createNativeRuntime = createNativeRuntimeFactory(params, toolRegistryAdapter, attachmentStore);
+  const createNativeRuntime = createNativeRuntimeFactory(params, toolRegistryAdapter, assetStore);
 
   runtimeRegistry.register({
     kind: "native",
@@ -347,6 +358,6 @@ export async function createUiNcpAgent(params: CreateUiNcpAgentParams): Promise<
       pluginRuntimeRegistrationController.refreshPluginRuntimeRegistrations,
     applyExtensionRegistry: pluginRuntimeRegistrationController.applyExtensionRegistry,
     applyMcpConfig,
-    attachmentStore,
+    assetStore,
   });
 }

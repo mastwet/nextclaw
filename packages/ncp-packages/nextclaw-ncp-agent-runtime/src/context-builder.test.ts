@@ -2,15 +2,15 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { LocalAttachmentStore } from "./attachment-store.js";
+import { LocalAssetStore } from "./asset-store.js";
 import { DefaultNcpContextBuilder } from "./context-builder.js";
 
 const tempDirs: string[] = [];
 
-function createAttachmentStore(): LocalAttachmentStore {
+function createAssetStore(): LocalAssetStore {
   const rootDir = mkdtempSync(join(tmpdir(), "nextclaw-ncp-context-builder-test-"));
   tempDirs.push(rootDir);
-  return new LocalAttachmentStore({ rootDir });
+  return new LocalAssetStore({ rootDir });
 }
 
 afterEach(() => {
@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 describe("DefaultNcpContextBuilder", () => {
-  it("converts user image file parts into OpenAI multimodal content", () => {
+  it("converts file parts into asset reference text blocks", () => {
     const builder = new DefaultNcpContextBuilder();
     const prepared = builder.prepare({
       sessionId: "session-1",
@@ -53,25 +53,28 @@ describe("DefaultNcpContextBuilder", () => {
         content: [
           { type: "text", text: "describe this" },
           {
-            type: "image_url",
-            image_url: {
-              url: "data:image/png;base64,ZmFrZS1pbWFnZQ==",
-            },
+            type: "text",
+            text: [
+              "[Asset: asset]",
+              "[MIME: image/png]",
+              "[Size Bytes: 12]",
+              "[Instruction: This file is not embedded in the prompt. If you need to inspect or transform it, use asset_export to copy it to a normal file path first.]",
+            ].join("\n"),
           },
         ],
       },
     ]);
   });
 
-  it("injects uploaded text-like attachments into user content", async () => {
-    const attachmentStore = createAttachmentStore();
-    const record = await attachmentStore.saveAttachment({
+  it("references uploaded assets instead of injecting file contents", async () => {
+    const assetStore = createAssetStore();
+    const record = await assetStore.putBytes({
       fileName: "config.json",
       mimeType: "application/json",
       bytes: Buffer.from('{"feature":"enabled"}', "utf8"),
     });
     const builder = new DefaultNcpContextBuilder({
-      attachmentStore,
+      assetStore,
     });
 
     const prepared = builder.prepare({
@@ -89,7 +92,7 @@ describe("DefaultNcpContextBuilder", () => {
               type: "file",
               name: "config.json",
               mimeType: "application/json",
-              attachmentUri: record.uri,
+              assetUri: record.uri,
               sizeBytes: record.sizeBytes,
             },
           ],
@@ -104,7 +107,13 @@ describe("DefaultNcpContextBuilder", () => {
           { type: "text", text: "read this file" },
           {
             type: "text",
-            text: '[Attachment: config.json]\n[MIME: application/json]\n{"feature":"enabled"}',
+            text: [
+              "[Asset: config.json]",
+              "[MIME: application/json]",
+              `[Asset URI: ${record.uri}]`,
+              `[Size Bytes: ${record.sizeBytes}]`,
+              "[Instruction: This file is not embedded in the prompt. If you need to inspect or transform it, use asset_export to copy it to a normal file path first.]",
+            ].join("\n"),
           },
         ],
       },

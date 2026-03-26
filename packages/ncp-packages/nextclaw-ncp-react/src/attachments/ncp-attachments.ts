@@ -19,7 +19,7 @@ export type NcpDraftAttachment = {
   name: string;
   mimeType: string;
   sizeBytes: number;
-  attachmentUri?: string;
+  assetUri?: string;
   url?: string;
   contentBase64?: string;
 };
@@ -139,8 +139,8 @@ export function buildNcpRequestEnvelope(params: {
             type: "file" as const,
             name: attachment.name,
             mimeType: attachment.mimeType,
-            ...(attachment.attachmentUri?.trim()
-              ? { attachmentUri: attachment.attachmentUri.trim() }
+            ...(attachment.assetUri?.trim()
+              ? { assetUri: attachment.assetUri.trim() }
               : {}),
             ...(attachment.url?.trim() ? { url: attachment.url.trim() } : {}),
             ...(attachment.contentBase64?.trim()

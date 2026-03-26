@@ -2,14 +2,14 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { LocalAttachmentStore } from "./attachment-store.js";
+import { LocalAssetStore } from "./asset-store.js";
 
 const tempDirs: string[] = [];
 
-function createStore(): LocalAttachmentStore {
-  const rootDir = mkdtempSync(join(tmpdir(), "nextclaw-attachment-store-test-"));
+function createStore(): LocalAssetStore {
+  const rootDir = mkdtempSync(join(tmpdir(), "nextclaw-asset-store-test-"));
   tempDirs.push(rootDir);
-  return new LocalAttachmentStore({ rootDir });
+  return new LocalAssetStore({ rootDir });
 }
 
 afterEach(() => {
@@ -21,16 +21,16 @@ afterEach(() => {
   }
 });
 
-describe("LocalAttachmentStore", () => {
+describe("LocalAssetStore", () => {
   it("preserves the original file name while storing a sanitized file name on disk", async () => {
     const store = createStore();
-    const record = await store.saveAttachment({
+    const record = await store.putBytes({
       fileName: "my config.json",
       mimeType: "application/json",
       bytes: Buffer.from('{"ok":true}', "utf8"),
     });
 
-    expect(record.originalName).toBe("my config.json");
+    expect(record.fileName).toBe("my config.json");
     expect(record.storedName).toBe("my_config.json");
     expect(store.resolveContentPath(record.uri)).toContain("my_config.json");
   });

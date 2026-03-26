@@ -1,7 +1,5 @@
 import type { NcpMessagePart, OpenAIContentPart } from "@nextclaw/ncp";
-import { isTextLikeAttachment, type LocalAttachmentStore } from "./attachment-store.js";
-
-const DEFAULT_ATTACHMENT_TEXT_MAX_BYTES = 32 * 1024;
+import type { LocalAssetStore } from "./asset-store.js";
 
 function readOptionalString(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -11,99 +9,70 @@ function readOptionalString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function decodeInlineBase64(base64: string): Buffer | null {
-  try {
-    return Buffer.from(base64, "base64");
-  } catch {
-    return null;
-  }
-}
-
-function formatTextAttachmentBlock(params: {
+function formatAssetReferenceBlock(params: {
   fileName?: string | null;
   mimeType?: string | null;
-  text: string;
-  truncated: boolean;
+  assetUri?: string | null;
+  url?: string | null;
+  sizeBytes?: number;
 }): string {
-  const fileName = readOptionalString(params.fileName) ?? "attachment";
+  const fileName = readOptionalString(params.fileName) ?? "asset";
   const mimeType = readOptionalString(params.mimeType) ?? "application/octet-stream";
-  const suffix = params.truncated ? "\n[Attachment truncated]" : "";
-  return `[Attachment: ${fileName}]\n[MIME: ${mimeType}]\n${params.text}${suffix}`;
+  const assetUri = readOptionalString(params.assetUri);
+  const url = readOptionalString(params.url);
+  const sizeText =
+    typeof params.sizeBytes === "number" && Number.isFinite(params.sizeBytes)
+      ? String(params.sizeBytes)
+      : null;
+
+  const lines = [
+    `[Asset: ${fileName}]`,
+    `[MIME: ${mimeType}]`,
+    ...(assetUri ? [`[Asset URI: ${assetUri}]`] : []),
+    ...(sizeText ? [`[Size Bytes: ${sizeText}]`] : []),
+    ...(url ? [`[Preview URL: ${url}]`] : []),
+    "[Instruction: This file is not embedded in the prompt. If you need to inspect or transform it, use asset_export to copy it to a normal file path first.]",
+  ];
+  return lines.join("\n");
 }
 
-function resolveImageDataUrl(
+function resolveAssetReferenceBlock(
   part: Extract<NcpMessagePart, { type: "file" }>,
-  attachmentStore?: LocalAttachmentStore | null,
+  assetStore?: LocalAssetStore | null,
 ): string | null {
-  const attachmentUri = readOptionalString(part.attachmentUri);
-  const mimeType = readOptionalString(part.mimeType);
-  if (attachmentUri && mimeType?.startsWith("image/")) {
-    const bytes = attachmentStore?.readAttachmentBytesSync(attachmentUri);
-    if (bytes) {
-      return `data:${mimeType};base64,${bytes.toString("base64")}`;
-    }
-  }
-
-  const url = readOptionalString(part.url);
-  if (url) {
-    return url;
-  }
-
-  const contentBase64 = readOptionalString(part.contentBase64);
-  if (!mimeType || !contentBase64 || !mimeType.startsWith("image/")) {
-    return null;
-  }
-  return `data:${mimeType};base64,${contentBase64}`;
-}
-
-function resolveTextAttachmentBlock(
-  part: Extract<NcpMessagePart, { type: "file" }>,
-  options: {
-    attachmentStore?: LocalAttachmentStore | null;
-    maxTextBytes?: number;
-  },
-): string | null {
-  const attachmentUri = readOptionalString(part.attachmentUri);
   const fileName = readOptionalString(part.name);
   const mimeType = readOptionalString(part.mimeType);
-  const maxTextBytes = options.maxTextBytes ?? DEFAULT_ATTACHMENT_TEXT_MAX_BYTES;
-  if (attachmentUri) {
-    const snapshot = options.attachmentStore?.readTextSnapshotSync(attachmentUri, {
-      maxBytes: maxTextBytes,
+  const assetUri = readOptionalString(part.assetUri);
+  const url = readOptionalString(part.url);
+  const sizeBytes = typeof part.sizeBytes === "number" ? part.sizeBytes : undefined;
+
+  if (assetUri) {
+    const stored = assetStore?.getByUri(assetUri);
+    return formatAssetReferenceBlock({
+      fileName: stored?.fileName ?? fileName,
+      mimeType: stored?.mimeType ?? mimeType,
+      assetUri,
+      url,
+      sizeBytes: stored?.sizeBytes ?? sizeBytes,
     });
-    if (snapshot) {
-      return formatTextAttachmentBlock({
-        fileName: snapshot.record.originalName,
-        mimeType: snapshot.record.mimeType,
-        text: snapshot.text,
-        truncated: snapshot.truncated,
-      });
-    }
   }
 
-  const contentBase64 = readOptionalString(part.contentBase64);
-  if (!contentBase64 || !isTextLikeAttachment({ mimeType, fileName })) {
-    return null;
+  if (url || part.contentBase64) {
+    return formatAssetReferenceBlock({
+      fileName,
+      mimeType,
+      url,
+      sizeBytes,
+    });
   }
-  const bytes = decodeInlineBase64(contentBase64);
-  if (!bytes) {
-    return null;
-  }
-  const truncated = bytes.length > maxTextBytes;
-  const text = (truncated ? bytes.subarray(0, maxTextBytes) : bytes).toString("utf8");
-  return formatTextAttachmentBlock({
-    fileName,
-    mimeType,
-    text,
-    truncated,
-  });
+
+  return null;
 }
 
 export function buildNcpUserContent(
   parts: NcpMessagePart[],
   options: {
-    attachmentStore?: LocalAttachmentStore | null;
-    maxTextBytes?: number;
+    assetStore?: LocalAssetStore | null;
   } = {},
 ): string | OpenAIContentPart[] {
   const content: OpenAIContentPart[] = [];
@@ -118,23 +87,10 @@ export function buildNcpUserContent(
       continue;
     }
 
-    const textAttachmentBlock = resolveTextAttachmentBlock(part, options);
-    if (textAttachmentBlock) {
-      content.push({ type: "text", text: textAttachmentBlock });
-      continue;
+    const assetReferenceBlock = resolveAssetReferenceBlock(part, options.assetStore);
+    if (assetReferenceBlock) {
+      content.push({ type: "text", text: assetReferenceBlock });
     }
-
-    const imageUrl = resolveImageDataUrl(part, options.attachmentStore);
-    if (!imageUrl) {
-      continue;
-    }
-
-    content.push({
-      type: "image_url",
-      image_url: {
-        url: imageUrl,
-      },
-    });
   }
 
   if (content.length === 0) {

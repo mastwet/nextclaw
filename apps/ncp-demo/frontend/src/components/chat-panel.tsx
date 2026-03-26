@@ -21,19 +21,19 @@ async function uploadDemoAttachments(files: File[]): Promise<NcpDraftAttachment[
     formData.append("files", file);
   }
 
-  const response = await fetch("/api/ncp/attachments", {
+  const response = await fetch("/api/ncp/assets", {
     method: "POST",
     body: formData,
   });
   const payload = await response.json() as {
     ok: boolean;
     data?: {
-      attachments: Array<{
+      assets: Array<{
         id: string;
         name: string;
         mimeType: string;
         sizeBytes: number;
-        attachmentUri: string;
+        assetUri: string;
         url: string;
       }>;
     };
@@ -42,16 +42,16 @@ async function uploadDemoAttachments(files: File[]): Promise<NcpDraftAttachment[
     };
   };
   if (!response.ok || !payload.ok || !payload.data) {
-    throw new Error(payload.error?.message || "Failed to upload attachments.");
+    throw new Error(payload.error?.message || "Failed to put assets.");
   }
 
-  return payload.data.attachments.map((attachment) => ({
-    id: attachment.id,
-    name: attachment.name,
-    mimeType: attachment.mimeType,
-    sizeBytes: attachment.sizeBytes,
-    attachmentUri: attachment.attachmentUri,
-    url: attachment.url,
+  return payload.data.assets.map((asset) => ({
+    id: asset.id,
+    name: asset.name,
+    mimeType: asset.mimeType,
+    sizeBytes: asset.sizeBytes,
+    assetUri: asset.assetUri,
+    url: asset.url,
   }));
 }
 
@@ -113,7 +113,7 @@ export function ChatPanel({ sessionId, onRefresh }: ChatPanelProps) {
         const seen = new Set<string>();
         const next = [...current, ...result.attachments].filter((attachment) => {
           const signature = [
-            attachment.attachmentUri ?? "",
+            attachment.assetUri ?? "",
             attachment.url ?? "",
             attachment.name,
             attachment.mimeType,

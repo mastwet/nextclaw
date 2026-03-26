@@ -1,5 +1,24 @@
 # nextclaw
 
+## 0.16.0
+
+### Minor Changes
+
+- Unify the NCP file pipeline around an asset store abstraction with `put`, `export`, and `stat`.
+
+  This release removes default prompt-time file content injection, replaces `attachmentUri` with `assetUri`, adds `asset_put` / `asset_export` / `asset_stat`, and updates the UI/server upload flow to return and render managed assets directly.
+
+### Patch Changes
+
+- Updated dependencies
+  - @nextclaw/ncp@0.4.0
+  - @nextclaw/ncp-agent-runtime@0.3.0
+  - @nextclaw/server@0.11.0
+  - @nextclaw/ncp-mcp@0.1.51
+  - @nextclaw/ncp-toolkit@0.4.4
+  - @nextclaw/openclaw-compat@0.3.34
+  - @nextclaw/remote@0.1.52
+
 ## 0.15.15
 
 ### Patch Changes

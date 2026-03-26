@@ -27,7 +27,7 @@ export class NcpChatInputManager {
 
   private buildAttachmentSignature = (attachment: NcpDraftAttachment): string =>
     [
-      attachment.attachmentUri ?? '',
+      attachment.assetUri ?? '',
       attachment.url ?? '',
       attachment.name,
       attachment.mimeType,

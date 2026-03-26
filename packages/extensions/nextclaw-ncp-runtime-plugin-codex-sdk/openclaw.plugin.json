@@ -17,6 +17,12 @@
       "model": {
         "type": "string"
       },
+      "supportedModels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
       "modelProvider": {
         "type": "string"
       },
@@ -73,6 +79,11 @@
     },
     "model": {
       "label": "Default Model"
+    },
+    "supportedModels": {
+      "label": "Supported Models",
+      "help": "Optional advanced allowlist. Leave empty for no model restriction. Use [\"*\"] to explicitly allow any model.",
+      "advanced": true
     },
     "modelProvider": {
       "label": "External Model Provider",

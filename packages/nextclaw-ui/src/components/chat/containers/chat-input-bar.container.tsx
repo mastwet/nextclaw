@@ -4,7 +4,7 @@ import {
   DEFAULT_NCP_ATTACHMENT_MAX_BYTES,
   uploadFilesAsNcpDraftAttachments
 } from '@nextclaw/ncp-react';
-import { uploadNcpAttachments } from '@/api/ncp-attachments';
+import { uploadNcpAssets } from '@/api/ncp-attachments';
 import {
   buildChatSlashItems,
   buildModelStateHint,
@@ -150,7 +150,7 @@ export function ChatInputBarContainer() {
       return;
     }
     const result = await uploadFilesAsNcpDraftAttachments(files, {
-      uploadBatch: uploadNcpAttachments,
+      uploadBatch: uploadNcpAssets,
     });
     if (result.attachments.length > 0) {
       const insertedAttachments = presenter.chatInputManager.addAttachments?.(result.attachments) ?? [];
