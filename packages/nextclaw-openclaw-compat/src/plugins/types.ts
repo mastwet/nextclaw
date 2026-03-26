@@ -377,6 +377,16 @@ export type PluginRuntime = {
     loadConfig: () => Record<string, unknown>;
     writeConfigFile: (next: Record<string, unknown>) => Promise<void>;
   };
+  logging: {
+    shouldLogVerbose: () => boolean;
+  };
+  media: {
+    detectMime: (params: { buffer: Buffer }) => Promise<string | undefined>;
+    loadWebMedia: (
+      url: string,
+      options?: Record<string, unknown>,
+    ) => Promise<Record<string, unknown>>;
+  };
   tools: {
     createMemorySearchTool: (params: {
       config?: Config;
@@ -388,8 +398,74 @@ export type PluginRuntime = {
     }) => OpenClawPluginTool | null;
   };
   channel: {
+    media: {
+      fetchRemoteMedia: (params: {
+        url: string;
+        maxBytes?: number;
+      }) => Promise<Record<string, unknown>>;
+      saveMediaBuffer: (
+        buffer: Buffer,
+        contentType?: string,
+        direction?: string,
+        maxBytes?: number,
+        fileName?: string,
+      ) => Promise<{ path: string; contentType?: string }>;
+    };
+    text: {
+      chunkMarkdownText: (text: string, limit: number) => string[];
+      resolveMarkdownTableMode: (params: Record<string, unknown>) => unknown;
+      convertMarkdownTables: (text: string, mode?: unknown) => string;
+      resolveTextChunkLimit: (
+        cfg: Config,
+        channel: string,
+        accountId?: string,
+        options?: Record<string, unknown>,
+      ) => number;
+      resolveChunkMode: (cfg: Config, channel: string, accountId?: string) => string;
+      chunkTextWithMode: (text: string, limit: number, mode?: unknown) => string[];
+      hasControlCommand: (text: string, cfg?: Config) => boolean;
+    };
     reply: {
+      resolveEnvelopeFormatOptions: (cfg: Config) => Record<string, unknown>;
+      formatAgentEnvelope: (params: Record<string, unknown>) => string;
+      finalizeInboundContext: (params: Record<string, unknown>) => Record<string, unknown>;
+      withReplyDispatcher: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+      dispatchReplyFromConfig: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+      createReplyDispatcherWithTyping: (params: Record<string, unknown>) => {
+        dispatcher: {
+          sendToolResult: (payload: Record<string, unknown>) => boolean;
+          sendBlockReply: (payload: Record<string, unknown>) => boolean;
+          sendFinalReply: (payload: Record<string, unknown>) => boolean;
+          waitForIdle: () => Promise<void>;
+          getQueuedCounts: () => Record<string, number>;
+          markComplete: () => void;
+        };
+        replyOptions: Record<string, unknown>;
+        markDispatchIdle: () => void;
+      };
+      resolveHumanDelayConfig: (cfg: Config, agentId: string) => unknown;
       dispatchReplyWithBufferedBlockDispatcher: (params: PluginReplyDispatchParams) => Promise<void>;
+    };
+    routing: {
+      resolveAgentRoute: (params: Record<string, unknown>) => Record<string, unknown>;
+    };
+    pairing: {
+      readAllowFromStore: (params: { channel: string; accountId?: string }) => Promise<string[]>;
+      upsertPairingRequest: (params: Record<string, unknown>) => Promise<{
+        code: string;
+        created: boolean;
+      }>;
+    };
+    commands: {
+      shouldComputeCommandAuthorized: (text: string, cfg?: Config) => boolean;
+      resolveCommandAuthorizedFromAuthorizers: (params: Record<string, unknown>) => boolean;
+    };
+    debounce: {
+      resolveInboundDebounceMs: (params: Record<string, unknown>) => number;
+      createInboundDebouncer: <T>(params: Record<string, unknown>) => {
+        enqueue: (item: T) => Promise<void>;
+        flushKey: (key: string) => Promise<void>;
+      };
     };
   };
 };

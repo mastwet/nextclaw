@@ -1,5 +1,13 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.29
+
+### Patch Changes
+
+- Fix the NextClaw plugin runtime contract so Feishu channel gateways no longer fail during startup after the legacy Feishu runtime removal.
+
+  This release adds the missing compat runtime helpers used by the Feishu plugin gateway, including inbound debounce, reply orchestration, text helpers, routing, media helpers, and logging support.
+
 ## 0.3.28
 
 ### Patch Changes
