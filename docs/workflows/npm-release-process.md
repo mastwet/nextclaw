@@ -33,6 +33,8 @@ pnpm release:publish
 
 Notes:
 - `release:version` and `release:publish` automatically run README sync/check.
+- `release:check:groups` now only gates the explicit release batch from pending changesets or freshly versioned packages.
+- `pnpm release:report:health` prints leftover unpublished drift for repository hygiene, but it does not block the current batch release.
 - `release:publish` should run `release:check` (build + lint + typecheck) before publishing.
 - `release:publish` should create git tags automatically.
 - Never run `npm publish` directly inside `packages/*`, `packages/extensions/*`, or `packages/ncp-packages/*`.

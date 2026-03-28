@@ -67,6 +67,7 @@
     "release:check-readmes": "node scripts/sync-npm-readmes.mjs --check",
     "release:check": "pnpm build && pnpm lint && pnpm tsc",
     "release:check:groups": "node scripts/check-release-groups.mjs",
+    "release:report:health": "node scripts/report-release-health.mjs",
     "release:check:frontend": "node scripts/check-frontend-release.mjs",
     "release:version": "pnpm release:sync-readmes && pnpm release:check-readmes && pnpm release:check:groups && pnpm changeset version",
     "release:publish": "pnpm release:sync-readmes && pnpm release:check-readmes && pnpm release:check:groups && pnpm release:check && pnpm changeset publish && pnpm changeset tag",
