@@ -1,5 +1,11 @@
 # @nextclaw/nextclaw-engine-codex-sdk
 
+## 0.3.6
+
+### Patch Changes
+
+- Publish the pending Codex engine plugin drift required by release guards.
+
 ## 0.3.5
 
 ### Patch Changes
@@ -82,7 +88,6 @@
 - Unified minor release for accumulated architecture, engine, and chat UX updates.
 
   Includes:
-
   - New pluggable engine runtime support (Codex SDK / Claude Agent SDK)
   - Skill-context propagation and chat interaction stability improvements
   - Main workspace routing and conversation UX refinements

@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/nextclaw-engine-codex-sdk",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "private": false,
   "description": "NextClaw Codex engine plugin backed by OpenAI Codex SDK.",
   "type": "module",
