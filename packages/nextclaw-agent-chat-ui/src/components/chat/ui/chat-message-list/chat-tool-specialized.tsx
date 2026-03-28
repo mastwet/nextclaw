@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronDown, ChevronRight, Code2, Globe, Loader2, Search, Terminal, FileText, AlertCircle, CircleSlash } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Code2, Globe, Loader2, Search, Terminal, FileText, AlertTriangle, Minus } from 'lucide-react';
 import type { ChatToolPartViewModel } from '../../view-models/chat-ui.types';
 import { cn } from '../../internal/cn';
 import { useState } from 'react';
@@ -6,10 +6,10 @@ import { useState } from 'react';
 const TOOL_OUTPUT_PREVIEW_MAX = 400;
 
 const STATUS_STYLES = {
-  running: { text: 'text-zinc-500', icon: Loader2, spin: true },
-  success: { text: 'text-emerald-600/90', icon: CheckCircle2, spin: false },
-  error: { text: 'text-rose-600/90', icon: AlertCircle, spin: false },
-  cancelled: { text: 'text-zinc-400', icon: CircleSlash, spin: false }
+  running: { text: 'text-amber-500', icon: Loader2, spin: true },
+  success: { text: 'text-amber-500/80', icon: Check, spin: false },
+  error: { text: 'text-rose-500/80', icon: AlertTriangle, spin: false },
+  cancelled: { text: 'text-zinc-300', icon: Minus, spin: false }
 } as const;
 
 function renderStatusMeta(card: ChatToolPartViewModel) {
@@ -33,29 +33,29 @@ export function TerminalExecutionView({ card }: { card: ChatToolPartViewModel })
   const [expanded, setExpanded] = useState(isRunning || card.statusTone === 'error' || output.length < 500);
 
   return (
-    <div className="my-2 rounded-xl border border-zinc-200/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all flex flex-col">
+    <div className="my-2 rounded-xl border border-zinc-200/80 border-l-2 border-l-amber-400/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all flex flex-col">
       {!expanded ? (
         // -------------------------------------------------------------
         // COLLAPSED STATE: Single Line (Perfect dimensional sync with other tools)
         // -------------------------------------------------------------
         <div 
           className={cn(
-            "flex items-center justify-between px-3 py-2.5 cursor-pointer w-full transition-colors", 
-            (output || isRunning) ? "hover:bg-zinc-50/50" : ""
+            "flex items-center justify-between px-3 py-2.5 cursor-pointer w-full transition-colors bg-amber-50/20", 
+            (output || isRunning) ? "hover:bg-amber-50/40" : ""
           )}
           onClick={() => (output || isRunning) && setExpanded(true)}
         >
-          <div className="flex items-center gap-2 font-mono text-zinc-700 min-w-0 max-w-[calc(100%-80px)]">
-            <Terminal className="h-4 w-4 text-zinc-500 shrink-0" />
+          <div className="flex items-center gap-2 font-mono min-w-0 max-w-[calc(100%-80px)]">
+            <Terminal className="h-4 w-4 text-amber-500 shrink-0" />
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-zinc-700 shrink-0 tracking-tight">{card.toolName}</span>
+              <span className="text-amber-700 shrink-0 tracking-tight">{card.toolName}</span>
               <span className="text-zinc-300 select-none shrink-0">›</span>
               <span className="truncate flex-1 min-w-0 text-zinc-500">{card.summary || '...'}</span>
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {renderStatusMeta(card)}
-            {(output || isRunning) && <ChevronRight className="h-4 w-4 text-zinc-400" />}
+            {(output || isRunning) && <ChevronRight className="h-4 w-4 text-amber-400/80" />}
           </div>
         </div>
       ) : (
@@ -65,16 +65,16 @@ export function TerminalExecutionView({ card }: { card: ChatToolPartViewModel })
         <>
           {/* Semantic Area 1: Meta Header (Clickable to collapse) */}
           <div 
-            className="flex items-center justify-between px-3 py-2.5 bg-zinc-50 border-b border-zinc-100 cursor-pointer hover:bg-zinc-50/80 transition-colors w-full"
+            className="flex items-center justify-between px-3 py-2.5 bg-amber-50/40 border-b border-zinc-100 cursor-pointer hover:bg-amber-50/60 transition-colors w-full font-mono"
             onClick={() => setExpanded(false)}
           >
-            <div className="flex items-center gap-2 font-mono text-zinc-500">
+            <div className="flex items-center gap-2 text-amber-600">
               <Terminal className="h-4 w-4" />
-              <span className="tracking-tight text-zinc-700">{card.toolName}</span>
+              <span className="tracking-tight text-amber-700">{card.toolName}</span>
             </div>
             <div className="flex items-center gap-3 shrink-0">
               {renderStatusMeta(card)}
-              <ChevronDown className="h-4 w-4 text-zinc-400" />
+              <ChevronDown className="h-4 w-4 text-amber-400/80" />
             </div>
           </div>
 
@@ -124,14 +124,14 @@ export function FileOperationView({ card }: { card: ChatToolPartViewModel }) {
   const displayLines = (!expanded && isLong) ? lines.slice(0, maxLines) : lines;
 
   return (
-    <div className="my-2 rounded-xl border border-zinc-200/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all">
+    <div className="my-2 rounded-xl border border-zinc-200/80 border-l-2 border-l-amber-400/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all">
       <div 
-        className="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-zinc-50 transition-colors w-full" 
+        className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-amber-50/20 hover:bg-amber-50/40 transition-colors w-full" 
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-2 font-mono text-zinc-700 min-w-0 max-w-[calc(100%-80px)]">
-          {isEdit ? <Code2 className="h-4 w-4 text-zinc-500 shrink-0" /> : <FileText className="h-4 w-4 text-zinc-500 shrink-0" />}
-          <span className="truncate flex-1 min-w-0" title={card.summary || card.toolName}>{card.summary || card.toolName}</span>
+        <div className="flex items-center gap-2 font-mono min-w-0 max-w-[calc(100%-80px)]">
+          {isEdit ? <Code2 className="h-4 w-4 text-amber-500 shrink-0" /> : <FileText className="h-4 w-4 text-amber-500 shrink-0" />}
+          <span className="truncate flex-1 min-w-0 text-amber-700" title={card.summary || card.toolName}>{card.summary || card.toolName}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {renderStatusMeta(card)}
@@ -163,14 +163,14 @@ export function SearchSnippetView({ card }: { card: ChatToolPartViewModel }) {
   const output = card.output?.trim() ?? '';
 
   return (
-    <div className="my-2 rounded-xl border border-zinc-200/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all">
+    <div className="my-2 rounded-xl border border-zinc-200/80 border-l-2 border-l-amber-400/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all">
       <div 
-        className="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-zinc-50 transition-colors w-full" 
+        className="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-amber-50/20 hover:bg-amber-50/40 transition-colors w-full" 
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-2 font-mono text-zinc-700 min-w-0 max-w-[calc(100%-80px)]">
-          <Search className="h-4 w-4 text-zinc-500 shrink-0" />
-          <span className="truncate flex-1 min-w-0">{card.summary || 'Search Codebase'}</span>
+        <div className="flex items-center gap-2 font-mono min-w-0 max-w-[calc(100%-80px)]">
+          <Search className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="truncate flex-1 min-w-0 text-amber-700">{card.summary || 'Search Codebase'}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {renderStatusMeta(card)}
@@ -197,14 +197,14 @@ export function GenericToolCard({ card }: { card: ChatToolPartViewModel }) {
   const showOutputSection = card.kind === 'result' || card.hasResult;
 
   return (
-    <div className="my-2 rounded-xl border border-zinc-200/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all">
+    <div className="my-2 rounded-xl border border-zinc-200/80 border-l-2 border-l-amber-400/80 bg-white overflow-hidden text-[12px] w-[280px] sm:w-[360px] md:w-[480px] min-w-full max-w-full shadow-sm transition-all">
       <div 
-        className={cn("flex items-center justify-between px-3 py-2.5 w-full transition-colors", showOutputSection && "cursor-pointer hover:bg-zinc-50")}
+        className={cn("flex items-center justify-between px-3 py-2.5 w-full transition-colors bg-amber-50/20", showOutputSection && "cursor-pointer hover:bg-amber-50/40")}
         onClick={() => showOutputSection && setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-2 font-mono text-zinc-700 min-w-0 max-w-[calc(100%-80px)]">
-          <Globe className="h-4 w-4 text-zinc-500 shrink-0" />
-          <span className="truncate font-medium flex-1 min-w-0">{card.toolName}</span>
+        <div className="flex items-center gap-2 font-mono min-w-0 max-w-[calc(100%-80px)]">
+          <Globe className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="truncate font-medium flex-1 min-w-0 text-amber-700">{card.toolName}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {renderStatusMeta(card)}
