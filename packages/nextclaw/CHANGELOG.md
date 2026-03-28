@@ -1,5 +1,15 @@
 # nextclaw
 
+## 0.16.7
+
+### Patch Changes
+
+- Fix the installed Codex session provider resolution path by making `@nextclaw/openclaw-compat` consume the host `@nextclaw/core` singleton instead of publishing its own runtime copy. Publish the aligned `@nextclaw/openclaw-compat`, `@nextclaw/server`, `@nextclaw/remote`, and `nextclaw` packages together so installed NextClaw no longer loses provider `defaultApiBase` for non-native models such as `minimax/MiniMax-M2.7`.
+- Updated dependencies
+  - @nextclaw/openclaw-compat@0.3.38
+  - @nextclaw/remote@0.1.55
+  - @nextclaw/server@0.11.3
+
 ## 0.16.6
 
 ### Patch Changes

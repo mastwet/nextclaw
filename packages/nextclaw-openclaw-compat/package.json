@@ -1,6 +1,6 @@
 {
   "name": "@nextclaw/openclaw-compat",
-  "version": "0.3.36",
+  "version": "0.3.38",
   "private": false,
   "description": "OpenClaw plugin compatibility layer for NextClaw.",
   "type": "module",
@@ -35,7 +35,6 @@
     "@nextclaw/channel-plugin-wecom": "workspace:*",
     "@nextclaw/channel-plugin-whatsapp": "workspace:*",
     "@nextclaw/channel-runtime": "workspace:*",
-    "@nextclaw/core": "workspace:*",
     "@nextclaw/ncp": "workspace:*",
     "@nextclaw/ncp-toolkit": "workspace:*",
     "ajv": "^8.17.1",
@@ -43,7 +42,11 @@
     "jszip": "^3.10.1",
     "tar": "^7.4.3"
   },
+  "peerDependencies": {
+    "@nextclaw/core": "workspace:*"
+  },
   "devDependencies": {
+    "@nextclaw/core": "workspace:*",
     "@types/node": "^20.17.6",
     "prettier": "^3.3.3",
     "tsup": "^8.3.5",
