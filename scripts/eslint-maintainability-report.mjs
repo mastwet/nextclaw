@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ESLint } from "eslint";
+import { collectDirectoryBudgetHotspots } from "./maintainability-directory-budget.mjs";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const trackedRuleIds = new Set([
@@ -23,8 +24,24 @@ const options = {
 const toPosixPath = (input) => input.split(sep).join("/");
 
 const readJsonFile = (filePath) => JSON.parse(readFileSync(filePath, "utf8"));
-const codeFileExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"]);
-const ignoredCoverageDirs = new Set(["node_modules", "dist", "build", ".next", ".vite", ".vitepress", ".wrangler", ".git", "coverage", "public"]);
+const codeFileExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".py", ".sh"]);
+const ignoredCoverageDirs = new Set([
+  "node_modules",
+  "dist",
+  "build",
+  ".next",
+  ".vite",
+  ".vitepress",
+  ".wrangler",
+  ".git",
+  "coverage",
+  "public",
+  "ui-dist",
+  "release",
+  "out",
+  "tmp"
+]);
+const repoLevelMaintainabilityRoots = ["scripts", "bridge"];
 
 const listWorkspacePackageDirs = () => {
   const rootPackage = readJsonFile(resolve(rootDir, "package.json"));
@@ -122,6 +139,12 @@ const detectedPackageDirs = workspacePackages
   .filter((entry) => entry.hasCodeFiles && entry.hasEslintLintScript)
   .map((entry) => entry.packageDir);
 const targetPackageDirs = collapseNestedTargets(detectedPackageDirs);
+const directoryBudgetTargetDirs = collapseNestedTargets([
+  ...workspacePackages.filter((entry) => entry.hasCodeFiles).map((entry) => entry.packageDir),
+  ...repoLevelMaintainabilityRoots
+    .map((relativeDir) => resolve(rootDir, relativeDir))
+    .filter((absoluteDir) => existsSync(absoluteDir) && statSync(absoluteDir).isDirectory() && hasCodeFiles(absoluteDir))
+]);
 
 const detectWorkspace = (absoluteFilePath) => {
   const matchedDir = targetPackageDirs
@@ -142,6 +165,10 @@ const eslint = new ESLint({
 
 const lintTargets = targetPackageDirs.map((packageDir) => toPosixPath(relative(rootDir, packageDir)));
 const results = await eslint.lintFiles(lintTargets);
+const directoryBudget = collectDirectoryBudgetHotspots({
+  rootDir,
+  scanRoots: directoryBudgetTargetDirs.map((targetDir) => toPosixPath(relative(rootDir, targetDir)))
+});
 
 const violations = [];
 const nonTargetErrors = [];
@@ -251,6 +278,7 @@ const report = {
   affectedFiles: new Set(violations.map((violation) => violation.filePath)).size,
   violationsByRule,
   violationsByWorkspace,
+  directoryBudget,
   ignoredNonTargetErrors: nonTargetErrors
 };
 
@@ -264,6 +292,9 @@ if (options.json) {
   console.log(`Coverage gaps: ${report.coverage.uncoveredCodeWorkspaces.length}`);
   console.log(`Affected files: ${report.affectedFiles}`);
   console.log(`Total violations: ${report.totalViolations}`);
+  console.log(
+    `Directory hotspots: ${report.directoryBudget.totalHotspots} (error=${report.directoryBudget.countsByLevel.error}, warn=${report.directoryBudget.countsByLevel.warn})`
+  );
   for (const [ruleId, count] of Object.entries(report.violationsByRule)) {
     console.log(`- ${ruleId}: ${count}`);
   }
@@ -294,6 +325,30 @@ if (options.json) {
     }
   }
 
+  console.log("");
+  console.log("Directory budget hotspots:");
+  console.log(
+    `Scanned roots: ${report.directoryBudget.scannedRoots.length}, scanned directories: ${report.directoryBudget.scannedDirectories}`
+  );
+  if (report.directoryBudget.totalHotspots === 0) {
+    console.log("- No directory budget hotspots found.");
+  } else {
+    for (const hotspot of report.directoryBudget.hotspots) {
+      const exceptionSummary = hotspot.exception_status === "complete"
+        ? `complete (${hotspot.exception_path})`
+        : hotspot.exception_status === "incomplete"
+          ? `incomplete (${hotspot.exception_path})`
+          : "missing";
+      console.log(
+        `- [${hotspot.level}] ${hotspot.path} direct_files=${hotspot.current_count} budget=${hotspot.budget} exception=${exceptionSummary}`
+      );
+      console.log(`  ${hotspot.message}`);
+      if (hotspot.exception_reason) {
+        console.log(`  exception_reason=${hotspot.exception_reason}`);
+      }
+    }
+  }
+
   if (report.ignoredNonTargetErrors.length > 0) {
     console.log("");
     console.log(`Ignored non-target ESLint errors: ${report.ignoredNonTargetErrors.length}`);
@@ -306,7 +361,7 @@ if (options.json) {
   }
 }
 
-if (options.failOnViolations && report.totalViolations > 0) {
+if (options.failOnViolations && (report.totalViolations > 0 || report.directoryBudget.countsByLevel.error > 0)) {
   process.exit(1);
 }
 if (options.failOnCoverageGaps && report.coverage.uncoveredCodeWorkspaces.length > 0) {
