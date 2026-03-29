@@ -1,0 +1,27 @@
+{
+  "slug": "linear-cli",
+  "name": "Linear CLI",
+  "summary": "Use schpet/linear-cli from NextClaw with guided install, auth, repo config, readiness checks, and clear read/write boundaries for Linear issues.",
+  "summaryI18n": {
+    "en": "Use schpet/linear-cli from NextClaw with guided install, auth, repo config, readiness checks, and clear read/write boundaries for Linear issues.",
+    "zh": "在 NextClaw 中使用 schpet/linear-cli：覆盖安装引导、登录与仓库配置、就绪检查，以及对 Linear 事务的读写边界说明。"
+  },
+  "description": "Use this skill when the user wants to drive Linear (issues, teams, projects, documents) through the local linear CLI. The skill covers installation options, linear auth login, linear config, API readiness checks, git/jj current-issue behavior, safe execution rules, and troubleshooting instead of assuming the environment is already configured.",
+  "descriptionI18n": {
+    "en": "Use this skill when the user wants to drive Linear (issues, teams, projects, documents) through the local linear CLI. The skill covers installation options, linear auth login, linear config, API readiness checks, git/jj current-issue behavior, safe execution rules, and troubleshooting instead of assuming the environment is already configured.",
+    "zh": "当用户希望通过本地 linear CLI 操作 Linear（事务、团队、项目、文档等）时使用此技能。内容包含多种安装方式、linear auth login、linear config、API 就绪检查、git/jj 下“当前事务”语义、安全执行规则与排障路径，而不是默认环境已配置完成。"
+  },
+  "author": "NextClaw",
+  "tags": [
+    "skill",
+    "linear",
+    "linear-cli",
+    "issue-tracker",
+    "cli",
+    "external-tool",
+    "onboarding",
+    "git"
+  ],
+  "sourceRepo": "https://github.com/schpet/linear-cli",
+  "homepage": "https://github.com/schpet/linear-cli"
+}
