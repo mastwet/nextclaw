@@ -8,5 +8,6 @@
       "@nextclaw/core": ["../../nextclaw-core/src/index.ts"]
     }
   },
-  "include": ["src", "tsup.config.ts"]
+  "include": ["src", "tsup.config.ts"],
+  "exclude": ["src/**/*.test.ts"]
 }
