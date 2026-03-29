@@ -313,6 +313,12 @@
   - 反例：触达红区文件却不留下减债状态；或只写“已修改 diagnostics.ts”而没有明确是否减债和下一步拆分缝。
   - 执行方式：收尾阶段通过 `post-edit-maintainability-guard` 自动检查 changed hotspot files 与 changed iteration README 的对应关系；缺失日志或字段不完整视为阻塞项。具体格式遵循 [`docs/workflows/maintainability-hotspot-freeze.md`](docs/workflows/maintainability-hotspot-freeze.md)。
   - 维护责任人：当前助手。
+- **incremental-maintainability-paydown-on-touch**：
+  - 约束/适用范围：凡触达项目源码、脚本、测试或影响运行链路的配置，完成主任务后必须默认评估一次“能否在同一改动链路里顺手减少一小笔维护性债务”。默认优先在同一文件、同一目录、同一模块、同一职责链路内做一个低风险、可验证、不会显著扩 scope 的 micro-paydown。纯文档、措辞或元信息微调不适用。
+  - 示例：修复 `packages/nextclaw-core/src/agent/loop.ts` 某个问题后，顺手把纯归一化逻辑提取成 helper、删掉一段重复分支、收窄一个过深嵌套、修正一个已触达文件的命名职责错配，或在接近预算线的目录里顺手补清晰的子目录边界/豁免说明。
+  - 反例：每次只完成字面需求，对同一链路里明显可顺手清理的死代码、重复逻辑、命名错配、目录膨胀完全不处理；或打着“减债”名义把任务扩成跨模块大重构，反而拖慢主任务并提高风险。
+  - 执行方式：先完成主需求，再按 `能删什么 → 能简化什么 → 能顺手拆出什么` 的顺序寻找一个最小减债动作；优先选择删除死代码、消除重复、提取 pure helper、收窄职责边界、补目录预算说明等低风险动作。若最终未做减债，必须在结果中明确“不做减债”的原因和下一步拆分缝；若触达 hotspot 文件，还必须同时遵循 [`docs/workflows/incremental-maintainability-paydown.md`](docs/workflows/incremental-maintainability-paydown.md) 与 [`docs/workflows/maintainability-hotspot-freeze.md`](docs/workflows/maintainability-hotspot-freeze.md) 的要求。
+  - 维护责任人：当前助手。
 - **legacy-freeze-before-removal**：
   - 约束/适用范围：凡涉及 `nextclaw` chat 链路演进，默认停止给 legacy 链路新增任何功能、适配或产品增强；legacy 只允许做三类改动：阻塞 NCP 迁移的必要修复、删除 legacy 前必须完成的兼容性清理、以及用户明确要求的临时回滚保障。
   - 示例：新能力只落在 `NcpChatPage` / NCP runtime / NCP tool/context 装配链路；若 legacy 发生阻塞迁移的关键 bug，仅做最小修复并注明其过渡性质。
