@@ -1,0 +1,27 @@
+{
+  "slug": "lark-cli",
+  "name": "Lark CLI",
+  "summary": "Use larksuite/cli (lark-cli) from NextClaw with guided install, Feishu/Lark app config, OAuth, readiness checks, and safe automation boundaries.",
+  "summaryI18n": {
+    "en": "Use larksuite/cli (lark-cli) from NextClaw with guided install, Feishu/Lark app config, OAuth, readiness checks, and safe automation boundaries.",
+    "zh": "在 NextClaw 中使用 larksuite/cli（lark-cli）：覆盖安装、飞书/Lark 应用配置、OAuth、就绪检查与安全自动化边界。"
+  },
+  "description": "Use this skill when the user wants to drive Lark or Feishu Open Platform capabilities through the local lark-cli. The skill covers installing @larksuite/cli, config init, auth login and auth status, command discovery, dry-run and scope hygiene, and upstream-aligned risk disclosure instead of assuming the tenant and tokens are already ready.",
+  "descriptionI18n": {
+    "en": "Use this skill when the user wants to drive Lark or Feishu Open Platform capabilities through the local lark-cli. The skill covers installing @larksuite/cli, config init, auth login and auth status, command discovery, dry-run and scope hygiene, and upstream-aligned risk disclosure instead of assuming the tenant and tokens are already ready.",
+    "zh": "当用户希望通过本地 lark-cli 操作飞书/Lark 开放平台能力时使用此技能。内容包含安装 @larksuite/cli、config init、auth login 与 auth status、命令发现、dry-run 与权限范围收敛，以及按上游说明披露风险，而不是默认租户与令牌已就绪。"
+  },
+  "author": "NextClaw",
+  "tags": [
+    "skill",
+    "lark",
+    "feishu",
+    "lark-cli",
+    "cli",
+    "external-tool",
+    "onboarding",
+    "oauth"
+  ],
+  "sourceRepo": "https://github.com/larksuite/cli",
+  "homepage": "https://github.com/larksuite/cli"
+}
