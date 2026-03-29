@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  deleteNcpSessionSummaryInQueryClient,
+  upsertNcpSessionSummaryInQueryClient
+} from '@/api/ncp-session-query-cache';
+import {
   fetchAppMeta,
   fetchConfig,
   fetchConfigMeta,
@@ -230,11 +234,7 @@ export function useNcpSessions(params?: { limit?: number }) {
     queryKey: ['ncp-sessions', params?.limit ?? null],
     queryFn: () => fetchNcpSessions(params),
     staleTime: 5_000,
-    retry: false,
-    refetchInterval: (query) => {
-      const hasRunningSession = Boolean(query.state.data?.sessions.some((session) => session.status === 'running'));
-      return hasRunningSession ? 800 : false;
-    }
+    retry: false
   });
 }
 
@@ -253,9 +253,9 @@ export function useDeleteNcpSession() {
 
   return useMutation({
     mutationFn: ({ sessionId }: { sessionId: string }) => deleteNcpSession(sessionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ncp-sessions'] });
-      queryClient.invalidateQueries({ queryKey: ['ncp-session-messages'] });
+    onSuccess: (_data, variables) => {
+      deleteNcpSessionSummaryInQueryClient(queryClient, variables.sessionId);
+      queryClient.removeQueries({ queryKey: ['ncp-session-messages', variables.sessionId] });
       toast.success(t('configSavedApplied'));
     },
     onError: (error: Error) => {
@@ -270,9 +270,8 @@ export function useUpdateNcpSession() {
   return useMutation({
     mutationFn: ({ sessionId, data }: { sessionId: string; data: Parameters<typeof updateNcpSession>[1] }) =>
       updateNcpSession(sessionId, data),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['ncp-sessions'] });
-      queryClient.invalidateQueries({ queryKey: ['ncp-session-messages', variables.sessionId] });
+    onSuccess: (data) => {
+      upsertNcpSessionSummaryInQueryClient(queryClient, data);
       toast.success(t('configSavedApplied'));
     },
     onError: (error: Error) => {

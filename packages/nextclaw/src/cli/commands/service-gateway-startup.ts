@@ -14,6 +14,7 @@ import type { GatewayAgentRuntimePool } from "./agent-runtime-pool.js";
 import { createUiNcpAgent, type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
 import type { NextclawExtensionRegistry } from "./plugins.js";
 import { createDeferredUiNcpAgent, type DeferredUiNcpAgentController } from "./service-deferred-ncp-agent.js";
+import type { DeferredUiNcpSessionServiceController } from "./service-deferred-ncp-session-service.js";
 import { logStartupTrace, measureStartupAsync } from "../startup-trace.js";
 
 type Config = NextclawCore.Config;
@@ -103,6 +104,7 @@ export async function startUiShell(params: {
 
 export async function startDeferredGatewayStartup(params: {
   uiStartup: UiStartupHandle | null;
+  deferredNcpSessionService: DeferredUiNcpSessionServiceController;
   bus: MessageBus;
   sessionManager: SessionManager;
   providerManager: ProviderManager;
@@ -116,6 +118,7 @@ export async function startDeferredGatewayStartup(params: {
   startChannels: () => Promise<void>;
   wakeFromRestartSentinel: () => Promise<void>;
   onNcpAgentReady: (agent: UiNcpAgentHandle) => void;
+  publishSessionChange: (sessionKey: string) => void;
 }): Promise<void> {
   logStartupTrace("service.deferred_startup.begin");
   if (params.uiStartup) {
@@ -129,11 +132,12 @@ export async function startDeferredGatewayStartup(params: {
           gatewayController: params.gatewayController,
           getConfig: params.getConfig,
           getExtensionRegistry: params.getExtensionRegistry,
-          onSessionUpdated: (sessionKey) => params.uiStartup?.publish({ type: "session.updated", payload: { sessionKey } }),
+          onSessionUpdated: params.publishSessionChange,
           resolveMessageToolHints: ({ channel, accountId }) =>
             params.resolveMessageToolHints({ channel, accountId }),
         })
       );
+      params.deferredNcpSessionService.activate(ncpAgent.sessionApi);
       params.onNcpAgentReady(ncpAgent);
       params.uiStartup.deferredNcpAgent.activate(ncpAgent);
       console.log("✓ UI NCP agent: ready");

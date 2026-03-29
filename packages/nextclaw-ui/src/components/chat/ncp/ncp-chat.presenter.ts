@@ -1,4 +1,3 @@
-import { ChatRunStatusManager } from '@/components/chat/managers/chat-run-status.manager';
 import { ChatSessionListManager } from '@/components/chat/managers/chat-session-list.manager';
 import { ChatStreamActionsManager } from '@/components/chat/managers/chat-stream-actions.manager';
 import { ChatUiManager } from '@/components/chat/managers/chat-ui.manager';
@@ -14,7 +13,6 @@ export class NcpChatPresenter {
     this.chatStreamActionsManager,
     () => this.getDraftSessionId()
   );
-  chatRunStatusManager = new ChatRunStatusManager();
   chatThreadManager = new NcpChatThreadManager(
     this.chatUiManager,
     this.chatSessionListManager,

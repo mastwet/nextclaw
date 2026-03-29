@@ -1,7 +1,6 @@
 import { ToolInvocationStatus, type UIMessage } from '@nextclaw/agent-chat';
 import type { NcpMessagePart } from '@nextclaw/ncp';
 import type { NcpMessageView, NcpSessionSummaryView, SessionEntryView, ThinkingLevel } from '@/api/types';
-import type { SessionRunStatus } from '@/lib/session-run-status';
 
 const THINKING_LEVEL_SET = new Set<string>(['off', 'minimal', 'low', 'medium', 'high', 'adaptive', 'xhigh']);
 
@@ -204,24 +203,6 @@ export function adaptNcpSessionSummary(summary: NcpSessionSummaryView): SessionE
 
 export function adaptNcpSessionSummaries(summaries: NcpSessionSummaryView[]): SessionEntryView[] {
   return summaries.map(adaptNcpSessionSummary);
-}
-
-export function buildNcpSessionRunStatusByKey(params: {
-  summaries: readonly NcpSessionSummaryView[];
-  activeSessionId?: string | null;
-  isLocallyRunning?: boolean;
-}): Map<string, SessionRunStatus> {
-  const map = new Map<string, SessionRunStatus>();
-  for (const summary of params.summaries) {
-    if (summary.status === 'running') {
-      map.set(summary.sessionId, 'running');
-    }
-  }
-  const activeSessionId = readOptionalString(params.activeSessionId);
-  if (params.isLocallyRunning && activeSessionId) {
-    map.set(activeSessionId, 'running');
-  }
-  return map;
 }
 
 export function createNcpSessionId(): string {

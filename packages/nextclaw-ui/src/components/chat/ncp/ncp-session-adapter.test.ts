@@ -1,7 +1,6 @@
 import {
   adaptNcpMessageToUiMessage,
   adaptNcpSessionSummary,
-  buildNcpSessionRunStatusByKey,
   readNcpSessionPreferredThinking
 } from '@/components/chat/ncp/ncp-session-adapter';
 import type { NcpSessionSummaryView } from '@/api/types';
@@ -93,27 +92,5 @@ describe('readNcpSessionPreferredThinking', () => {
     );
 
     expect(thinking).toBe('high');
-  });
-});
-
-describe('buildNcpSessionRunStatusByKey', () => {
-  it('marks the active local session as running before the server summary catches up', () => {
-    const statuses = buildNcpSessionRunStatusByKey({
-      summaries: [createSummary({ sessionId: 'ncp-session-1', status: 'idle' })],
-      activeSessionId: 'ncp-session-1',
-      isLocallyRunning: true
-    });
-
-    expect(statuses.get('ncp-session-1')).toBe('running');
-  });
-
-  it('keeps persisted running sessions marked as running', () => {
-    const statuses = buildNcpSessionRunStatusByKey({
-      summaries: [createSummary({ sessionId: 'ncp-session-2', status: 'running' })],
-      activeSessionId: null,
-      isLocallyRunning: false
-    });
-
-    expect(statuses.get('ncp-session-2')).toBe('running');
   });
 });

@@ -8,6 +8,7 @@ import type {
   NcpSessionSummary
 } from "@nextclaw/ncp";
 import { NextclawAgentSessionStore } from "./nextclaw-agent-session-store.js";
+import { createNcpSessionSummary } from "./ncp-session-summary.js";
 
 function applyLimit<T>(items: T[], limit?: number): T[] {
   if (!Number.isFinite(limit) || typeof limit !== "number" || limit <= 0) {
@@ -18,21 +19,6 @@ function applyLimit<T>(items: T[], limit?: number): T[] {
 
 function now(): string {
   return new Date().toISOString();
-}
-
-function toSessionSummary(params: {
-  sessionId: string;
-  messages: NcpMessage[];
-  updatedAt: string;
-  metadata?: Record<string, unknown>;
-}): NcpSessionSummary {
-  return {
-    sessionId: params.sessionId,
-    messageCount: params.messages.length,
-    updatedAt: params.updatedAt,
-    status: "idle",
-    ...(params.metadata ? { metadata: structuredClone(params.metadata) } : {})
-  };
 }
 
 function buildUpdatedMetadata(params: {
@@ -66,10 +52,11 @@ export class UiSessionService implements NcpSessionApi {
     const sessions = await this.sessionStore.listSessions();
     return applyLimit(
       sessions.map((session) =>
-        toSessionSummary({
+        createNcpSessionSummary({
           sessionId: session.sessionId,
           messages: session.messages,
           updatedAt: session.updatedAt,
+          status: "idle",
           metadata: session.metadata
         })
       ),
@@ -90,10 +77,11 @@ export class UiSessionService implements NcpSessionApi {
     if (!session) {
       return null;
     }
-    return toSessionSummary({
+    return createNcpSessionSummary({
       sessionId,
       messages: session.messages,
       updatedAt: session.updatedAt,
+      status: "idle",
       metadata: session.metadata
     });
   }

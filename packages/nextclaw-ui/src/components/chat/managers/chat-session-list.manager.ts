@@ -1,7 +1,6 @@
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
 import type { ChatUiManager } from '@/components/chat/managers/chat-ui.manager';
-import type { ChatSessionListSnapshot } from '@/components/chat/stores/chat-session-list.store';
 import type { SetStateAction } from 'react';
 import type { ChatStreamActionsManager } from '@/components/chat/managers/chat-stream-actions.manager';
 
@@ -11,28 +10,11 @@ export class ChatSessionListManager {
     private streamActionsManager: ChatStreamActionsManager
   ) {}
 
-  private hasSnapshotChanges = (patch: Partial<ChatSessionListSnapshot>): boolean => {
-    const current = useChatSessionListStore.getState().snapshot;
-    for (const [key, value] of Object.entries(patch) as Array<[keyof ChatSessionListSnapshot, ChatSessionListSnapshot[keyof ChatSessionListSnapshot]]>) {
-      if (!Object.is(current[key], value)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
   private resolveUpdateValue = <T>(prev: T, next: SetStateAction<T>): T => {
     if (typeof next === 'function') {
       return (next as (value: T) => T)(prev);
     }
     return next;
-  };
-
-  syncSnapshot = (patch: Partial<ChatSessionListSnapshot>) => {
-    if (!this.hasSnapshotChanges(patch)) {
-      return;
-    }
-    useChatSessionListStore.getState().setSnapshot(patch);
   };
 
   setSelectedAgentId = (next: SetStateAction<string>) => {

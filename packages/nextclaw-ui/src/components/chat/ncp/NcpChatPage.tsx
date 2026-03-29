@@ -14,7 +14,7 @@ import { createNcpAppClientFetch } from '@/components/chat/ncp/ncp-app-client-fe
 import { parseSessionKeyFromRoute, resolveAgentIdFromSessionKey } from '@/components/chat/chat-session-route';
 import { useNcpChatPageData } from '@/components/chat/ncp/ncp-chat-page-data';
 import { NcpChatPresenter } from '@/components/chat/ncp/ncp-chat.presenter';
-import { buildNcpSessionRunStatusByKey, createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
+import { createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
 import { ChatPresenterProvider } from '@/components/chat/presenter/chat-presenter-context';
 import type { ResumeRunParams } from '@/components/chat/chat-stream/types';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
@@ -74,12 +74,10 @@ export function NcpChatPage({ view }: ChatPageProps) {
     [routeSessionIdParam]
   );
   const {
-    sessionsQuery,
     installedSkillsQuery,
     isProviderStateResolved,
     modelOptions,
     sessionSummaries,
-    sessions,
     skillRecords,
     selectedSession,
     sessionTypeOptions,
@@ -97,7 +95,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
     setSelectedModel: presenter.chatInputManager.setSelectedModel,
     setSelectedThinkingLevel: presenter.chatInputManager.setSelectedThinkingLevel
   });
-  const refetchSessions = sessionsQuery.refetch;
 
   const activeSessionId = selectedSessionKey ?? draftSessionId;
   const sessionSummariesRef = useRef(sessionSummaries);
@@ -156,23 +153,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
   const canStopCurrentRun = agent.isRunning;
   const stopDisabledReason = agent.isRunning ? null : '__preparing__';
   const lastSendError = agent.hydrateError?.message ?? agent.snapshot.error?.message ?? null;
-  const activeBackendRunId = agent.activeRunId;
-  const sessionRunStatusByKey = useMemo(
-    () =>
-      buildNcpSessionRunStatusByKey({
-        summaries: sessionSummaries,
-        activeSessionId,
-        isLocallyRunning: isSending || Boolean(activeBackendRunId)
-      }),
-    [activeBackendRunId, activeSessionId, isSending, sessionSummaries]
-  );
-
-  useEffect(() => {
-    if (!isSending && !activeBackendRunId) {
-      return;
-    }
-    void refetchSessions();
-  }, [activeBackendRunId, isSending, refetchSessions]);
 
   useEffect(() => {
     presenter.chatStreamActionsManager.bind({
@@ -197,9 +177,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
           return;
         }
         try {
-          void sessionsQuery.refetch();
           await agent.send(envelope);
-          await sessionsQuery.refetch();
         } catch (error) {
           if (payload.restoreDraftOnError) {
             if (payload.composerNodes && payload.composerNodes.length > 0) {
@@ -218,7 +196,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
       },
       stopCurrentRun: async () => {
         await agent.abort();
-        await sessionsQuery.refetch();
       },
       resumeRun: async (run: ResumeRunParams) => {
         if (run.sessionKey !== activeSessionId) {
@@ -231,7 +208,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
       },
       applyHistoryMessages: () => {}
     });
-  }, [activeSessionId, agent, presenter, sessionsQuery]);
+  }, [activeSessionId, agent, presenter]);
 
   useChatSessionSync({
     view,
@@ -261,12 +238,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
     resolveSessionTypeLabel(selectedSessionType);
 
   useEffect(() => {
-    presenter.chatThreadManager.bindActions({
-      refetchSessions: sessionsQuery.refetch
-    });
-  }, [presenter, sessionsQuery.refetch]);
-
-  useEffect(() => {
     presenter.chatInputManager.syncSnapshot({
       isProviderStateResolved,
       defaultSessionType,
@@ -284,16 +255,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
       skillRecords,
       isSkillsLoading: installedSkillsQuery.isLoading
     });
-    presenter.chatSessionListManager.syncSnapshot({
-      sessions,
-      query,
-      isLoading: sessionsQuery.isLoading
-    });
-    presenter.chatRunStatusManager.syncSnapshot({
-      sessionRunStatusByKey,
-      isLocallyRunning: isSending || Boolean(activeBackendRunId),
-      activeBackendRunId
-    });
     presenter.chatThreadManager.syncSnapshot({
       isProviderStateResolved,
       modelOptions,
@@ -310,7 +271,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
       isAwaitingAssistantOutput
     });
   }, [
-    activeBackendRunId,
     agent.isHydrating,
     canEditSessionType,
     canStopCurrentRun,
@@ -325,16 +285,12 @@ export function NcpChatPage({ view }: ChatPageProps) {
     modelOptions.length,
     modelOptions,
     presenter,
-    query,
     selectedSession,
     selectedSessionKey,
     selectedSessionType,
-    sessionRunStatusByKey,
     sessionTypeOptions,
     sessionTypeUnavailable,
     sessionTypeUnavailableMessage,
-    sessions,
-    sessionsQuery.isLoading,
     skillRecords,
     stopDisabledReason,
     threadRef,

@@ -3,7 +3,6 @@ import type { NcpDraftAttachment } from '@nextclaw/ncp-react';
 import { createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
 import type { SetStateAction } from 'react';
-import type { ChatRunStatusManager } from '@/components/chat/managers/chat-run-status.manager';
 import type { ChatSessionListManager } from '@/components/chat/managers/chat-session-list.manager';
 import type { ChatStreamActionsManager } from '@/components/chat/managers/chat-stream-actions.manager';
 import type { ChatUiManager } from '@/components/chat/managers/chat-ui.manager';
@@ -33,7 +32,6 @@ export type ChatInputManagerLike = {
 };
 
 export type ChatThreadManagerLike = {
-  bindActions: (patch: { refetchSessions?: () => Promise<unknown> }) => void;
   syncSnapshot: (patch: Partial<ChatThreadSnapshot>) => void;
   deleteSession: () => void;
   createSession: () => void;
@@ -45,7 +43,6 @@ export type ChatPresenterLike = {
   chatStreamActionsManager: ChatStreamActionsManager;
   chatInputManager: ChatInputManagerLike;
   chatSessionListManager: ChatSessionListManager;
-  chatRunStatusManager: ChatRunStatusManager;
   chatThreadManager: ChatThreadManagerLike;
 };
 

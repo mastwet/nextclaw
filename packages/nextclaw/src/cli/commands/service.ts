@@ -38,7 +38,6 @@ import { resolveCliSubcommandEntry } from "./cli-subcommand-launch.js";
 import { writeInitialManagedServiceState, writeReadyManagedServiceState } from "./service-remote-runtime.js";
 import { createRemoteAccessHost } from "./service-remote-access.js";
 import { type UiNcpAgentHandle } from "./ncp/create-ui-ncp-agent.js";
-import { UiSessionService } from "./ncp/ui-session-service.js";
 import { createGatewayShellContext, createGatewayStartupContext } from "./service-gateway-context.js";
 import {
   runGatewayRuntimeLoop,
@@ -46,6 +45,7 @@ import {
   startUiShell,
   wireSystemSessionUpdatedPublisher
 } from "./service-gateway-startup.js";
+import { createServiceNcpSessionRealtimeBridge } from "./service-ncp-session-realtime-bridge.js";
 import { createEmptyPluginRegistry } from "./plugin-registry-loader.js";
 import {
   configureGatewayPluginRuntime,
@@ -114,7 +114,7 @@ export class ServiceCommands {
     const applyLiveConfigReload = async () => { await this.applyLiveConfigReload?.(); };
     let runtimeState: GatewayRuntimeState | null = null;
     const bootstrapStatus = createBootstrapStatus(shellContext.config.remote.enabled);
-    const ncpSessionService = new UiSessionService(shellContext.sessionManager, { onSessionUpdated: (sessionKey) => uiStartup?.publish({ type: "session.updated", payload: { sessionKey } }) });
+    const ncpSessionRealtimeBridge = createServiceNcpSessionRealtimeBridge({ sessionManager: shellContext.sessionManager });
 
     const marketplaceInstaller = new ServiceMarketplaceInstaller({ applyLiveConfigReload, runCliSubcommand: (args) => this.runCliSubcommand(args), installBuiltinSkill: (slug, force) => this.installBuiltinMarketplaceSkill(slug, force) }).createInstaller();
     const remoteAccess = createRemoteAccessHost({ serviceCommands: this, requestRestart: this.deps.requestRestart, uiConfig: shellContext.uiConfig, remoteModule: shellContext.remoteModule });
@@ -133,9 +133,10 @@ export class ServiceCommands {
         getBootstrapStatus: () => bootstrapStatus.getStatus(),
         openBrowserWindow: shellContext.uiConfig.open,
         applyLiveConfigReload,
-        ncpSessionService
+        ncpSessionService: ncpSessionRealtimeBridge.sessionService
       })
     );
+    ncpSessionRealtimeBridge.setUiEventPublisher(uiStartup?.publish);
 
     bootstrapStatus.markShellReady();
     await waitForNextTick();
@@ -159,10 +160,7 @@ export class ServiceCommands {
     uiStartup?.publish({ type: "config.updated", payload: { path: "channels" } });
     uiStartup?.publish({ type: "config.updated", payload: { path: "plugins" } });
     configureGatewayPluginRuntime({ gateway, state: gatewayRuntimeState, getLiveUiNcpAgent: () => this.liveUiNcpAgent });
-    wireSystemSessionUpdatedPublisher({
-      runtimePool: gateway.runtimePool,
-      publishUiEvent: uiStartup?.publish
-    });
+    wireSystemSessionUpdatedPublisher({ runtimePool: gateway.runtimePool, publishUiEvent: uiStartup?.publish });
     console.log("✓ Capability hydration: scheduled in background");
     await measureStartupAsync("service.start_gateway_support_services", async () =>
       await startGatewaySupportServices({
@@ -181,9 +179,8 @@ export class ServiceCommands {
       bootstrapStatus,
       getLiveUiNcpAgent: () => this.liveUiNcpAgent,
       setLiveUiNcpAgent: (ncpAgent) => { this.liveUiNcpAgent = ncpAgent; },
-      wakeFromRestartSentinel: async () => {
-        await this.wakeFromRestartSentinel({ bus: gateway.bus, sessionManager: gateway.sessionManager });
-      }
+      wakeFromRestartSentinel: async () =>
+        await this.wakeFromRestartSentinel({ bus: gateway.bus, sessionManager: gateway.sessionManager })
     });
 
     logStartupTrace("service.start_gateway.runtime_loop_begin");
@@ -192,6 +189,7 @@ export class ServiceCommands {
       startDeferredStartup: () =>
         startDeferredGatewayStartup({
         uiStartup,
+        deferredNcpSessionService: ncpSessionRealtimeBridge.deferredSessionService,
         bus: gateway.bus,
         sessionManager: gateway.sessionManager,
         providerManager: gateway.providerManager,
@@ -209,7 +207,8 @@ export class ServiceCommands {
         startPluginGateways: deferredGatewayStartupHooks.startPluginGateways,
         startChannels: deferredGatewayStartupHooks.startChannels,
         wakeFromRestartSentinel: deferredGatewayStartupHooks.wakeFromRestartSentinel,
-        onNcpAgentReady: deferredGatewayStartupHooks.onNcpAgentReady
+        onNcpAgentReady: deferredGatewayStartupHooks.onNcpAgentReady,
+        publishSessionChange: ncpSessionRealtimeBridge.publishSessionChange
       }),
       onDeferredStartupError: (error) => {
         const message = error instanceof Error ? error.message : String(error);
@@ -222,6 +221,7 @@ export class ServiceCommands {
       cleanup: async () => {
         this.applyLiveConfigReload = null;
         this.liveUiNcpAgent = null;
+        ncpSessionRealtimeBridge.clear();
         await uiStartup?.deferredNcpAgent.close();
         await gateway.remoteModule?.stop();
         await stopPluginChannelGateways(runtimeState?.pluginGatewayHandles ?? []);

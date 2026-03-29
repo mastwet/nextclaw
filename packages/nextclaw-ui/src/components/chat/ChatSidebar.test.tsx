@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
+import type { NcpSessionListItemView } from '@/components/chat/ncp/use-ncp-session-list-view';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
-import { useChatRunStatusStore } from '@/components/chat/stores/chat-run-status.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 
 const mocks = vi.hoisted(() => ({
@@ -11,8 +11,14 @@ const mocks = vi.hoisted(() => ({
   setQuery: vi.fn(),
   selectSession: vi.fn(),
   docOpen: vi.fn(),
-  updateNcpSession: vi.fn()
+  updateNcpSession: vi.fn(),
+  sessionItems: [] as NcpSessionListItemView[],
+  isLoading: false
 }));
+
+function createSessionItem(session: NcpSessionListItemView['session']): NcpSessionListItemView {
+  return { session };
+}
 
 vi.mock('@/components/chat/presenter/chat-presenter-context', () => ({
   usePresenter: () => ({
@@ -34,7 +40,27 @@ vi.mock('@/components/chat/chat-session-label.service', () => ({
   useChatSessionLabelService: () => async (params: {
     sessionKey: string;
     label: string | null;
-  }) => mocks.updateNcpSession(params.sessionKey, { label: params.label })
+  }) => {
+    mocks.sessionItems = mocks.sessionItems.map((item) =>
+      item.session.key === params.sessionKey
+        ? {
+            ...item,
+            session: {
+              ...item.session,
+              ...(params.label ? { label: params.label } : { label: undefined })
+            }
+          }
+        : item
+    );
+    return mocks.updateNcpSession(params.sessionKey, { label: params.label });
+  }
+}));
+
+vi.mock('@/components/chat/ncp/use-ncp-session-list-view', () => ({
+  useNcpSessionListView: () => ({
+    isLoading: mocks.isLoading,
+    items: mocks.sessionItems
+  })
 }));
 
 vi.mock('@/components/common/BrandHeader', () => ({
@@ -72,6 +98,8 @@ describe('ChatSidebar', () => {
     mocks.docOpen.mockReset();
     mocks.updateNcpSession.mockReset();
     mocks.updateNcpSession.mockResolvedValue({});
+    mocks.sessionItems = [];
+    mocks.isLoading = false;
 
     useChatInputStore.setState({
       snapshot: {
@@ -86,15 +114,7 @@ describe('ChatSidebar', () => {
     useChatSessionListStore.setState({
       snapshot: {
         ...useChatSessionListStore.getState().snapshot,
-        sessions: [],
-        query: '',
-        isLoading: false
-      }
-    });
-    useChatRunStatusStore.setState({
-      snapshot: {
-        ...useChatRunStatusStore.getState().snapshot,
-        sessionRunStatusByKey: new Map()
+        query: ''
       }
     });
   });
@@ -145,22 +165,17 @@ describe('ChatSidebar', () => {
   });
 
   it('shows a session type badge for non-native sessions in the list', () => {
-    useChatSessionListStore.setState({
-      snapshot: {
-        ...useChatSessionListStore.getState().snapshot,
-        sessions: [
-          {
-            key: 'session:codex-1',
-            createdAt: '2026-03-19T09:00:00.000Z',
-            updatedAt: '2026-03-19T09:05:00.000Z',
-            label: 'Codex Task',
-            sessionType: 'codex',
-            sessionTypeMutable: false,
-            messageCount: 2
-          }
-        ]
-      }
-    });
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:codex-1',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T09:05:00.000Z',
+        label: 'Codex Task',
+        sessionType: 'codex',
+        sessionTypeMutable: false,
+        messageCount: 2
+      })
+    ];
 
     render(
       <MemoryRouter>
@@ -180,22 +195,17 @@ describe('ChatSidebar', () => {
         sessionTypeOptions: [{ value: 'native', label: 'Native' }]
       }
     });
-    useChatSessionListStore.setState({
-      snapshot: {
-        ...useChatSessionListStore.getState().snapshot,
-        sessions: [
-          {
-            key: 'session:workspace-agent-1',
-            createdAt: '2026-03-19T09:00:00.000Z',
-            updatedAt: '2026-03-19T09:05:00.000Z',
-            label: 'Workspace Task',
-            sessionType: 'workspace-agent',
-            sessionTypeMutable: false,
-            messageCount: 2
-          }
-        ]
-      }
-    });
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:workspace-agent-1',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T09:05:00.000Z',
+        label: 'Workspace Task',
+        sessionType: 'workspace-agent',
+        sessionTypeMutable: false,
+        messageCount: 2
+      })
+    ];
 
     render(
       <MemoryRouter>
@@ -214,22 +224,17 @@ describe('ChatSidebar', () => {
         sessionTypeOptions: [{ value: 'native', label: 'Native' }]
       }
     });
-    useChatSessionListStore.setState({
-      snapshot: {
-        ...useChatSessionListStore.getState().snapshot,
-        sessions: [
-          {
-            key: 'session:native-1',
-            createdAt: '2026-03-19T09:00:00.000Z',
-            updatedAt: '2026-03-19T09:05:00.000Z',
-            label: 'Native Task',
-            sessionType: 'native',
-            sessionTypeMutable: false,
-            messageCount: 1
-          }
-        ]
-      }
-    });
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:native-1',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T09:05:00.000Z',
+        label: 'Native Task',
+        sessionType: 'native',
+        sessionTypeMutable: false,
+        messageCount: 1
+      })
+    ];
 
     render(
       <MemoryRouter>
@@ -242,22 +247,17 @@ describe('ChatSidebar', () => {
   });
 
   it('edits the session label inline and saves through the ncp session api by default', async () => {
-    useChatSessionListStore.setState({
-      snapshot: {
-        ...useChatSessionListStore.getState().snapshot,
-        sessions: [
-          {
-            key: 'session:ncp-1',
-            createdAt: '2026-03-19T09:00:00.000Z',
-            updatedAt: '2026-03-19T09:05:00.000Z',
-            label: 'Initial Label',
-            sessionType: 'native',
-            sessionTypeMutable: false,
-            messageCount: 1
-          }
-        ]
-      }
-    });
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:ncp-1',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T09:05:00.000Z',
+        label: 'Initial Label',
+        sessionType: 'native',
+        sessionTypeMutable: false,
+        messageCount: 1
+      })
+    ];
 
     render(
       <MemoryRouter>
@@ -280,22 +280,17 @@ describe('ChatSidebar', () => {
   });
 
   it('cancels inline session label editing without saving', () => {
-    useChatSessionListStore.setState({
-      snapshot: {
-        ...useChatSessionListStore.getState().snapshot,
-        sessions: [
-          {
-            key: 'session:ncp-2',
-            createdAt: '2026-03-19T09:00:00.000Z',
-            updatedAt: '2026-03-19T09:05:00.000Z',
-            label: 'Cancelable Label',
-            sessionType: 'native',
-            sessionTypeMutable: false,
-            messageCount: 1
-          }
-        ]
-      }
-    });
+    mocks.sessionItems = [
+      createSessionItem({
+        key: 'session:ncp-2',
+        createdAt: '2026-03-19T09:00:00.000Z',
+        updatedAt: '2026-03-19T09:05:00.000Z',
+        label: 'Cancelable Label',
+        sessionType: 'native',
+        sessionTypeMutable: false,
+        messageCount: 1
+      })
+    ];
 
     render(
       <MemoryRouter>

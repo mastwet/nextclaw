@@ -8,9 +8,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { SelectItem } from '@/components/ui/select';
 import { ChatSidebarSessionItem } from '@/components/chat/chat-sidebar-session-item';
 import { useChatSessionLabelService } from '@/components/chat/chat-session-label.service';
+import { useNcpSessionListView, type NcpSessionListItemView } from '@/components/chat/ncp/use-ncp-session-list-view';
 import { usePresenter } from '@/components/chat/presenter/chat-presenter-context';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
-import { useChatRunStatusStore } from '@/components/chat/stores/chat-run-status.store';
 import { useChatSessionListStore } from '@/components/chat/stores/chat-session-list.store';
 import { cn } from '@/lib/utils';
 import { LANGUAGE_OPTIONS, t, type I18nLanguage } from '@/lib/i18n';
@@ -35,38 +35,39 @@ import {
 
 type DateGroup = {
   label: string;
-  sessions: SessionEntryView[];
+  items: NcpSessionListItemView[];
 };
 
-function groupSessionsByDate(sessions: SessionEntryView[]): DateGroup[] {
+function groupSessionsByDate(items: NcpSessionListItemView[]): DateGroup[] {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const yesterdayStart = todayStart - 86_400_000;
   const sevenDaysStart = todayStart - 7 * 86_400_000;
 
-  const today: SessionEntryView[] = [];
-  const yesterday: SessionEntryView[] = [];
-  const previous7: SessionEntryView[] = [];
-  const older: SessionEntryView[] = [];
+  const today: NcpSessionListItemView[] = [];
+  const yesterday: NcpSessionListItemView[] = [];
+  const previous7: NcpSessionListItemView[] = [];
+  const older: NcpSessionListItemView[] = [];
 
-  for (const session of sessions) {
+  for (const item of items) {
+    const { session } = item;
     const ts = new Date(session.updatedAt).getTime();
     if (ts >= todayStart) {
-      today.push(session);
+      today.push(item);
     } else if (ts >= yesterdayStart) {
-      yesterday.push(session);
+      yesterday.push(item);
     } else if (ts >= sevenDaysStart) {
-      previous7.push(session);
+      previous7.push(item);
     } else {
-      older.push(session);
+      older.push(item);
     }
   }
 
   const groups: DateGroup[] = [];
-  if (today.length > 0) groups.push({ label: t('chatSidebarToday'), sessions: today });
-  if (yesterday.length > 0) groups.push({ label: t('chatSidebarYesterday'), sessions: yesterday });
-  if (previous7.length > 0) groups.push({ label: t('chatSidebarPrevious7Days'), sessions: previous7 });
-  if (older.length > 0) groups.push({ label: t('chatSidebarOlder'), sessions: older });
+  if (today.length > 0) groups.push({ label: t('chatSidebarToday'), items: today });
+  if (yesterday.length > 0) groups.push({ label: t('chatSidebarYesterday'), items: yesterday });
+  if (previous7.length > 0) groups.push({ label: t('chatSidebarPrevious7Days'), items: previous7 });
+  if (older.length > 0) groups.push({ label: t('chatSidebarOlder'), items: older });
   return groups;
 }
 
@@ -121,15 +122,15 @@ export function ChatSidebar() {
   const [savingSessionKey, setSavingSessionKey] = useState<string | null>(null);
   const inputSnapshot = useChatInputStore((state) => state.snapshot);
   const listSnapshot = useChatSessionListStore((state) => state.snapshot);
-  const runSnapshot = useChatRunStatusStore((state) => state.snapshot);
   const connectionStatus = useUiStore((state) => state.connectionStatus);
+  const { isLoading, items } = useNcpSessionListView();
   const { language, setLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
   const updateSessionLabel = useChatSessionLabelService();
   const currentThemeLabel = t(THEME_OPTIONS.find((o) => o.value === theme)?.labelKey ?? 'themeWarm');
   const currentLanguageLabel = LANGUAGE_OPTIONS.find((o) => o.value === language)?.label ?? language;
 
-  const groups = useMemo(() => groupSessionsByDate(listSnapshot.sessions), [listSnapshot.sessions]);
+  const groups = useMemo(() => groupSessionsByDate(items), [items]);
   const defaultSessionType = inputSnapshot.defaultSessionType || 'native';
   const nonDefaultSessionTypeOptions = useMemo(
     () => inputSnapshot.sessionTypeOptions.filter((option) => option.value !== defaultSessionType),
@@ -140,20 +141,6 @@ export function ChatSidebar() {
     if (language === nextLang) return;
     setLanguage(nextLang);
     window.location.reload();
-  };
-
-  const patchSessionLabelInStore = (sessionKey: string, label: string | undefined) => {
-    const { sessions } = useChatSessionListStore.getState().snapshot;
-    useChatSessionListStore.getState().setSnapshot({
-      sessions: sessions.map((session) =>
-        session.key === sessionKey
-          ? {
-              ...session,
-              ...(label ? { label } : { label: undefined })
-            }
-          : session
-      )
-    });
   };
 
   const startEditingSessionLabel = (session: SessionEntryView) => {
@@ -181,7 +168,6 @@ export function ChatSidebar() {
         sessionKey: session.key,
         label: normalizedLabel || null
       });
-      patchSessionLabelInStore(session.key, normalizedLabel || undefined);
       cancelEditingSessionLabel();
     } catch {
       setSavingSessionKey(null);
@@ -297,7 +283,7 @@ export function ChatSidebar() {
       <div className="mx-4 border-t border-gray-200/60" />
 
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-3 py-2">
-        {listSnapshot.isLoading ? (
+        {isLoading ? (
           <div className="text-xs text-gray-500 p-3">{t('sessionsLoading')}</div>
         ) : groups.length === 0 ? (
           <div className="p-4 text-center">
@@ -312,9 +298,8 @@ export function ChatSidebar() {
                   {group.label}
                 </div>
                 <div className="space-y-0.5">
-                  {group.sessions.map((session) => {
+                  {group.items.map(({ session, runStatus }) => {
                     const active = listSnapshot.selectedSessionKey === session.key;
-                    const runStatus = runSnapshot.sessionRunStatusByKey.get(session.key);
                     const sessionTypeLabel = resolveSessionTypeLabel(session.sessionType, inputSnapshot.sessionTypeOptions);
                     const isEditing = editingSessionKey === session.key;
                     const isSaving = savingSessionKey === session.key;

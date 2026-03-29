@@ -143,7 +143,6 @@ export class NcpSessionRoutesController {
       return c.json(err("NOT_FOUND", `ncp session not found: ${sessionId}`), 404);
     }
 
-    this.options.publish({ type: "config.updated", payload: { path: "session" } });
     return c.json(ok(updated));
   };
 
@@ -160,7 +159,6 @@ export class NcpSessionRoutesController {
     }
 
     await sessionApi.deleteSession(sessionId);
-    this.options.publish({ type: "config.updated", payload: { path: "session" } });
     return c.json(ok({ deleted: true, sessionId }));
   };
 }

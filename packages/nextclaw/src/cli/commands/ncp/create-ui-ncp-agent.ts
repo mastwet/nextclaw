@@ -13,6 +13,7 @@ import { DefaultNcpAgentRuntime, LocalAssetStore } from "@nextclaw/ncp-agent-run
 import { McpNcpToolRegistryAdapter } from "@nextclaw/ncp-mcp";
 import {
   type NcpAgentRuntime,
+  type NcpSessionApi,
   readAssistantReasoningNormalizationMode,
   readAssistantReasoningNormalizationModeFromMetadata,
   writeAssistantReasoningNormalizationModeToMetadata,
@@ -39,6 +40,7 @@ import { join } from "node:path";
 const CODEX_RUNTIME_KIND = "codex";
 const CODEX_DIRECT_RUNTIME_BACKEND = "codex-sdk";
 export type UiNcpAgentHandle = UiNcpAgent & {
+  sessionApi: NcpSessionApi;
   applyExtensionRegistry?: (extensionRegistry?: NextclawExtensionRegistry) => void;
   applyMcpConfig?: (config: Config) => Promise<void>;
 };
@@ -297,6 +299,7 @@ function createUiNcpAgentHandle(params: {
     basePath: "/api/ncp/agent",
     agentClientEndpoint: createAgentClientFromServer(params.backend),
     streamProvider: params.backend,
+    sessionApi: params.backend,
     listSessionTypes: (describeParams?: UiNcpSessionTypeDescribeParams) => {
       params.refreshPluginRuntimeRegistrations();
       return params.runtimeRegistry.listSessionTypes(describeParams);

@@ -1,12 +1,8 @@
 import { create } from 'zustand';
-import type { SessionEntryView } from '@/api/types';
-
 export type ChatSessionListSnapshot = {
-  sessions: SessionEntryView[];
   selectedSessionKey: string | null;
   selectedAgentId: string;
   query: string;
-  isLoading: boolean;
 };
 
 type ChatSessionListStore = {
@@ -15,11 +11,9 @@ type ChatSessionListStore = {
 };
 
 const initialSnapshot: ChatSessionListSnapshot = {
-  sessions: [],
   selectedSessionKey: null,
   selectedAgentId: 'main',
-  query: '',
-  isLoading: false
+  query: ''
 };
 
 export const useChatSessionListStore = create<ChatSessionListStore>((set) => ({

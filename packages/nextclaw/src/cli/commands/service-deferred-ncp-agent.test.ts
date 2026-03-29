@@ -50,6 +50,13 @@ function createAgentHandle(): UiNcpAgentHandle {
       stream,
       abort,
     },
+    sessionApi: {
+      listSessions: vi.fn(async () => []),
+      listSessionMessages: vi.fn(async () => []),
+      getSession: vi.fn(async () => null),
+      updateSession: vi.fn(async () => null),
+      deleteSession: vi.fn(async () => undefined),
+    },
     streamProvider: {
       stream: vi.fn(async function* () {
         yield* [];

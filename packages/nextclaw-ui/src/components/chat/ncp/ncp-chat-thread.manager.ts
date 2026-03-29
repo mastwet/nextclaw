@@ -1,3 +1,5 @@
+import { appQueryClient } from '@/app-query-client';
+import { deleteNcpSessionSummaryInQueryClient } from '@/api/ncp-session-query-cache';
 import { deleteNcpSession as deleteNcpSessionApi } from '@/api/ncp-session';
 import type { ChatSessionListManager } from '@/components/chat/managers/chat-session-list.manager';
 import type { ChatStreamActionsManager } from '@/components/chat/managers/chat-stream-actions.manager';
@@ -7,29 +9,12 @@ import type { ChatThreadSnapshot } from '@/components/chat/stores/chat-thread.st
 import { useChatThreadStore } from '@/components/chat/stores/chat-thread.store';
 import { t } from '@/lib/i18n';
 
-export type NcpChatThreadManagerActions = {
-  refetchSessions: () => Promise<unknown>;
-};
-
-const noopAsync = async () => {};
-
 export class NcpChatThreadManager {
-  private actions: NcpChatThreadManagerActions = {
-    refetchSessions: noopAsync
-  };
-
   constructor(
     private uiManager: ChatUiManager,
     private sessionListManager: ChatSessionListManager,
     private streamActionsManager: ChatStreamActionsManager
   ) {}
-
-  bindActions = (patch: Partial<NcpChatThreadManagerActions>) => {
-    this.actions = {
-      ...this.actions,
-      ...patch
-    };
-  };
 
   private hasSnapshotChanges = (patch: Partial<ChatThreadSnapshot>): boolean => {
     const current = useChatThreadStore.getState().snapshot;
@@ -78,9 +63,10 @@ export class NcpChatThreadManager {
     useChatThreadStore.getState().setSnapshot({ isDeletePending: true });
     try {
       await deleteNcpSessionApi(selectedSessionKey);
+      deleteNcpSessionSummaryInQueryClient(appQueryClient, selectedSessionKey);
+      appQueryClient.removeQueries({ queryKey: ['ncp-session-messages', selectedSessionKey] });
       this.streamActionsManager.resetStreamState();
       this.uiManager.goToChatRoot({ replace: true });
-      await this.actions.refetchSessions();
     } finally {
       useChatThreadStore.getState().setSnapshot({ isDeletePending: false });
     }
