@@ -48,7 +48,7 @@ describe('ChatConversationPanel', () => {
         canDeleteSession: false,
         isDeletePending: false,
         isHistoryLoading: false,
-        uiMessages: [],
+        messages: [],
         isSending: false,
         isAwaitingAssistantOutput: false
       }

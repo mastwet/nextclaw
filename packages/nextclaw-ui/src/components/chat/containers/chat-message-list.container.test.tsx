@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import type { UiMessage } from "@nextclaw/agent-chat";
+import type { NcpMessage } from "@nextclaw/ncp";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ChatMessageListContainer } from "./chat-message-list.container";
 
@@ -30,27 +30,72 @@ beforeEach(() => {
 it("reuses adapted message references when the source message object is unchanged", () => {
   const message = {
     id: "assistant-1",
+    sessionId: "session-1",
     role: "assistant",
-    meta: {
-      timestamp: "2026-03-17T10:00:00.000Z",
-      status: "streaming",
-    },
+    status: "streaming",
+    timestamp: "2026-03-17T10:00:00.000Z",
     parts: [{ type: "text", text: "hello" }],
-  } satisfies UiMessage;
+  } satisfies NcpMessage;
 
   const { rerender } = render(
-    <ChatMessageListContainer uiMessages={[message]} isSending={false} />,
+    <ChatMessageListContainer messages={[message]} isSending={false} />,
   );
 
   const firstMessages =
     captures.renders[captures.renders.length - 1]?.messages ?? [];
 
   rerender(
-    <ChatMessageListContainer uiMessages={[message]} isSending={false} />,
+    <ChatMessageListContainer messages={[message]} isSending={false} />,
   );
 
   const secondMessages =
     captures.renders[captures.renders.length - 1]?.messages ?? [];
 
   expect(secondMessages[0]).toBe(firstMessages[0]);
+});
+
+it("keeps historical adapted message references stable when only the streaming message changes", () => {
+  const historicalMessage = {
+    id: "assistant-1",
+    sessionId: "session-1",
+    role: "assistant",
+    status: "final",
+    timestamp: "2026-03-17T10:00:00.000Z",
+    parts: [{ type: "text", text: "history" }],
+  } satisfies NcpMessage;
+  const firstStreamingMessage = {
+    id: "assistant-2",
+    sessionId: "session-1",
+    role: "assistant",
+    status: "streaming",
+    timestamp: "2026-03-17T10:00:01.000Z",
+    parts: [{ type: "text", text: "hello" }],
+  } satisfies NcpMessage;
+
+  const { rerender } = render(
+    <ChatMessageListContainer
+      messages={[historicalMessage, firstStreamingMessage]}
+      isSending={false}
+    />,
+  );
+
+  const firstMessages =
+    captures.renders[captures.renders.length - 1]?.messages ?? [];
+  const nextStreamingMessage = {
+    ...firstStreamingMessage,
+    parts: [{ type: "text", text: "hello world" }],
+  } satisfies NcpMessage;
+
+  rerender(
+    <ChatMessageListContainer
+      messages={[historicalMessage, nextStreamingMessage]}
+      isSending={false}
+    />,
+  );
+
+  const secondMessages =
+    captures.renders[captures.renders.length - 1]?.messages ?? [];
+
+  expect(secondMessages[0]).toBe(firstMessages[0]);
+  expect(secondMessages[1]).not.toBe(firstMessages[1]);
 });

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { MutableRefObject } from 'react';
-import type { UiMessage } from '@nextclaw/agent-chat';
+import type { NcpMessage } from '@nextclaw/ncp';
 import type { ChatModelOption } from '@/components/chat/chat-input.types';
 
 export type ChatThreadSnapshot = {
@@ -15,7 +15,7 @@ export type ChatThreadSnapshot = {
   isDeletePending: boolean;
   threadRef: MutableRefObject<HTMLDivElement | null> | null;
   isHistoryLoading: boolean;
-  uiMessages: UiMessage[];
+  messages: readonly NcpMessage[];
   isSending: boolean;
   isAwaitingAssistantOutput: boolean;
 };
@@ -37,7 +37,7 @@ const initialSnapshot: ChatThreadSnapshot = {
   isDeletePending: false,
   threadRef: null,
   isHistoryLoading: false,
-  uiMessages: [],
+  messages: [],
   isSending: false,
   isAwaitingAssistantOutput: false
 };

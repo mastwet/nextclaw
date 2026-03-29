@@ -55,14 +55,14 @@ export function ChatConversationPanel() {
 
   const showWelcome =
     !snapshot.selectedSessionKey &&
-    snapshot.uiMessages.length === 0 &&
+    snapshot.messages.length === 0 &&
     !snapshot.isSending;
   const hasConfiguredModel = snapshot.modelOptions.length > 0;
   const shouldShowProviderHint =
     snapshot.isProviderStateResolved && !hasConfiguredModel;
   const hideEmptyHint =
     snapshot.isHistoryLoading &&
-    snapshot.uiMessages.length === 0 &&
+    snapshot.messages.length === 0 &&
     !snapshot.isSending &&
     !snapshot.isAwaitingAssistantOutput;
 
@@ -70,8 +70,8 @@ export function ChatConversationPanel() {
     scrollRef: threadRef,
     resetKey: snapshot.selectedSessionKey,
     isLoading: snapshot.isHistoryLoading,
-    hasContent: snapshot.uiMessages.length > 0,
-    contentVersion: snapshot.uiMessages[snapshot.uiMessages.length - 1] ?? null,
+    hasContent: snapshot.messages.length > 0,
+    contentVersion: snapshot.messages[snapshot.messages.length - 1] ?? null,
   });
 
   if (!snapshot.isProviderStateResolved) {
@@ -146,14 +146,14 @@ export function ChatConversationPanel() {
           />
         ) : hideEmptyHint ? (
           <div className="h-full" />
-        ) : snapshot.uiMessages.length === 0 ? (
+        ) : snapshot.messages.length === 0 ? (
           <div className="px-5 py-5 text-sm text-gray-500">
             {t("chatNoMessages")}
           </div>
         ) : (
           <div className="mx-auto w-full max-w-[min(1120px,100%)] px-6 py-5">
             <ChatMessageListContainer
-              uiMessages={snapshot.uiMessages}
+              messages={snapshot.messages}
               isSending={
                 snapshot.isSending && snapshot.isAwaitingAssistantOutput
               }

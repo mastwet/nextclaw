@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { type UiMessage } from "@nextclaw/agent-chat";
+import type { NcpMessage } from "@nextclaw/ncp";
 import {
   type ChatMessageViewModel,
   ChatMessageList,
@@ -9,17 +9,18 @@ import {
   type ChatMessageAdapterTexts,
   type ChatMessageSource,
 } from "@/components/chat/adapters/chat-message.adapter";
+import { adaptNcpMessageToUiMessage } from "@/components/chat/ncp/ncp-session-adapter";
 import { useI18n } from "@/components/providers/I18nProvider";
 import { formatDateTime, t } from "@/lib/i18n";
 
 type ChatMessageListContainerProps = {
-  uiMessages: UiMessage[];
+  messages: readonly NcpMessage[];
   isSending: boolean;
   className?: string;
 };
 
 const messageViewModelCache = new WeakMap<
-  UiMessage,
+  NcpMessage,
   { language: string; viewModel: ChatMessageViewModel }
 >();
 
@@ -68,20 +69,21 @@ export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
   );
 
   const messages = useMemo(() => {
-    return props.uiMessages.map((message) => {
+    return props.messages.map((message) => {
       const cached = messageViewModelCache.get(message);
       if (cached && cached.language === language) {
         return cached.viewModel;
       }
 
+      const uiMessage = adaptNcpMessageToUiMessage(message);
       const sourceMessage: ChatMessageSource = {
-        id: message.id,
-        role: message.role,
+        id: uiMessage.id,
+        role: uiMessage.role,
         meta: {
-          timestamp: message.meta?.timestamp,
-          status: message.meta?.status,
+          timestamp: uiMessage.meta?.timestamp,
+          status: uiMessage.meta?.status,
         },
-        parts: message.parts as unknown as ChatMessageSource["parts"],
+        parts: uiMessage.parts as unknown as ChatMessageSource["parts"],
       };
       const viewModel = adaptChatMessage(sourceMessage, {
         formatTimestamp: (value) => formatDateTime(value, language),
@@ -91,17 +93,16 @@ export function ChatMessageListContainer(props: ChatMessageListContainerProps) {
       messageViewModelCache.set(message, { language, viewModel });
       return viewModel;
     });
-  }, [language, props.uiMessages, texts]);
+  }, [language, props.messages, texts]);
 
   const hasAssistantDraft = useMemo(
     () =>
-      props.uiMessages.some(
+      messages.some(
         (message) =>
           message.role === "assistant" &&
-          (message.meta?.status === "streaming" ||
-            message.meta?.status === "pending"),
+          (message.status === "streaming" || message.status === "pending"),
       ),
-    [props.uiMessages],
+    [messages],
   );
   const messageTexts = useMemo(
     () => buildChatMessageTexts(language),

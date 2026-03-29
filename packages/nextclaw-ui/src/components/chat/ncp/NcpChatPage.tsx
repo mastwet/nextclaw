@@ -14,7 +14,7 @@ import { createNcpAppClientFetch } from '@/components/chat/ncp/ncp-app-client-fe
 import { parseSessionKeyFromRoute, resolveAgentIdFromSessionKey } from '@/components/chat/chat-session-route';
 import { useNcpChatPageData } from '@/components/chat/ncp/ncp-chat-page-data';
 import { NcpChatPresenter } from '@/components/chat/ncp/ncp-chat.presenter';
-import { adaptNcpMessagesToUiMessages, buildNcpSessionRunStatusByKey, createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
+import { buildNcpSessionRunStatusByKey, createNcpSessionId } from '@/components/chat/ncp/ncp-session-adapter';
 import { ChatPresenterProvider } from '@/components/chat/presenter/chat-presenter-context';
 import type { ResumeRunParams } from '@/components/chat/chat-stream/types';
 import { useChatInputStore } from '@/components/chat/stores/chat-input.store';
@@ -151,10 +151,6 @@ export function NcpChatPage({ view }: ChatPageProps) {
     }
   }, [presenter, selectedSessionKey]);
 
-  const uiMessages = useMemo(
-    () => adaptNcpMessagesToUiMessages(agent.visibleMessages),
-    [agent.visibleMessages]
-  );
   const isSending = agent.isSending || agent.isRunning;
   const isAwaitingAssistantOutput = agent.isRunning;
   const canStopCurrentRun = agent.isRunning;
@@ -309,7 +305,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
       canDeleteSession: Boolean(selectedSession),
       threadRef,
       isHistoryLoading: agent.isHydrating,
-      uiMessages,
+      messages: agent.visibleMessages,
       isSending,
       isAwaitingAssistantOutput
     });
@@ -342,7 +338,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
     skillRecords,
     stopDisabledReason,
     threadRef,
-    uiMessages
+    agent.visibleMessages
   ]);
 
   return (
