@@ -49,6 +49,26 @@ describe("CronTool", () => {
     );
   });
 
+  it("supports one-time jobs via at", async () => {
+    const cronService = {
+      addJob: vi.fn().mockReturnValue({ id: "job-at", name: "one-shot" })
+    };
+    const tool = new CronTool(cronService as never);
+
+    await tool.execute({
+      action: "add",
+      name: "one-shot",
+      message: "At the scheduled time, send a WeChat message saying: Meeting starts in 5 minutes.",
+      at: "2026-03-31T18:05:00+08:00"
+    });
+
+    expect(cronService.addJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schedule: { kind: "at", atMs: Date.parse("2026-03-31T18:05:00+08:00") }
+      })
+    );
+  });
+
   it("lists jobs when action is list", async () => {
     const cronService = {
       listJobs: vi.fn().mockReturnValue([{ id: "job-1", name: "reminder" }])
@@ -64,6 +84,20 @@ describe("CronTool", () => {
 
     expect(result.jobs).toEqual([{ id: "job-1", name: "reminder" }]);
     expect(cronService.listJobs).toHaveBeenCalledWith(true);
+  });
+
+  it("can list only enabled jobs when explicitly requested", async () => {
+    const cronService = {
+      listJobs: vi.fn().mockReturnValue([{ id: "job-1", name: "reminder" }])
+    };
+    const tool = new CronTool(cronService as never);
+
+    await tool.execute({
+      action: "list",
+      enabledOnly: true
+    });
+
+    expect(cronService.listJobs).toHaveBeenCalledWith(false);
   });
 
   it("removes jobs via job_id alias", async () => {
@@ -95,5 +129,47 @@ describe("CronTool", () => {
 
     expect(result).toBe("Error: jobId is required for remove");
     expect(cronService.removeJob).not.toHaveBeenCalled();
+  });
+
+  it("disables jobs without deleting them", async () => {
+    const cronService = {
+      enableJob: vi.fn().mockReturnValue({ id: "job-4", name: "report", enabled: false })
+    };
+    const tool = new CronTool(cronService as never);
+
+    const result = JSON.parse(
+      await tool.execute({
+        action: "disable",
+        jobId: "job-4"
+      })
+    ) as { action: string; updated: boolean; job: { id: string; name: string; enabled: boolean } };
+
+    expect(result).toEqual({
+      action: "disable",
+      updated: true,
+      job: { id: "job-4", name: "report", enabled: false }
+    });
+    expect(cronService.enableJob).toHaveBeenCalledWith("job-4", false);
+  });
+
+  it("enables jobs explicitly", async () => {
+    const cronService = {
+      enableJob: vi.fn().mockReturnValue({ id: "job-5", name: "report", enabled: true })
+    };
+    const tool = new CronTool(cronService as never);
+
+    const result = JSON.parse(
+      await tool.execute({
+        action: "enable",
+        job_id: "job-5"
+      })
+    ) as { action: string; updated: boolean; job: { id: string; name: string; enabled: boolean } };
+
+    expect(result).toEqual({
+      action: "enable",
+      updated: true,
+      job: { id: "job-5", name: "report", enabled: true }
+    });
+    expect(cronService.enableJob).toHaveBeenCalledWith("job-5", true);
   });
 });

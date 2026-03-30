@@ -16,7 +16,7 @@ export class CronTool extends Tool {
   }
 
   get description(): string {
-    return "Manage scheduled tasks (add, list, remove)";
+    return "Manage scheduled tasks. Use at for one-time jobs, every/cron for recurring jobs, disable to pause without deleting, and remove to delete permanently.";
   }
 
   get parameters(): Record<string, unknown> {
@@ -25,22 +25,44 @@ export class CronTool extends Tool {
       properties: {
         action: {
           type: "string",
-          description: "Action to perform: add, list, or remove"
+          description: "Action to perform: add, list, enable, disable, or remove. list returns all jobs by default, including disabled ones."
         },
-        name: { type: "string" },
-        message: { type: "string" },
-        every: { type: "integer" },
-        every_seconds: { type: "integer" },
-        cron: { type: "string" },
-        cron_expr: { type: "string" },
-        at: { type: "string" },
-        deliver: { type: "boolean" },
+        name: { type: "string", description: "Short label for the scheduled job." },
+        message: {
+          type: "string",
+          description: "Instruction the agent should execute when the job runs. Do not put only the final outbound message text here unless the task is literally to send that exact text."
+        },
+        every: {
+          type: "integer",
+          description: "Repeat every N seconds. Only use for recurring jobs."
+        },
+        every_seconds: {
+          type: "integer",
+          description: "Alias of every. Repeat every N seconds."
+        },
+        cron: {
+          type: "string",
+          description: "Cron expression for recurring schedules such as daily or weekdays."
+        },
+        cron_expr: {
+          type: "string",
+          description: "Alias of cron."
+        },
+        at: {
+          type: "string",
+          description: "Run once at a specific ISO datetime with timezone, for example 2026-03-31T18:05:00+08:00."
+        },
+        deliver: {
+          type: "boolean",
+          description: "Whether the result should be delivered back to the current chat/channel."
+        },
         accountId: { type: "string" },
         account_id: { type: "string" },
-        includeDisabled: { type: "boolean" },
-        jobId: { type: "string" },
-        job_id: { type: "string" },
-        id: { type: "string" }
+        includeDisabled: { type: "boolean", description: "For list only. When omitted, disabled jobs are included by default." },
+        enabledOnly: { type: "boolean", description: "For list only. Set true to show only enabled jobs." },
+        jobId: { type: "string", description: "Job id for enable, disable, or remove." },
+        job_id: { type: "string", description: "Alias of jobId." },
+        id: { type: "string", description: "Alias of jobId." }
       }
     };
   }
@@ -54,8 +76,29 @@ export class CronTool extends Tool {
   async execute(params: Record<string, unknown>): Promise<string> {
     const action = this.readAction(params);
     if (action === "list") {
+      const includeDisabled = this.readIncludeDisabled(params);
       return JSON.stringify({
-        jobs: this.cronService.listJobs(Boolean(params.includeDisabled))
+        jobs: this.cronService.listJobs(includeDisabled)
+      });
+    }
+    if (action === "enable" || action === "disable") {
+      const jobId = this.readJobId(params);
+      if (!jobId) {
+        return `Error: jobId is required for ${action}`;
+      }
+      const enabled = action === "enable";
+      const job = this.cronService.enableJob(jobId, enabled);
+      if (!job) {
+        return JSON.stringify({ action, updated: false, jobId });
+      }
+      return JSON.stringify({
+        action,
+        updated: true,
+        job: {
+          id: job.id,
+          name: job.name,
+          enabled: job.enabled
+        }
       });
     }
     if (action === "remove") {
@@ -97,12 +140,22 @@ export class CronTool extends Tool {
     });
   }
 
-  private readAction = (params: Record<string, unknown>): "add" | "list" | "remove" => {
+  private readAction = (params: Record<string, unknown>): "add" | "list" | "enable" | "disable" | "remove" => {
     const action = this.readString(params, "action")?.toLowerCase();
-    if (action === "list" || action === "remove") {
+    if (action === "list" || action === "enable" || action === "disable" || action === "remove") {
       return action;
     }
     return "add";
+  };
+
+  private readIncludeDisabled = (params: Record<string, unknown>): boolean => {
+    if (typeof params.enabledOnly === "boolean") {
+      return !params.enabledOnly;
+    }
+    if (typeof params.includeDisabled === "boolean") {
+      return params.includeDisabled;
+    }
+    return true;
   };
 
   private readSchedule = (params: Record<string, unknown>): CronSchedule | null => {
@@ -116,7 +169,10 @@ export class CronTool extends Tool {
       return { kind: "cron", expr: cron };
     }
     if (at) {
-      return { kind: "at", atMs: Date.parse(at) };
+      const atMs = Date.parse(at);
+      if (Number.isFinite(atMs)) {
+        return { kind: "at", atMs };
+      }
     }
     return null;
   };

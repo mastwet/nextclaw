@@ -337,8 +337,9 @@ const cron = program.command("cron").description("Manage scheduled tasks");
 
 cron
   .command("list")
-  .option("-a, --all", "Include disabled jobs")
-  .action(async (opts) => runtime.cronList(opts));
+  .option("--enabled-only", "Show only enabled jobs", false)
+  .option("-a, --all", "Deprecated: list all jobs (default behavior)", false)
+  .action(async (opts) => runtime.cronList({ enabledOnly: Boolean(opts.enabledOnly) }));
 
 cron
   .command("add")
@@ -361,6 +362,10 @@ cron
   .command("enable <jobId>")
   .option("--disable", "Disable instead of enable")
   .action(async (jobId, opts) => runtime.cronEnable(jobId, opts));
+
+cron
+  .command("disable <jobId>")
+  .action(async (jobId) => runtime.cronEnable(jobId, { disable: true }));
 
 cron
   .command("run <jobId>")

@@ -500,10 +500,11 @@ Created under the workspace:
 | `nextclaw doctor` | Run runtime diagnostics (`--json`, `--verbose`, `--fix`) |
 | `nextclaw channels login` | Open QR login for supported channels |
 | `nextclaw channels add --channel <id> ...` | Configure plugin channel via setup adapter |
-| `nextclaw cron list` | List scheduled jobs |
+| `nextclaw cron list` | List all scheduled jobs, including disabled ones |
 | `nextclaw cron add ...` | Add a cron job (see [Cron](#cron--heartbeat)) |
 | `nextclaw cron remove <jobId>` | Remove a job |
-| `nextclaw cron enable <jobId>` | Enable a job (use `--disable` to disable) |
+| `nextclaw cron enable <jobId>` | Enable a disabled job |
+| `nextclaw cron disable <jobId>` | Disable a job without deleting it |
 | `nextclaw cron run <jobId>` | Run a job once (optionally with `--force` if disabled) |
 | `nextclaw skills install <slug>` | Install a skill from NextClaw marketplace |
 | `nextclaw skills publish <dir>` | Upload/create a skill to marketplace |
@@ -942,12 +943,19 @@ Optional: deliver the agent’s reply to a channel:
 nextclaw cron add -n "daily" -m "Daily briefing" -c "0 9 * * *" --deliver --to <recipient> --channel <channel>
 ```
 
-Remove, enable, or disable a job:
+List all jobs by default, or only enabled ones if needed:
+
+```bash
+nextclaw cron list
+nextclaw cron list --enabled-only
+```
+
+Remove or change a job's enabled state:
 
 ```bash
 nextclaw cron remove <jobId>
 nextclaw cron enable <jobId>
-nextclaw cron enable <jobId> --disable
+nextclaw cron disable <jobId>
 ```
 
 Run a job once (e.g. for testing):

@@ -1,5 +1,16 @@
 # nextclaw-server
 
+## 0.11.14
+
+### Patch Changes
+
+- Align cron list semantics across the agent tool, CLI, and UI server so disabled jobs are visible by default with explicit enabled/disabled status, add clear enable/disable actions without conflating them with remove, and tighten cron skill guidance so one-shot jobs use `at` and scheduled channel sends store runnable instructions instead of only outbound message text.
+- Updated dependencies
+  - @nextclaw/core@0.11.9
+  - @nextclaw/mcp@0.1.56
+  - @nextclaw/openclaw-compat@0.3.48
+  - @nextclaw/runtime@0.2.23
+
 ## 0.11.13
 
 ### Patch Changes

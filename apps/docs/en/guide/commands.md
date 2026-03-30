@@ -70,10 +70,11 @@ See [Secrets Management](/en/guide/secrets) for step-by-step usage and migration
 
 | Command | Description |
 |---------|-------------|
-| `nextclaw cron list` | List scheduled jobs |
+| `nextclaw cron list` | List all scheduled jobs, including disabled ones |
 | `nextclaw cron add ...` | Add a cron job |
 | `nextclaw cron remove <jobId>` | Remove a job |
-| `nextclaw cron enable <jobId>` | Enable/disable a job |
+| `nextclaw cron enable <jobId>` | Enable a disabled job |
+| `nextclaw cron disable <jobId>` | Disable a job without deleting it |
 | `nextclaw cron run <jobId>` | Run a job once |
 
 ## Self-Update

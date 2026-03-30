@@ -70,8 +70,9 @@
 
 | 命令 | 说明 |
 |------|------|
-| `nextclaw cron list` | 列出任务 |
+| `nextclaw cron list` | 列出所有任务（含已禁用） |
 | `nextclaw cron add ...` | 新增任务 |
 | `nextclaw cron remove <jobId>` | 删除任务 |
-| `nextclaw cron enable <jobId>` | 启用/禁用任务 |
+| `nextclaw cron enable <jobId>` | 启用已禁用任务 |
+| `nextclaw cron disable <jobId>` | 禁用任务但不删除 |
 | `nextclaw cron run <jobId>` | 立即执行一次 |

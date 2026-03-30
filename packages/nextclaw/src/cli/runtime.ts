@@ -772,7 +772,7 @@ export class CliRuntime {
   async channelsLogin(opts: ChannelsLoginOptions): Promise<void> { await this.channelCommands.channelsLogin(opts); }
   async channelsAdd(opts: ChannelsAddOptions): Promise<void> { await this.channelCommands.channelsAdd(opts); }
 
-  readonly cronList = async (opts: { all?: boolean }): Promise<void> => {
+  readonly cronList = async (opts: { enabledOnly?: boolean }): Promise<void> => {
     await this.cronCommands.cronList(opts);
   };
 

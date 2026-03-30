@@ -35,6 +35,6 @@ export function printCronJobs(jobs: CronJobView[]): void {
     return;
   }
   for (const job of jobs) {
-    console.log(`${job.id} ${job.name} ${formatCronSchedule(job.schedule)}`);
+    console.log(`${job.id} [${job.enabled ? "enabled" : "disabled"}] ${job.name} ${formatCronSchedule(job.schedule)}`);
   }
 }

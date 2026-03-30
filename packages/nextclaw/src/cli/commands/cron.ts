@@ -26,11 +26,12 @@ export class CronCommands {
     return new UiBridgeApiClient(apiBase);
   };
 
-  readonly cronList = async (opts: { all?: boolean }): Promise<void> => {
+  readonly cronList = async (opts: { enabledOnly?: boolean }): Promise<void> => {
+    const includeDisabled = opts.enabledOnly !== true;
     const apiClient = this.createApiClient();
     if (apiClient) {
       try {
-        const query = opts.all ? "?all=1" : "";
+        const query = includeDisabled ? "" : "?enabledOnly=1";
         const data = await apiClient.request<CronListApiData>({
           path: `/api/cron${query}`
         });
@@ -40,7 +41,7 @@ export class CronCommands {
         void 0;
       }
     }
-    printCronJobs(this.local.list(Boolean(opts.all)));
+    printCronJobs(this.local.list(includeDisabled));
   };
 
   readonly cronAdd = async (opts: CronAddOptions): Promise<void> => {

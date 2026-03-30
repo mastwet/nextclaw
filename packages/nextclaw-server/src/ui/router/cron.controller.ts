@@ -47,7 +47,14 @@ export class CronRoutesController {
       return c.json(err("NOT_AVAILABLE", "cron service unavailable"), 503);
     }
     const query = c.req.query();
-    const includeDisabled = query.all === "1" || query.all === "true" || query.all === "yes";
+    const enabledOnly =
+      query.enabledOnly === "1" ||
+      query.enabledOnly === "true" ||
+      query.enabledOnly === "yes" ||
+      query.all === "0" ||
+      query.all === "false" ||
+      query.all === "no";
+    const includeDisabled = !enabledOnly;
     const jobs = this.options.cronService.listJobs(includeDisabled).map((job) => buildCronJobView(job as CronJobEntry));
     return c.json(ok({ jobs, total: jobs.length }));
   };
