@@ -40,8 +40,8 @@ export const builtinProviderPlugin: ProviderCatalogPlugin = { id: "builtin-runti
       detectByBaseKeyword: "openrouter",
       defaultApiBase: "https://openrouter.ai/api/v1",
       defaultModels: [
-        "openrouter/minimax/minimax-m2.5",
-        "openrouter/google/gemini-3-flash-preview",
+        "openrouter/minimax/minimax-m2.5", "openrouter/xiaomi/mimo-v2-pro",
+        "openrouter/stepfun/step-3.5-flash:free", "openrouter/google/gemini-3-flash-preview",
         "openrouter/deepseek/deepseek-v3.2",
         "openrouter/x-ai/grok-4.1-fast",
         "openrouter/z-ai/glm-5",
