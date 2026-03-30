@@ -175,4 +175,43 @@ describe('buildModelToolbarSelect', () => {
       }
     ]);
   });
+
+  it('preserves recent model order from newest to oldest', () => {
+    const select = buildModelToolbarSelect({
+      modelOptions: [
+        {
+          value: 'openai/gpt-5',
+          modelLabel: 'gpt-5',
+          providerLabel: 'OpenAI'
+        },
+        {
+          value: 'anthropic/claude-sonnet-4',
+          modelLabel: 'claude-sonnet-4',
+          providerLabel: 'Anthropic'
+        },
+        {
+          value: 'deepseek/deepseek-chat',
+          modelLabel: 'deepseek-chat',
+          providerLabel: 'DeepSeek'
+        }
+      ],
+      recentModelValues: ['deepseek/deepseek-chat', 'openai/gpt-5', 'anthropic/claude-sonnet-4'],
+      selectedModel: 'openai/gpt-5',
+      isModelOptionsLoading: false,
+      hasModelOptions: true,
+      onValueChange: vi.fn(),
+      texts: {
+        modelSelectPlaceholder: 'Select model',
+        modelNoOptionsLabel: 'No models',
+        recentModelsLabel: 'Recent',
+        allModelsLabel: 'All models'
+      }
+    });
+
+    expect(select.groups?.[0]?.options.map((option) => option.value)).toEqual([
+      'deepseek/deepseek-chat',
+      'openai/gpt-5',
+      'anthropic/claude-sonnet-4'
+    ]);
+  });
 });

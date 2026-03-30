@@ -124,6 +124,8 @@ export function ChatInputBarContainer() {
     : hasModelOptions
       ? t('chatInputPlaceholder')
       : t('chatModelNoOptions');
+  const recentModelsLabel = language === 'zh' ? '最近选择' : 'Recent';
+  const allModelsLabel = language === 'zh' ? '全部模型' : 'All models';
 
   const slashItems = useMemo(
     () => buildChatSlashItems(skillRecords, slashQuery ?? '', slashTexts),
@@ -187,8 +189,8 @@ export function ChatInputBarContainer() {
       texts: {
         modelSelectPlaceholder: t('chatSelectModel'),
         modelNoOptionsLabel: t('chatModelNoOptions'),
-        recentModelsLabel: t('chatRecentModels'),
-        allModelsLabel: t('chatAllModels')
+        recentModelsLabel,
+        allModelsLabel
       }
     }),
     buildThinkingToolbarSelect({

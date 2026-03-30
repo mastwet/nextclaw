@@ -251,7 +251,10 @@ export function buildModelToolbarSelect(params: {
   const resolvedModelOption = selectedModelOption ?? fallbackModelOption;
   const resolvedValue = params.hasModelOptions ? resolvedModelOption?.value : undefined;
   const recentValueSet = new Set(params.recentModelValues ?? []);
-  const recentOptions = params.modelOptions.filter((option) => recentValueSet.has(option.value));
+  const modelOptionMap = new Map(params.modelOptions.map((option) => [option.value, option] as const));
+  const recentOptions = (params.recentModelValues ?? [])
+    .map((value) => modelOptionMap.get(value))
+    .filter((option): option is ChatModelRecord => Boolean(option));
   const remainingOptions = params.modelOptions.filter((option) => !recentValueSet.has(option.value));
   const optionGroups =
     recentOptions.length > 0
