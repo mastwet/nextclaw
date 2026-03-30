@@ -4,7 +4,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import JSZip from "jszip";
 import * as tar from "tar";
-import { getDataPath } from "@nextclaw/core";
+import { createExternalCommandEnv, getDataPath } from "@nextclaw/core";
 import { loadPluginManifest } from "./manifest.js";
 
 export type PluginInstallLogger = {
@@ -172,11 +172,10 @@ async function runCommand(command: string, args: string[], cwd: string): Promise
   return new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd,
-      env: {
-        ...process.env,
+      env: createExternalCommandEnv(process.env, {
         COREPACK_ENABLE_DOWNLOAD_PROMPT: "0",
         NPM_CONFIG_IGNORE_SCRIPTS: "true"
-      },
+      }),
       stdio: ["ignore", "pipe", "pipe"]
     });
 

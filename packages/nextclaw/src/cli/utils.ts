@@ -4,9 +4,13 @@ import { spawn } from "node:child_process";
 import { isIP } from "node:net";
 import type { Interface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import type { Config } from "@nextclaw/core";
+import {
+  createExternalCommandEnv,
+  getDataDir,
+  getPackageVersion as getCorePackageVersion,
+  type Config
+} from "@nextclaw/core";
 import type { RemoteRuntimeState } from "@nextclaw/remote";
-import { getDataDir, getPackageVersion as getCorePackageVersion } from "@nextclaw/core";
 
 export type ServiceState = {
   pid: number;
@@ -171,7 +175,11 @@ export function openBrowser(url: string): void {
     command = "xdg-open";
     args = [url];
   }
-  const child = spawn(command, args, { stdio: "ignore", detached: true });
+  const child = spawn(command, args, {
+    stdio: "ignore",
+    detached: true,
+    env: createExternalCommandEnv(process.env)
+  });
   child.unref();
 }
 

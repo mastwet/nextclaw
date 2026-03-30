@@ -32,7 +32,7 @@ import {
 } from "../utils.js";
 import type { RequestRestartParams } from "../types.js";
 import { ServiceMarketplaceInstaller } from "./service-marketplace-installer.js";
-import { startGatewaySupportServices } from "./service-startup-support.js";
+import { startGatewaySupportServices, watchCronStoreFile } from "./service-startup-support.js";
 import { consumeRestartSentinel, formatRestartSentinelMessage, parseSessionKey } from "../restart-sentinel.js";
 import { resolveCliSubcommandEntry } from "./cli-subcommand-launch.js";
 import { writeInitialManagedServiceState, writeReadyManagedServiceState } from "./service-remote-runtime.js";
@@ -171,7 +171,7 @@ export class ServiceCommands {
         startHeartbeat: () => gateway.heartbeat.start()
       })
     );
-
+    watchCronStoreFile({ cronStorePath: resolve(join(NextclawCore.getDataDir(), "cron", "jobs.json")), reloadCronStore: () => gateway.cron.reloadFromStore() });
     const deferredGatewayStartupHooks = createDeferredGatewayStartupHooks({
       uiStartup,
       gateway,

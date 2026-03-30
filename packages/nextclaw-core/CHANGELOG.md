@@ -1,5 +1,11 @@
 # nextclaw-core
 
+## 0.11.8
+
+### Patch Changes
+
+- Align the cron agent tool with action-based add/list/remove semantics and sanitize inherited Node dev conditions for external commands.
+
 ## 0.11.7
 
 ### Patch Changes

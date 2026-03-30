@@ -1,5 +1,7 @@
 import type { startPluginChannelGateways } from "@nextclaw/openclaw-compat";
 import type { RemoteServiceModule } from "@nextclaw/remote";
+import chokidar from "chokidar";
+import { resolve } from "node:path";
 
 export const pluginGatewayLogger = {
   info: (message: string) => console.log(`[plugins] ${message}`),
@@ -37,4 +39,27 @@ export async function startGatewaySupportServices(params: {
   params.watchConfigFile();
   await params.startCron();
   await params.startHeartbeat();
+}
+
+export function watchCronStoreFile(params: {
+  cronStorePath: string;
+  reloadCronStore: () => void;
+}): void {
+  const cronStorePath = resolve(params.cronStorePath);
+  const watcher = chokidar.watch(cronStorePath, {
+    ignoreInitial: true,
+    awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 }
+  });
+  watcher.on("all", (event, changedPath) => {
+    if (resolve(changedPath) !== cronStorePath) {
+      return;
+    }
+    if (event === "add" || event === "change" || event === "unlink") {
+      try {
+        params.reloadCronStore();
+      } catch (error) {
+        console.error(`Cron store reload failed (${event}): ${String(error)}`);
+      }
+    }
+  });
 }

@@ -1,5 +1,11 @@
 # @nextclaw/channel-plugin-whatsapp
 
+## 0.2.21
+
+### Patch Changes
+
+- @nextclaw/channel-runtime@0.4.7
+
 ## 0.2.20
 
 ### Patch Changes

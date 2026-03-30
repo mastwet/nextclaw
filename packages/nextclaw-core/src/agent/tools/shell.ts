@@ -2,6 +2,7 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { resolve } from "node:path";
 import { Tool } from "./base.js";
+import { createExternalCommandEnv } from "../../utils/child-process-env.js";
 
 const execAsync = promisify(exec);
 type ExecRunnerOptions = {
@@ -83,7 +84,7 @@ export class ExecTool extends Tool {
     }
 
     try {
-      const env = { ...process.env };
+      const env = createExternalCommandEnv(process.env);
       if (this.context.sessionKey) {
         env.NEXTCLAW_RUNTIME_SESSION_KEY = this.context.sessionKey;
       }

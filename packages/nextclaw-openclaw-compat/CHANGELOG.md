@@ -1,5 +1,24 @@
 # @nextclaw/openclaw-compat
 
+## 0.3.47
+
+### Patch Changes
+
+- Align the cron agent tool with action-based add/list/remove semantics and sanitize inherited Node dev conditions for external commands.
+- Updated dependencies
+  - @nextclaw/core@0.11.8
+  - @nextclaw/channel-plugin-weixin@0.1.15
+  - @nextclaw/channel-runtime@0.4.7
+  - @nextclaw/channel-plugin-dingtalk@0.2.21
+  - @nextclaw/channel-plugin-discord@0.2.21
+  - @nextclaw/channel-plugin-email@0.2.21
+  - @nextclaw/channel-plugin-mochat@0.2.21
+  - @nextclaw/channel-plugin-qq@0.2.21
+  - @nextclaw/channel-plugin-slack@0.2.21
+  - @nextclaw/channel-plugin-telegram@0.2.21
+  - @nextclaw/channel-plugin-wecom@0.2.21
+  - @nextclaw/channel-plugin-whatsapp@0.2.21
+
 ## 0.3.46
 
 ### Patch Changes

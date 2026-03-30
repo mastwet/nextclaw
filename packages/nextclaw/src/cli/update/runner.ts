@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
+import { createExternalCommandEnv } from "@nextclaw/core";
 import { findExecutableOnPath } from "../utils.js";
 
 const DEFAULT_TIMEOUT_MS = 20 * 60_000;
@@ -43,6 +44,7 @@ export function runSelfUpdate(options: SelfUpdateOptions = {}): SelfUpdateResult
   const runStep = (cmd: string, args: string[], cwd: string): { ok: boolean; code: number | null } => {
     const result = spawnSync(cmd, args, {
       cwd,
+      env: createExternalCommandEnv(process.env),
       encoding: "utf-8",
       timeout: timeoutMs,
       stdio: "pipe"

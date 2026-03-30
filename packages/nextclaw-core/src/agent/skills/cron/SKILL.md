@@ -7,34 +7,35 @@ description: Schedule reminders and recurring tasks.
 
 Use the `cron` tool to schedule reminders or recurring tasks.
 
-## Two Modes
+## Actions
 
-1. **Reminder** - message is sent directly to user
-2. **Task** - message is a task description, agent executes and sends result
+- `add`: create a scheduled job
+- `list`: list existing jobs
+- `remove`: delete an existing job
 
 ## Examples
 
 Fixed reminder:
 ```
-cron(action="add", message="Time to take a break!", every_seconds=1200)
+cron(action="add", name="break-reminder", message="Time to take a break!", every=1200)
 ```
 
 Dynamic task (agent executes each time):
 ```
-cron(action="add", message="Check Peiiii/nextclaw GitHub stars and report", every_seconds=600)
+cron(action="add", name="github-stars", message="Check Peiiii/nextclaw GitHub stars and report", every=600)
 ```
 
 List/remove:
 ```
 cron(action="list")
-cron(action="remove", job_id="abc123")
+cron(action="remove", jobId="abc123")
 ```
 
 ## Time Expressions
 
 | User says | Parameters |
 |-----------|------------|
-| every 20 minutes | every_seconds: 1200 |
-| every hour | every_seconds: 3600 |
-| every day at 8am | cron_expr: "0 8 * * *" |
-| weekdays at 5pm | cron_expr: "0 17 * * 1-5" |
+| every 20 minutes | every: 1200 |
+| every hour | every: 3600 |
+| every day at 8am | cron: "0 8 * * *" |
+| weekdays at 5pm | cron: "0 17 * * 1-5" |

@@ -89,6 +89,14 @@ export class CronService {
     }
   }
 
+  readonly reloadFromStore = (): void => {
+    this.store = null;
+    this.loadStore();
+    this.recomputeNextRuns();
+    this.saveStore();
+    this.armTimer();
+  };
+
   private recomputeNextRuns(): void {
     if (!this.store) {
       return;

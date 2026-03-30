@@ -1,5 +1,19 @@
 # nextclaw
 
+## 0.16.21
+
+### Patch Changes
+
+- Align the cron agent tool with action-based add/list/remove semantics and sanitize inherited Node dev conditions for external commands.
+- Updated dependencies
+  - @nextclaw/core@0.11.8
+  - @nextclaw/openclaw-compat@0.3.47
+  - @nextclaw/mcp@0.1.55
+  - @nextclaw/remote@0.1.65
+  - @nextclaw/runtime@0.2.22
+  - @nextclaw/server@0.11.13
+  - @nextclaw/ncp-mcp@0.1.56
+
 ## 0.16.20
 
 ### Patch Changes
