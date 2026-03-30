@@ -1,5 +1,11 @@
 # @nextclaw/ncp
 
+## 0.4.1
+
+### Patch Changes
+
+- Republish Nextclaw UI with upstream frontend dependency chain.
+
 ## 0.4.0
 
 ### Minor Changes

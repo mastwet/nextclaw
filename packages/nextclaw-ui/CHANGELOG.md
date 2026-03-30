@@ -1,5 +1,23 @@
 # @nextclaw/ui
 
+## 0.11.12
+
+### Patch Changes
+
+- Republish Nextclaw UI with upstream frontend dependency chain.
+- Updated dependencies
+  - @nextclaw/agent-chat@0.1.4
+  - @nextclaw/agent-chat-ui@0.2.14
+  - @nextclaw/ncp@0.4.1
+  - @nextclaw/ncp-http-agent-client@0.3.5
+  - @nextclaw/ncp-react@0.4.4
+
+## 0.11.11
+
+### Patch Changes
+
+- Release frontend UI changes only.
+
 ## 0.11.10
 
 ### Patch Changes
@@ -356,6 +374,7 @@
 - Switch skill distribution to marketplace-first flow and remove GitHub-based skill install paths.
 
   This release includes:
+
   - skill/plugin model clean split (skill: `builtin` + `marketplace` only)
   - marketplace API migration from bundled JSON to D1-backed source
   - CLI support for marketplace skill upload/update/install
@@ -416,6 +435,7 @@
 - Unified minor release for accumulated architecture, engine, and chat UX updates.
 
   Includes:
+
   - New pluggable engine runtime support (Codex SDK / Claude Agent SDK)
   - Skill-context propagation and chat interaction stability improvements
   - Main workspace routing and conversation UX refinements
