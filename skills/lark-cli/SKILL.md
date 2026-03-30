@@ -22,6 +22,7 @@ From the user’s point of view, the experience should feel complete:
 - then run the real task.
 
 Do not pretend the environment is ready when it is not.
+Treat browser completion, terminal success text, and real readiness as three separate things. Only observable CLI checks count as success.
 
 ## What This Skill Covers
 
@@ -43,6 +44,17 @@ Do not pretend the environment is ready when it is not.
 ## First-Use Workflow
 
 When the user asks for a `lark-cli`-powered task, follow this order.
+
+Before taking action, classify the environment into exactly one state and move only to the next state:
+
+- CLI missing
+- configured = no
+- config in progress
+- configured = yes, logged in = no
+- login in progress
+- ready
+
+Do not start a second config or login flow while one is already in progress. Finish, verify, then continue.
 
 ### 1. Classify the task
 
@@ -94,17 +106,49 @@ For agent-style flows where the process prints a URL and expects browser complet
 lark-cli config init --new
 ```
 
-Extract any authorization URL from the output and give it to the user. Wait for successful completion before treating config as ready.
+For agent-style flows:
+
+- run `lark-cli config init --new` in the background,
+- extract the printed browser URL and send it to the user,
+- wait for the process to exit before treating configuration as finished.
+
+Config success gate:
+
+- the process exits with code `0`, and
+- `lark-cli config show` shows a concrete `appId`, and
+- `lark-cli doctor` shows `config_file=pass` and `app_resolved=pass`.
+
+If the browser page is opened but the command is still waiting, configuration is not finished yet.
+If `config init --new` succeeds once, do not immediately rerun it unless `config show` or `doctor` proves config is still missing or broken.
 
 ### 5. Log in
 
-Run OAuth login appropriate to the task scope, for example:
+Prefer the non-looping agent pattern:
 
 ```bash
-lark-cli auth login --recommend
+lark-cli auth login --recommend --no-wait --json
 ```
 
-When upstream documents non-blocking agent login (for example `--no-wait` and device code flows), use those flags only when the user’s environment matches the documented pattern.
+Then use the returned `device_code` to resume polling:
+
+```bash
+lark-cli auth login --device-code <DEVICE_CODE>
+```
+
+This keeps the flow explicit:
+
+- first command returns the verification URL immediately,
+- second command is the single polling process,
+- and the agent can avoid repeatedly spawning fresh login sessions.
+
+Login success gate:
+
+- the polling command exits with code `0`, and
+- `lark-cli auth status` shows `identity: "user"`, and
+- `lark-cli doctor` reports `token_exists=pass`, `token_local=pass`, and ideally `token_verified=pass`.
+
+If login prints success text but `auth status` still shows `identity: "bot"`, treat that as not ready. Do not continue to real user-scoped operations.
+If a device-code session is already pending, do not restart `auth login --recommend`; continue or expire that session first.
 
 ### 6. Readiness check
 
@@ -118,6 +162,30 @@ If this does not show a healthy authenticated state with the scopes needed for t
 
 Optional deeper checks include `lark-cli auth check` for a specific scope when the user’s task depends on one.
 
+Readiness means all of these are true:
+
+- config exists,
+- current identity is the one required by the task,
+- required scopes are present,
+- and a lightweight read command for that domain succeeds when feasible.
+
+Examples:
+
+- Before task operations: `lark-cli auth status` and `lark-cli auth check --scope "task:task:write"`
+- Before message send: inspect help and do `--dry-run` first if available
+- Before broad automation: prefer one narrow read command in the same domain
+
+## Observable Success Rules
+
+Use these rules to avoid fake success and retry loops:
+
+- `config init --new` is successful only after the process exits and `config show` or `doctor` confirms config is resolved.
+- `auth login` is successful only after `auth status` says `identity: "user"`.
+- A write operation is successful only after the CLI returns a stable identifier or the resource can be fetched again.
+- Do not treat “user opened the browser page” as success.
+- Do not treat “command is still waiting” as a cue to start the same flow again.
+- If a command returns a concrete resource id or guid, store and reuse that id for verification instead of relying on fuzzy search.
+
 ## Safe Execution Rules
 
 - Prefer read-only commands and schema inspection (`lark-cli schema`, `--dry-run`) before mutating operations.
@@ -125,6 +193,19 @@ Optional deeper checks include `lark-cli auth check` for a specific scope when t
 - Prefer narrow domain flags (for example domain-limited login) when the user’s goal is limited to one surface.
 - Use `--format json` or `ndjson` when structured inspection reduces mistakes; use `table` or `pretty` when the user needs human-readable output.
 - If the user asks to relax security settings or bypass upstream defaults, refuse silently automating that path; surface upstream risk language and require explicit informed consent in the product channel, not inside the agent’s hidden defaults.
+
+Task-specific rule:
+
+- `task +get-my-tasks` means “tasks assigned to me”, not “every task I created”.
+- A task created without `--assignee` may be retrievable by `task tasks get` but not appear in `+get-my-tasks`.
+- For task creation verification, prefer this sequence:
+
+```bash
+lark-cli task +create ... --format json
+lark-cli task tasks get --params '{"task_guid":"<GUID>"}' --format json
+```
+
+- If the user wants the task to appear under “my tasks”, assign it explicitly to the current user with `--assignee <open_id>`.
 
 ## Privacy, Trust, And Compliance
 
@@ -145,9 +226,22 @@ When the user is unsure, default to smaller scope, fewer recipients, and read-on
 
 ### Config or auth errors
 
-- Re-run `lark-cli config init` or the documented repair path from upstream.
-- Re-run `lark-cli auth login` with the minimum domain set that still satisfies the task.
+- Do not blindly rerun both config and login.
+- First ask which state failed:
+  - `doctor` says config missing or unresolved
+  - `auth status` says bot only / not logged in
+  - `auth status` says user but scope is insufficient
+  - domain read/write command itself failed
+- Re-run only the failed stage.
 - Use `lark-cli auth status` and `lark-cli auth scopes` to compare granted scopes with the command’s needs.
+- If using agent mode, prefer `auth login --no-wait --json` plus `auth login --device-code ...` over repeatedly launching fresh blocking login commands.
+
+### Repeated waiting or apparent loop
+
+- If a `config init --new` or `auth login --device-code` process is already active, keep that single session as the source of truth.
+- If the user says they completed the browser step, poll the existing process and then verify with `config show`, `doctor`, or `auth status`.
+- Only declare timeout or failure after the current session exits or the device code expires.
+- Never stack multiple concurrent login attempts just because the terminal is still waiting.
 
 ### Command not recognized
 
@@ -165,5 +259,8 @@ The skill is working correctly when:
 - the user understands that execution is performed by local `lark-cli` against Lark/Feishu APIs under their app and tokens,
 - missing install, config, or login is identified before side effects,
 - `lark-cli auth status` reflects readiness before high-trust tasks when feasible,
+- config success and login success are judged by observable CLI state rather than browser completion alone,
+- the agent follows a single in-flight config/login session instead of spawning repeated retries,
+- task or resource writes are verified by concrete ids or follow-up reads,
 - destructive or broadcast actions wait for explicit confirmation when required,
 - and the real task runs only after the environment is truly ready.
