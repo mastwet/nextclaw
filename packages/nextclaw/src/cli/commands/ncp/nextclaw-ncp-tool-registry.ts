@@ -43,6 +43,8 @@ type NextclawNcpToolRegistryOptions = {
   getAdditionalTools?: (context: PreparedRunContext) => ReadonlyArray<NcpTool>;
   writeSubagentCompletionToSession?: (params: {
     sessionId: string;
+    runId: string;
+    toolCallId?: string;
     label: string;
     task: string;
     result: string;
@@ -156,6 +158,8 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
         }
         await this.options.writeSubagentCompletionToSession({
           sessionId,
+          runId: params.runId,
+          toolCallId: params.origin.toolCallId,
           label: params.label,
           task: params.task,
           result: params.result,
@@ -213,7 +217,7 @@ export class NextclawNcpToolRegistry implements NcpToolRegistry {
 
   async execute(toolCallId: string, toolName: string, args: unknown): Promise<unknown> {
     if (this.registry.has(toolName)) {
-      return this.registry.execute(toolName, toToolParams(args), toolCallId);
+      return this.registry.executeRaw(toolName, toToolParams(args), toolCallId);
     }
     return this.tools.get(toolName)?.execute(args);
   }

@@ -290,7 +290,7 @@ export class NextclawNcpContextBuilder implements NcpContextBuilder {
       availableTools: buildToolCatalogEntries(toolDefinitions),
     });
     messages[messages.length - 1] = {
-      role: "user",
+      role: currentTurn.currentRole,
       content: currentTurn.currentUserContent,
     };
     const pruned = this.inputBudgetPruner.prune({

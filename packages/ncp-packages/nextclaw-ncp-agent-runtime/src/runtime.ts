@@ -13,6 +13,7 @@ import {
   type NcpStreamEncoder,
   type NcpToolRegistry,
   type OpenAIChatChunk,
+  isHiddenNcpMessage,
   NcpEventType,
 } from "@nextclaw/ncp";
 import { DefaultNcpStreamEncoder } from "./stream-encoder.js";
@@ -73,6 +74,9 @@ export class DefaultNcpAgentRuntime implements NcpAgentRuntime {
     });
 
     for (const msg of input.messages) {
+      if (isHiddenNcpMessage(msg)) {
+        continue;
+      }
       const messageSent: NcpEndpointEvent = {
         type: NcpEventType.MessageSent,
         payload: { sessionId: input.sessionId, message: msg },

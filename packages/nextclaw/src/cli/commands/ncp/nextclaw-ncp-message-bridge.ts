@@ -291,8 +291,9 @@ function buildLegacyNonAssistantMessage(
   timestamp: string,
   options: LegacyContentBuildOptions,
 ): SessionMessage {
+  const role = message.role === "service" ? "system" : message.role;
   return {
-    role: message.role,
+    role,
     content: buildLegacyUserContent(message.parts, options),
     timestamp,
     ncp_message_id: message.id,

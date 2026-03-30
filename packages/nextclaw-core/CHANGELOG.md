@@ -1,5 +1,11 @@
 # nextclaw-core
 
+## 0.11.11
+
+### Patch Changes
+
+- Publish the NCP subagent live follow-up fixes, including spawn tool result updates, parent-agent realtime continuation, and the aligned frontend chat visibility changes.
+
 ## 0.11.10
 
 ### Patch Changes

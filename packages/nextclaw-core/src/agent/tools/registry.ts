@@ -25,7 +25,12 @@ export class ToolRegistry {
       .map((tool) => tool.toSchema());
   }
 
-  async execute(name: string, params: Record<string, unknown>, toolCallId?: string): Promise<string> {
+  execute = async (name: string, params: Record<string, unknown>, toolCallId?: string): Promise<string> => {
+    const result = await this.executeRaw(name, params, toolCallId);
+    return stringifyToolResult(result);
+  };
+
+  executeRaw = async (name: string, params: Record<string, unknown>, toolCallId?: string): Promise<unknown> => {
     const tool = this.tools.get(name);
     if (!tool) {
       return `Error: Tool '${name}' not found`;
@@ -44,7 +49,7 @@ export class ToolRegistry {
       console.error(`[tool-registry] tool "${name}" execution failed`, err);
       return `Error executing ${name}: ${clipForUser(message, 320)}`;
     }
-  }
+  };
 
   get toolNames(): string[] {
     return Array.from(this.tools.keys());
@@ -60,4 +65,18 @@ function clipForUser(input: string, maxChars = 320): string {
     return normalized;
   }
   return `${normalized.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
+}
+
+function stringifyToolResult(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value == null) {
+    return "";
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }

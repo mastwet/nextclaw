@@ -164,6 +164,25 @@ describe("DefaultNcpAgentBackend with in-memory session store", () => {
     expect(streamed.at(-1)).toBe(NcpEventType.RunFinished);
   });
 
+  it("emits a terminal catch-up event when attaching after the run is already over", async () => {
+    const backend = createBackend(new EchoNcpLLMApi());
+
+    await backend.emit({
+      type: NcpEventType.MessageRequest,
+      payload: createEnvelope("hello"),
+    });
+
+    const streamed: string[] = [];
+    for await (const event of backend.stream({
+      payload: { sessionId: "session-1" },
+      signal: new AbortController().signal,
+    })) {
+      streamed.push(event.type);
+    }
+
+    expect(streamed).toEqual([NcpEventType.RunFinished]);
+  });
+
   it("publishes message.sent immediately before assistant streaming starts", async () => {
     const backend = createBackend(new SlowEchoNcpLLMApi());
     const events: string[] = [];

@@ -29,7 +29,7 @@ import type { NextclawExtensionRegistry } from "../plugins.js";
 import { createAssetTools } from "./ncp-asset-tools.js";
 import { NextclawNcpContextBuilder } from "./nextclaw-ncp-context-builder.js";
 import { NextclawAgentSessionStore } from "./nextclaw-agent-session-store.js";
-import { buildSubagentCompletionMessage } from "./ncp-subagent-completion-message.js";
+import { persistSubagentCompletionAndResumeParent } from "./ncp-subagent-completion-follow-up.js";
 import { NextclawNcpToolRegistry } from "./nextclaw-ncp-tool-registry.js";
 import { ProviderManagerNcpLLMApi } from "./provider-manager-ncp-llm-api.js";
 import {
@@ -198,16 +198,18 @@ function createNativeRuntimeFactory(
         if (!backend) {
           throw new Error("NCP backend is not ready for subagent completion persistence.");
         }
-        await backend.appendMessage(
-          completion.sessionId,
-          buildSubagentCompletionMessage({
+        await persistSubagentCompletionAndResumeParent({
+          backend,
+          completion: {
             sessionId: completion.sessionId,
+            runId: completion.runId,
+            toolCallId: completion.toolCallId,
             label: completion.label,
             task: completion.task,
             result: completion.result,
             status: completion.status,
-          }),
-        );
+          },
+        });
       },
       getAdditionalTools: (context) => [
         ...createAssetTools({

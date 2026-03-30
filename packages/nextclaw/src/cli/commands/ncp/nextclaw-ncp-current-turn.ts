@@ -112,6 +112,7 @@ export function buildCurrentTurnState(params: {
   formatPrompt: (params: { text: string; timestamp: Date }) => string;
   assetStore?: LocalAssetStore | null;
 }): {
+  currentRole: "user" | "system";
   currentUserContent: unknown;
   effectiveModel: string;
 } {
@@ -133,6 +134,7 @@ export function buildCurrentTurnState(params: {
   });
 
   return {
+    currentRole: latestUserMessage?.role === "system" ? "system" : "user",
     currentUserContent: buildLegacyUserContent(currentParts, {
       assetStore: params.assetStore,
     }),

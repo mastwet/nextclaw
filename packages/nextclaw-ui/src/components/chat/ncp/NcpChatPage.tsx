@@ -70,7 +70,7 @@ export function NcpChatPage({ view }: ChatPageProps) {
   const { sessionId: routeSessionIdParam } = useParams<{ sessionId?: string }>();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const selectedSessionKeyRef = useRef<string | null>(selectedSessionKey);
-  const pendingRealtimeReloadRef = useRef(false);
+  const sessionStreamAttachInFlightRef = useRef(false);
   const routeSessionKey = useMemo(
     () => parseSessionKeyFromRoute(routeSessionIdParam),
     [routeSessionIdParam]
@@ -157,39 +157,33 @@ export function NcpChatPage({ view }: ChatPageProps) {
   const lastSendError = agent.hydrateError?.message ?? agent.snapshot.error?.message ?? null;
 
   useEffect(() => {
-    const flushRealtimeReload = () => {
-      if (agent.isHydrating || agent.isRunning || agent.isSending) {
-        pendingRealtimeReloadRef.current = true;
+    const attachRealtimeSessionStream = () => {
+      if (sessionStreamAttachInFlightRef.current) {
         return;
       }
-      pendingRealtimeReloadRef.current = false;
-      void agent.reloadSeed();
+      if (agent.isHydrating || agent.isRunning || agent.isSending) {
+        return;
+      }
+
+      sessionStreamAttachInFlightRef.current = true;
+      void ncpClient
+        .stream({ sessionId: activeSessionId })
+        .catch(() => undefined)
+        .finally(() => {
+          sessionStreamAttachInFlightRef.current = false;
+        });
     };
 
     return appClient.subscribe((event) => {
-      if (event.type === 'session.summary.upsert') {
-        if (event.payload.summary.sessionId !== activeSessionId) {
-          return;
-        }
-        flushRealtimeReload();
+      if (event.type === 'session.updated' && event.payload.sessionKey === activeSessionId) {
+        attachRealtimeSessionStream();
         return;
       }
-      if (event.type === 'session.updated' && event.payload.sessionKey === activeSessionId) {
-        flushRealtimeReload();
+      if (event.type === 'session.summary.upsert' && event.payload.summary.sessionId === activeSessionId) {
+        attachRealtimeSessionStream();
       }
     });
-  }, [activeSessionId, agent.isHydrating, agent.isRunning, agent.isSending, agent.reloadSeed]);
-
-  useEffect(() => {
-    if (!pendingRealtimeReloadRef.current) {
-      return;
-    }
-    if (agent.isHydrating || agent.isRunning || agent.isSending) {
-      return;
-    }
-    pendingRealtimeReloadRef.current = false;
-    void agent.reloadSeed();
-  }, [agent.isHydrating, agent.isRunning, agent.isSending, agent.reloadSeed]);
+  }, [activeSessionId, agent.isHydrating, agent.isRunning, agent.isSending, ncpClient]);
 
   useEffect(() => {
     presenter.chatStreamActionsManager.bind({

@@ -10,6 +10,12 @@
  */
 export type NcpMessageRole = "user" | "assistant" | "system" | "tool" | "service";
 
+export const NCP_INTERNAL_VISIBILITY_METADATA_KEY = "ncp_internal_visibility";
+
+export function isHiddenNcpMessage(message: Pick<NcpMessage, "metadata"> | null | undefined): boolean {
+  return message?.metadata?.[NCP_INTERNAL_VISIBILITY_METADATA_KEY] === "hidden";
+}
+
 /**
  * Lifecycle state of a message.
  *

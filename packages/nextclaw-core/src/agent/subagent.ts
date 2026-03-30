@@ -19,7 +19,7 @@ export class SubagentManager {
       id: string;
       label: string;
       task: string;
-      origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string };
+      origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string; toolCallId?: string };
       startedAt: string;
       status: "running" | "done" | "error" | "cancelled";
       cancelled: boolean;
@@ -40,10 +40,11 @@ export class SubagentManager {
       execConfig?: { timeout: number };
       restrictToWorkspace?: boolean;
       completionSink?: (params: {
+        runId: string;
         label: string;
         task: string;
         result: string;
-        origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string };
+        origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string; toolCallId?: string };
         status: "ok" | "error";
       }) => Promise<void>;
     }
@@ -86,7 +87,8 @@ export class SubagentManager {
     originChatId?: string;
     originSessionKey?: string;
     originAgentId?: string;
-  }): Promise<string> {
+    originToolCallId?: string;
+  }): Promise<{ runId: string; label: string; task: string; status: "running"; message: string }> {
     const taskId = randomUUID().slice(0, 8);
     const displayLabel = params.label ?? `${params.task.slice(0, 30)}${params.task.length > 30 ? "..." : ""}`;
     const model = resolveSubagentModel({
@@ -99,7 +101,8 @@ export class SubagentManager {
       channel: params.originChannel ?? "cli",
       chatId: params.originChatId ?? "direct",
       ...(params.originSessionKey?.trim() ? { sessionKey: params.originSessionKey.trim() } : {}),
-      ...(params.originAgentId?.trim() ? { agentId: params.originAgentId.trim() } : {})
+      ...(params.originAgentId?.trim() ? { agentId: params.originAgentId.trim() } : {}),
+      ...(params.originToolCallId?.trim() ? { toolCallId: params.originToolCallId.trim() } : {})
     };
     this.runs.set(taskId, {
       id: taskId,
@@ -130,7 +133,13 @@ export class SubagentManager {
       this.steerQueue.delete(taskId);
     });
 
-    return `Subagent [${displayLabel}] started (id: ${taskId}). I'll notify you when it completes.`;
+    return {
+      runId: taskId,
+      label: displayLabel,
+      task: params.task,
+      status: "running",
+      message: `Subagent [${displayLabel}] started (id: ${taskId}). I'll notify you when it completes.`,
+    };
   }
 
   private async runSubagent(params: {
@@ -138,7 +147,7 @@ export class SubagentManager {
     task: string;
     label: string;
     model: string;
-    origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string };
+    origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string; toolCallId?: string };
   }): Promise<void> {
     try {
       const run = this.runs.get(params.taskId);
@@ -221,6 +230,7 @@ export class SubagentManager {
         runAfter.status = "done";
         runAfter.doneAt = new Date().toISOString();
         await this.announceResult({
+          runId: params.taskId,
           label: params.label,
           task: params.task,
           result: finalResult,
@@ -234,6 +244,7 @@ export class SubagentManager {
         runAfter.status = "error";
         runAfter.doneAt = new Date().toISOString();
         await this.announceResult({
+          runId: params.taskId,
           label: params.label,
           task: params.task,
           result: `Error: ${String(err)}`,
@@ -245,10 +256,11 @@ export class SubagentManager {
   }
 
   private async announceResult(params: {
+    runId: string;
     label: string;
     task: string;
     result: string;
-    origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string };
+    origin: { channel: string; chatId: string; sessionKey?: string; agentId?: string; toolCallId?: string };
     status: "ok" | "error";
   }): Promise<void> {
     if (params.origin.sessionKey?.trim() && this.options.completionSink) {

@@ -32,7 +32,7 @@ afterEach(() => {
 describe("createUiNcpAgent subagent completion", () => {
   it("persists NCP-native subagent completion back into the originating session without the legacy relay", async () => {
     const workspace = createTempWorkspace();
-    const sessionId = "session-subagent-native";
+    const sessionId = `session-subagent-native-${Date.now().toString(36)}`;
     const sessionManager = new SessionManager(workspace);
     const publishInbound = vi.fn(async () => undefined);
     const bus = {
@@ -70,12 +70,36 @@ describe("createUiNcpAgent subagent completion", () => {
       expect(
         messages.some(
           (message) =>
-            message.role === "service" &&
+            message.role === "assistant" &&
+            message.parts.some(
+              (part) =>
+                part.type === "tool-invocation" &&
+                part.toolCallId === "spawn-call-1" &&
+                part.state === "result" &&
+                typeof part.result === "object" &&
+                part.result !== null &&
+                "kind" in part.result &&
+                part.result.kind === "nextclaw.subagent_run" &&
+                "status" in part.result &&
+                part.result.status === "completed" &&
+                "result" in part.result &&
+                String(part.result.result).includes("Verified 1+1=2"),
+            ),
+        ),
+      ).toBe(true);
+    });
+
+    await vi.waitFor(async () => {
+      const messages = await ncpAgent.sessionApi.listSessionMessages(sessionId);
+      expect(
+        messages.some(
+          (message) =>
+            message.role === "assistant" &&
             message.parts.some(
               (part) =>
                 part.type === "text" &&
-                part.text.includes("Subagent") &&
-                part.text.includes("Verified 1+1=2"),
+                part.text.includes("Verified 1+1=2") &&
+                part.text.includes("continuing"),
             ),
         ),
       ).toBe(true);
@@ -85,21 +109,40 @@ describe("createUiNcpAgent subagent completion", () => {
     expect(
       refreshedMessages.some(
         (message) =>
-          message.role === "service" &&
+          message.role === "assistant" &&
           message.parts.some(
             (part) =>
-              part.type === "extension" &&
-              part.extensionType === "nextclaw.subagent.completion",
+              part.type === "tool-invocation" &&
+              part.toolCallId === "spawn-call-1" &&
+              part.state === "result",
           ),
       ),
     ).toBe(true);
+    expect(
+      refreshedMessages.some((message) => message.role === "service"),
+    ).toBe(false);
+    expect(
+      refreshedMessages.some(
+        (message) =>
+          message.role === "system" &&
+          message.metadata?.system_event_kind === "subagent_completion_follow_up",
+      ),
+    ).toBe(false);
 
     const persistedSession = sessionManager.getIfExists(sessionId);
     expect(
       persistedSession?.messages.some(
         (message) =>
-          message.role === "service" &&
-          String(message.content ?? "").includes("Verified 1+1=2"),
+          message.role === "assistant" &&
+          Array.isArray(message.tool_calls) &&
+          message.tool_calls.some((toolCall) => toolCall.id === "spawn-call-1"),
+      ),
+    ).toBe(true);
+    expect(
+      persistedSession?.messages.some(
+        (message) =>
+          message.role === "assistant" &&
+          String(message.content ?? "").includes("continuing with the verified result"),
       ),
     ).toBe(true);
     expect(publishInbound).not.toHaveBeenCalled();
@@ -119,8 +162,28 @@ class SubagentCompletionProviderManager {
         message.role === "tool" &&
         String(message.content ?? "").includes("Subagent [Verifier] started"),
     );
+    const hasHiddenFollowUp = params.messages.some(
+      (message) =>
+        message.role === "system" &&
+        String(message.content ?? "").includes("[SYSTEM EVENT: SUBAGENT_COMPLETED]") &&
+        String(message.content ?? "").includes("you previously spawned") &&
+        String(message.content ?? "").includes("Verified 1+1=2"),
+    );
 
     return (async function* (): AsyncGenerator<LLMStreamEvent> {
+      if (hasHiddenFollowUp) {
+        yield {
+          type: "done",
+          response: {
+            content: "Verified 1+1=2 and continuing with the verified result.",
+            toolCalls: [],
+            finishReason: "stop",
+            usage: {},
+          },
+        };
+        return;
+      }
+
       if (!hasSpawnToolResult) {
         yield {
           type: "done",

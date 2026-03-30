@@ -141,6 +141,46 @@ it("maps tool lifecycle statuses into visible card state feedback", () => {
   });
 });
 
+it("renders spawn tool cards from structured subagent status updates", () => {
+  const adapted = adapt([
+    {
+      id: "assistant-subagent",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-invocation",
+          toolInvocation: {
+            status: ToolInvocationStatus.RESULT,
+            toolCallId: "spawn-call-1",
+            toolName: "spawn",
+            args: '{"label":"Verifier","task":"Verify 1+1=2"}',
+            result: {
+              kind: "nextclaw.subagent_run",
+              runId: "subagent-1",
+              label: "Verifier",
+              task: "Verify 1+1=2",
+              status: "completed",
+              result: "Verified 1+1=2.",
+            },
+          },
+        },
+      ],
+    },
+  ] as unknown as ChatMessageSource[]);
+
+  expect(adapted[0]?.parts[0]).toMatchObject({
+    type: "tool-card",
+    card: {
+      toolName: "spawn",
+      summary: "label: Verifier · task: Verify 1+1=2",
+      output: "Verified 1+1=2.",
+      statusTone: "success",
+      statusLabel: "Completed",
+      titleLabel: "Tool Result",
+    },
+  });
+});
+
 it("maps non-standard roles back to the generic message role", () => {
   const adapted = adapt([
     {

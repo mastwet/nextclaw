@@ -351,3 +351,69 @@ it("references uploaded assets in current-turn content", async () => {
       ],
     });
 });
+
+it("normalizes service history messages to system before sending them upstream", () => {
+    const { workspace } = createWorkspace();
+    const config = ConfigSchema.parse({
+      agents: {
+        defaults: {
+          workspace,
+          model: "dashscope/qwen3.5-plus",
+          contextTokens: 200000,
+          maxToolIterations: 8,
+        },
+      },
+      providers: {
+        openai: {
+          enabled: true,
+          apiKey: "test-openai-key",
+          models: ["gpt-5.4"],
+        },
+      },
+    });
+    const builder = new NextclawNcpContextBuilder({
+      sessionManager: new SessionManager(workspace),
+      toolRegistry: {
+        prepareForRun: vi.fn(),
+        getToolDefinitions: () => [],
+      } as never,
+      getConfig: () => config,
+    });
+
+    const sessionId = `session-${randomUUID()}`;
+    const prepared = builder.prepare(
+      {
+        sessionId,
+        messages: [
+          {
+            id: "follow-up-system-1",
+            sessionId,
+            role: "system",
+            status: "final",
+            timestamp: new Date("2026-03-31T10:01:00.000Z").toISOString(),
+            parts: [{ type: "text", text: "continue from the service update" }],
+          },
+        ],
+        metadata: {},
+      } as never,
+      {
+        sessionMessages: [
+          {
+            id: "service-1",
+            sessionId,
+            role: "service",
+            status: "final",
+            timestamp: new Date("2026-03-31T10:00:00.000Z").toISOString(),
+            parts: [{ type: "text", text: "Subagent Verifier completed." }],
+          },
+        ],
+      } as never,
+    );
+
+    expect(prepared.messages).toContainEqual(
+      expect.objectContaining({
+        role: "system",
+        content: "Subagent Verifier completed.",
+      }),
+    );
+  });

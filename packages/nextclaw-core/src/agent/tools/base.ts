@@ -25,7 +25,7 @@ export abstract class Tool {
   abstract get description(): string;
   abstract get parameters(): Record<string, unknown>;
 
-  abstract execute(params: Record<string, unknown>, toolCallId?: string): Promise<string>;
+  abstract execute(params: Record<string, unknown>, toolCallId?: string): Promise<unknown>;
 
   isAvailable(): boolean {
     return true;

@@ -34,22 +34,12 @@ import {
   buildPersistedLiveSessionRecord,
   buildUpdatedSessionRecord,
 } from "./agent-backend-session-persistence.js";
+import { updateAgentBackendToolCallResult } from "./agent-backend-update-tool-call-result.js";
 import { appendAgentBackendMessage } from "./agent-backend-append-message.js";
 import { streamAgentBackendExecution } from "./agent-backend-stream.js";
 import { EventPublisher } from "./event-publisher.js";
 
-const DEFAULT_SUPPORTED_PART_TYPES: NcpEndpointManifest["supportedPartTypes"] = [
-  "text",
-  "file",
-  "source",
-  "step-start",
-  "reasoning",
-  "tool-invocation",
-  "card",
-  "rich-text",
-  "action",
-  "extension",
-];
+const DEFAULT_SUPPORTED_PART_TYPES: NcpEndpointManifest["supportedPartTypes"] = ["text", "file", "source", "step-start", "reasoning", "tool-invocation", "card", "rich-text", "action", "extension"];
 
 export type DefaultNcpAgentBackendConfig = {
   createRuntime: CreateRuntimeFn;
@@ -232,6 +222,19 @@ export class DefaultNcpAgentBackend
       message,
       sessionRegistry: this.sessionRegistry,
       sessionStore: this.sessionStore,
+      publisher: this.publisher,
+      persistSession: async (nextSessionId) => this.persistSession(nextSessionId),
+      getSession: async (nextSessionId) => this.getSession(nextSessionId),
+    });
+  };
+
+  updateToolCallResult = async (sessionId: string, toolCallId: string, content: unknown): Promise<NcpSessionSummary | null> => {
+    await this.ensureStarted();
+    return updateAgentBackendToolCallResult({
+      sessionId,
+      toolCallId,
+      content,
+      sessionRegistry: this.sessionRegistry,
       publisher: this.publisher,
       persistSession: async (nextSessionId) => this.persistSession(nextSessionId),
       getSession: async (nextSessionId) => this.getSession(nextSessionId),

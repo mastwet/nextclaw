@@ -1,5 +1,15 @@
 # @nextclaw/ui
 
+## 0.11.15
+
+### Patch Changes
+
+- Publish the NCP subagent live follow-up fixes, including spawn tool result updates, parent-agent realtime continuation, and the aligned frontend chat visibility changes.
+- Updated dependencies
+  - @nextclaw/ncp@0.4.2
+  - @nextclaw/ncp-react@0.4.6
+  - @nextclaw/ncp-http-agent-client@0.3.6
+
 ## 0.11.14
 
 ### Patch Changes

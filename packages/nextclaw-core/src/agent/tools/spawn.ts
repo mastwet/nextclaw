@@ -46,7 +46,7 @@ export class SpawnTool extends Tool {
     this.agentId = agentId;
   }
 
-  async execute(params: Record<string, unknown>): Promise<string> {
+  execute = async (params: Record<string, unknown>, toolCallId?: string): Promise<unknown> => {
     const task = String(params.task ?? "");
     const label = params.label ? String(params.label) : undefined;
     const model = typeof params.model === "string" && params.model.trim().length > 0 ? params.model.trim() : undefined;
@@ -58,7 +58,8 @@ export class SpawnTool extends Tool {
       originChannel: this.channel,
       originChatId: this.chatId,
       originSessionKey: this.sessionKey,
-      originAgentId: this.agentId
+      originAgentId: this.agentId,
+      originToolCallId: toolCallId,
     });
-  }
+  };
 }

@@ -3,6 +3,7 @@ import type {
   NcpEndpointEvent,
   NcpStreamRequestPayload,
 } from "@nextclaw/ncp";
+import { NcpEventType } from "@nextclaw/ncp";
 import { createAsyncQueue } from "./async-queue.js";
 import type { AgentLiveSessionRegistry } from "./agent-live-session-registry.js";
 import { isTerminalEvent } from "./agent-backend-session-utils.js";
@@ -26,6 +27,14 @@ export async function* streamAgentBackendExecution(params: {
   const session = params.sessionRegistry.getSession(payload.sessionId);
   const execution = session?.activeExecution;
   if (!session || !execution || execution.closed) {
+    if (session) {
+      yield {
+        type: NcpEventType.RunFinished,
+        payload: {
+          sessionId: payload.sessionId,
+        },
+      };
+    }
     return;
   }
 

@@ -22,7 +22,6 @@ export type UseHydratedNcpAgentOptions = {
 export type UseHydratedNcpAgentResult = UseNcpAgentResult & {
   isHydrating: boolean;
   hydrateError: Error | null;
-  reloadSeed: () => Promise<void>;
 };
 
 type LoadState = {
@@ -55,7 +54,7 @@ export function useHydratedNcpAgent({
   const [hydratedSessionId, setHydratedSessionId] = useState<string | null>(null);
   const loadStateRef = useRef<LoadState>({ requestId: 0, controller: null });
 
-  const reloadSeed = useCallback(async () => {
+  const hydrateSeed = useCallback(async () => {
     loadStateRef.current.controller?.abort();
 
     const controller = new AbortController();
@@ -115,13 +114,13 @@ export function useHydratedNcpAgent({
   }, [autoResumeRunningSession, client, loadSeed, manager, sessionId]);
 
   useEffect(() => {
-    void reloadSeed();
+    void hydrateSeed();
 
     return () => {
       loadStateRef.current.controller?.abort();
       loadStateRef.current.controller = null;
     };
-  }, [reloadSeed]);
+  }, [hydrateSeed]);
 
   return {
     ...runtime,
@@ -131,6 +130,5 @@ export function useHydratedNcpAgent({
       isHydrating,
     }),
     hydrateError,
-    reloadSeed,
   };
 }

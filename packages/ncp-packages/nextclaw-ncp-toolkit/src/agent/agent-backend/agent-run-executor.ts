@@ -1,4 +1,8 @@
-import type { NcpEndpointEvent, NcpRequestEnvelope } from "@nextclaw/ncp";
+import {
+  type NcpEndpointEvent,
+  type NcpRequestEnvelope,
+  isHiddenNcpMessage,
+} from "@nextclaw/ncp";
 import { NcpEventType } from "@nextclaw/ncp";
 import type { LiveSessionState } from "./agent-backend-types.js";
 
@@ -12,17 +16,19 @@ export class AgentRunExecutor {
     envelope: NcpRequestEnvelope,
     controller: AbortController,
   ): AsyncGenerator<NcpEndpointEvent> {
-    const messageSent: NcpEndpointEvent = {
-      type: NcpEventType.MessageSent,
-      payload: {
-        sessionId: envelope.sessionId,
-        message: structuredClone(envelope.message),
-        metadata: envelope.metadata,
-      },
-    };
-    await session.stateManager.dispatch(messageSent);
-    await this.persistSession(envelope.sessionId);
-    yield structuredClone(messageSent);
+    if (!isHiddenNcpMessage(envelope.message)) {
+      const messageSent: NcpEndpointEvent = {
+        type: NcpEventType.MessageSent,
+        payload: {
+          sessionId: envelope.sessionId,
+          message: structuredClone(envelope.message),
+          metadata: envelope.metadata,
+        },
+      };
+      await session.stateManager.dispatch(messageSent);
+      await this.persistSession(envelope.sessionId);
+      yield structuredClone(messageSent);
+    }
 
     try {
       for await (const event of session.runtime.run(

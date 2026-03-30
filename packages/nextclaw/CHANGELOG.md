@@ -1,5 +1,22 @@
 # nextclaw
 
+## 0.16.25
+
+### Patch Changes
+
+- Publish the NCP subagent live follow-up fixes, including spawn tool result updates, parent-agent realtime continuation, and the aligned frontend chat visibility changes.
+- Updated dependencies
+  - @nextclaw/core@0.11.11
+  - @nextclaw/ncp@0.4.2
+  - @nextclaw/ncp-agent-runtime@0.3.2
+  - @nextclaw/ncp-toolkit@0.4.9
+  - @nextclaw/mcp@0.1.58
+  - @nextclaw/openclaw-compat@0.3.50
+  - @nextclaw/remote@0.1.68
+  - @nextclaw/runtime@0.2.25
+  - @nextclaw/server@0.11.16
+  - @nextclaw/ncp-mcp@0.1.59
+
 ## 0.16.24
 
 ### Patch Changes

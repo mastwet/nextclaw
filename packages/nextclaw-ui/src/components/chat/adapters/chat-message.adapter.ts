@@ -3,6 +3,7 @@ import {
   summarizeToolArgs,
   type ToolCard,
 } from "@/lib/chat-message";
+import { buildSubagentToolCard } from "@/components/chat/adapters/chat-message.subagent-tool-card";
 import type {
   ChatMessageRole,
   ChatMessageViewModel,
@@ -385,6 +386,16 @@ export function adaptChatMessage(
           );
           if (assetFileView) {
             return assetFileView;
+          }
+          const subagentToolCard = buildSubagentToolCard({
+            invocation,
+            texts: params.texts,
+          });
+          if (subagentToolCard) {
+            return {
+              type: "tool-card" as const,
+              card: buildToolCard(subagentToolCard, params.texts),
+            };
           }
           const statusView = resolveToolCardStatus({
             status: invocation.status,
