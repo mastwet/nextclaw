@@ -43,21 +43,13 @@ jobs:
         shell: pwsh
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build nextclaw package
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          pnpm -C packages/nextclaw lint
-          pnpm -C packages/nextclaw tsc
-          pnpm -C packages/nextclaw build
-
       - name: Run nextclaw update on Windows
         shell: pwsh
         env:
           NEXTCLAW_UPDATE_COMMAND: 'node -e "process.exit(0)"'
         run: |
           $ErrorActionPreference = "Stop"
-          $output = node packages/nextclaw/dist/cli.js update --timeout 120000
+          $output = pnpm -C packages/nextclaw exec tsx src/cli/index.ts update --timeout 120000
           $output | Out-Host
           if ($LASTEXITCODE -ne 0) {
             throw "nextclaw update failed with exit code $LASTEXITCODE"
