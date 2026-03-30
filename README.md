@@ -130,9 +130,9 @@ Visit **[docs.nextclaw.io](https://docs.nextclaw.io/en/)** for the full document
 ## Community
 
 - **Discord** — [NextClaw / OpenClaw](https://discord.gg/j4Skbgye)
-- **WeChat Group** — Scan to join:
+- **QQ Group** — Scan to join:
 
-  <img src="images/contact/nextclaw-contact-wechat-group.png" width="180" alt="WeChat Group QR" />
+  <img src="images/contact/nextclaw-contact-qq-group.jpg" width="180" alt="QQ Group QR" />
 
 ## Contributing
 
