@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-03-31T03:21:17.389Z",
+  "generatedAt": "2026-04-01T03:21:40.745Z",
   "projectRoot": "/home/runner/work/nextclaw/nextclaw",
   "git": {
-    "sha": "83a8f4c75061c31561e5ea785037d5400328fd67",
+    "sha": "2617e0d08f46ff12c109a84c2671e622b3294653",
     "ref": "master"
   },
   "scope": {
@@ -477,8 +477,8 @@
     }
   ],
   "delta": {
-    "previousCodeLines": 147269,
-    "codeLines": 2102,
-    "percent": 1.43
+    "previousCodeLines": 149371,
+    "codeLines": 0,
+    "percent": 0
   }
 }
